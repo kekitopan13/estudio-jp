@@ -1,0 +1,381 @@
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:var(--font-sans,system-ui,sans-serif);color:var(--color-text-primary,#1a1a18);background:var(--color-background-tertiary,#f5f5f3)}
+.screen{display:none;padding:12px}
+.screen.active{display:block}
+
+.editor-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.editor-header h2{font-size:17px;font-weight:500}
+.pair-count{font-size:12px;color:var(--color-text-secondary,#888);margin-bottom:8px}
+.pair-list{display:flex;flex-direction:column;gap:6px;margin-bottom:12px;max-height:40vh;overflow-y:auto}
+.pair-row{display:flex;gap:6px;align-items:center}
+.pair-row input{flex:1;font-size:15px;padding:8px 10px;border:1px solid var(--color-border-secondary,#ccc);border-radius:10px;background:var(--color-background-primary,#fff);color:var(--color-text-primary,#1a1a18);min-width:0}
+.del-btn{width:34px;height:34px;border:none;background:none;font-size:20px;cursor:pointer;color:var(--color-text-secondary,#888);flex-shrink:0;border-radius:8px;display:flex;align-items:center;justify-content:center}
+
+.add-row{display:flex;gap:6px;margin-bottom:10px}
+.add-row input{flex:1;font-size:15px;padding:8px 10px;border:1px solid var(--color-border-secondary,#ccc);border-radius:10px;background:var(--color-background-primary,#fff);color:var(--color-text-primary,#1a1a18);min-width:0}
+.add-row button{padding:8px 12px;border:1px solid #378ADD;border-radius:10px;background:#378ADD;color:#fff;font-size:14px;font-weight:500;cursor:pointer;flex-shrink:0;-webkit-appearance:none}
+
+.bulk-toggle{font-size:13px;color:#378ADD;cursor:pointer;margin-bottom:8px;display:inline-block;padding:4px 0}
+.bulk-area{display:none;margin-bottom:12px;background:var(--color-background-primary,#fff);border:1px solid var(--color-border-secondary,#ccc);border-radius:12px;padding:10px}
+.bulk-area.open{display:block}
+.bulk-hint{font-size:12px;color:var(--color-text-secondary,#888);margin-bottom:6px;line-height:1.4}
+.bulk-area textarea{width:100%;font-size:13px;padding:8px;border:1px solid var(--color-border-secondary,#ccc);border-radius:8px;background:var(--color-background-secondary,#f5f5f3);color:var(--color-text-primary,#1a1a18);resize:vertical;margin-bottom:8px;-webkit-appearance:none}
+.bulk-btns{display:flex;gap:8px}
+.bulk-btns button{flex:1;padding:9px;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;-webkit-appearance:none}
+.btn-bulk-add{border:1px solid #378ADD;background:#378ADD;color:#fff}
+.btn-bulk-del{border:1px solid #A32D2D;background:#fff;color:#A32D2D}
+.bulk-msg{font-size:12px;margin-top:6px;min-height:16px}
+
+.dose-row{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.dose-row label{font-size:13px;color:var(--color-text-secondary,#888)}
+.dose-row select{font-size:14px;padding:6px 8px;border:1px solid var(--color-border-secondary,#ccc);border-radius:8px;background:var(--color-background-primary,#fff);color:var(--color-text-primary,#1a1a18)}
+.start-btn{width:100%;padding:13px;border:none;border-radius:12px;background:#378ADD;color:#fff;font-size:16px;font-weight:500;cursor:pointer;-webkit-appearance:none}
+.start-btn:disabled{background:#aaa}
+
+/* quiz */
+.quiz-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.quiz-header h2{font-size:16px;font-weight:500}
+.edit-link{font-size:13px;color:#378ADD;cursor:pointer;border:none;background:none;padding:4px 0;-webkit-appearance:none}
+.progress-bar-wrap{height:4px;background:var(--color-background-secondary,#ebebea);border-radius:2px;margin-bottom:8px}
+.progress-bar{height:4px;background:#378ADD;border-radius:2px;transition:width .3s}
+.progress-txt{font-size:12px;color:var(--color-text-secondary,#888);margin-bottom:12px}
+.col-label{font-size:11px;font-weight:500;color:var(--color-text-secondary,#888);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px}
+.chips-wrap{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+.chip{padding:8px 14px;border:1px solid var(--color-border-secondary,#ccc);border-radius:20px;background:var(--color-background-primary,#fff);font-size:15px;font-weight:500;cursor:pointer;color:var(--color-text-primary,#1a1a18);-webkit-appearance:none;user-select:none}
+.chip.selected{border-color:#378ADD;background:#e6f1fb;color:#185FA5}
+.chip.used{display:none}
+.chip.correct{border-color:#3B6D11;background:#eaf3de;color:#3B6D11;display:inline-block;cursor:default}
+.chip.wrong-chip{border-color:#A32D2D;background:#fcebeb;color:#A32D2D}
+.targets-wrap{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.target{background:var(--color-background-primary,#fff);border:1px solid var(--color-border-secondary,#ccc);border-radius:12px;padding:10px 12px;cursor:pointer;min-height:52px;user-select:none}
+.target.correct{border-color:#3B6D11;background:#eaf3de;cursor:default}
+.target.wrong{border-color:#A32D2D;background:#fcebeb}
+.t-reading{font-size:13px;color:var(--color-text-secondary,#888);margin-bottom:2px}
+.t-placed{font-size:15px;font-weight:500;min-height:22px}
+.quiz-actions{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+.quiz-actions button{width:100%;padding:12px;border-radius:12px;font-size:15px;font-weight:500;cursor:pointer;border:1px solid var(--color-border-secondary,#ccc);background:var(--color-background-primary,#fff);color:var(--color-text-primary,#1a1a18);-webkit-appearance:none}
+.quiz-actions .primary{border-color:#378ADD;background:#378ADD;color:#fff}
+.msg{font-size:13px;color:var(--color-text-secondary,#888);min-height:18px;margin-bottom:6px}
+
+/* summary */
+.summary-box{background:var(--color-background-primary,#fff);border-radius:14px;padding:14px;margin-bottom:14px}
+.summary-box h3{font-size:16px;font-weight:500;margin-bottom:10px}
+.err-item{padding:8px 0;border-bottom:1px solid var(--color-border-tertiary,#eee);font-size:14px;line-height:1.6}
+.err-item:last-child{border-bottom:none}
+.err-kanji{font-size:16px;font-weight:500}
+.err-sep{color:var(--color-text-secondary,#888);margin:0 4px}
+.err-reading{color:var(--color-text-secondary,#888)}
+.err-wrong{color:#A32D2D;font-size:12px}
+.perfect{color:#3B6D11;font-size:14px}
+.summary-actions{display:flex;flex-direction:column;gap:8px}
+.summary-actions button{width:100%;padding:12px;border-radius:12px;font-size:15px;font-weight:500;cursor:pointer;-webkit-appearance:none}
+.btn-restart{border:1px solid #378ADD;background:#378ADD;color:#fff}
+.btn-edit{border:1px solid var(--color-border-secondary,#ccc);background:var(--color-background-primary,#fff);color:var(--color-text-primary,#1a1a18)}
+</style>
+
+<!-- EDITOR -->
+<div id="screen-editor" class="screen active">
+  <div class="editor-header"><h2>Palabras del quiz</h2></div>
+  <div class="pair-count" id="pair-count"></div>
+  <div class="pair-list" id="pair-list"></div>
+
+  <div class="add-row">
+    <input id="new-a" placeholder="Kanji / palabra" autocomplete="off" />
+    <input id="new-b" placeholder="Lectura" autocomplete="off" />
+    <button id="btn-add-one">+ Agregar</button>
+  </div>
+
+  <div class="bulk-toggle" id="bulk-toggle">▸ Agregar o eliminar en masa</div>
+  <div class="bulk-area" id="bulk-area">
+    <div class="bulk-hint">Pega pares separados por tab o punto y coma, un par por línea:<br><code>強調;きょうちょう</code></div>
+    <textarea id="bulk-input" rows="5" placeholder="palabra1;lectura1&#10;palabra2;lectura2"></textarea>
+    <div class="bulk-btns">
+      <button class="btn-bulk-add" id="btn-bulk-add">Agregar estos pares</button>
+      <button class="btn-bulk-del" id="btn-bulk-del">Eliminar estos pares</button>
+    </div>
+    <div class="bulk-msg" id="bulk-msg"></div>
+  </div>
+
+  <div class="dose-row">
+    <label for="doseSelect">Pares por ronda:</label>
+    <select id="doseSelect">
+      <option value="3">3</option><option value="4">4</option>
+      <option value="5" selected>5</option><option value="6">6</option>
+      <option value="7">7</option><option value="8">8</option>
+      <option value="10">10</option><option value="12">12</option>
+      <option value="15">15</option><option value="20">20</option>
+      <option value="25">25</option><option value="999">Todas</option>
+    </select>
+  </div>
+  <button class="start-btn" id="start-btn">Empezar quiz →</button>
+</div>
+
+<!-- QUIZ -->
+<div id="screen-quiz" class="screen">
+  <div class="quiz-header">
+    <h2>Match up</h2>
+    <button class="edit-link" id="btn-go-editor">✎ Editar palabras</button>
+  </div>
+  <div class="progress-bar-wrap"><div class="progress-bar" id="prog-bar"></div></div>
+  <div class="progress-txt" id="prog-txt"></div>
+  <div class="col-label">Kanji — selecciona uno</div>
+  <div class="chips-wrap" id="chips-wrap"></div>
+  <div class="col-label">Lectura — toca dónde colocarlo</div>
+  <div class="targets-wrap" id="targets-wrap"></div>
+  <div class="quiz-actions" id="quiz-actions"></div>
+  <div class="msg" id="msg"></div>
+</div>
+
+<!-- SUMMARY -->
+<div id="screen-summary" class="screen">
+  <div class="quiz-header"><h2>Resumen</h2></div>
+  <div class="summary-box" id="summary-box"></div>
+  <div class="summary-actions">
+    <button class="btn-restart" id="btn-restart">Volver a empezar</button>
+    <button class="btn-edit" id="btn-summary-edit">Editar palabras</button>
+  </div>
+</div>
+
+<script>
+var pairs=[];
+
+var rounds=[],currentRound=0,errors=[],roundChecked=false;
+var selectedChipIdx=null,placements={},currentPairs=[],currentChipOrder=[];
+
+function show(id){
+  document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});
+  document.getElementById(id).classList.add('active');
+}
+
+// ---- EDITOR ----
+function renderEditor(){
+  var list=document.getElementById('pair-list');
+  list.innerHTML=pairs.map(function(p,i){
+    return '<div class="pair-row">'+
+      '<input value="'+esc(p.a)+'" data-idx="'+i+'" data-field="a"/>'+
+      '<input value="'+esc(p.b)+'" data-idx="'+i+'" data-field="b"/>'+
+      '<button class="del-btn" data-del="'+i+'">×</button>'+
+    '</div>';
+  }).join('');
+  list.querySelectorAll('input').forEach(function(inp){
+    inp.addEventListener('change',function(){
+      pairs[+inp.dataset.idx][inp.dataset.field]=inp.value;
+    });
+  });
+  list.querySelectorAll('[data-del]').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      pairs.splice(+btn.dataset.del,1);
+      renderEditor();
+    });
+  });
+  updateCount();
+}
+
+function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;');}
+
+function updateCount(){
+  document.getElementById('pair-count').textContent=pairs.length+' pares en total';
+  document.getElementById('start-btn').disabled=pairs.length<2;
+}
+
+function parseBulk(){
+  var raw=document.getElementById('bulk-input').value.trim();
+  if(!raw)return null;
+  return raw.split('\n').map(function(line){
+    return line.split(/;|\t/).map(function(s){return s.trim();});
+  }).filter(function(p){return p.length>=2&&p[0]&&p[1];}).map(function(p){return {a:p[0],b:p[1]};});
+}
+
+// ---- QUIZ ----
+function shuffle(arr){
+  var a=arr.slice();
+  for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;}
+  return a;
+}
+
+function getDose(){
+  var v=parseInt(document.getElementById('doseSelect').value);
+  return v>=pairs.length?pairs.length:v;
+}
+
+function buildRounds(size){
+  var pool=shuffle(pairs.map(function(_,i){return i;}));
+  var r=[];
+  for(var i=0;i<pool.length;i+=size)r.push(pool.slice(i,i+size));
+  return r;
+}
+
+function startQuiz(){
+  rounds=buildRounds(getDose());
+  currentRound=0;errors=[];placements={};selectedChipIdx=null;roundChecked=false;
+  show('screen-quiz');
+  renderRound();
+}
+
+function renderRound(){
+  placements={};selectedChipIdx=null;roundChecked=false;
+  var idxs=rounds[currentRound];
+  currentPairs=idxs.map(function(i){return pairs[i];});
+  currentChipOrder=shuffle(currentPairs.map(function(_,i){return i;}));
+
+  var pct=Math.round((currentRound/rounds.length)*100);
+  document.getElementById('prog-bar').style.width=pct+'%';
+  document.getElementById('prog-txt').textContent='Ronda '+(currentRound+1)+' de '+rounds.length;
+  document.getElementById('msg').textContent='';
+
+  var cw=document.getElementById('chips-wrap');
+  cw.innerHTML=currentChipOrder.map(function(pi,cp){
+    return '<div class="chip" id="chip-'+cp+'">'+currentPairs[pi].a+'</div>';
+  }).join('');
+  cw.querySelectorAll('.chip').forEach(function(el){
+    el.addEventListener('click',function(){selectChip(+el.id.replace('chip-',''));});
+  });
+
+  var tw=document.getElementById('targets-wrap');
+  tw.innerHTML=currentPairs.map(function(p,ti){
+    return '<div class="target" id="target-'+ti+'">'+
+      '<div class="t-reading">'+p.b+'</div>'+
+      '<div class="t-placed" id="placed-'+ti+'"></div>'+
+    '</div>';
+  }).join('');
+  tw.querySelectorAll('.target').forEach(function(el){
+    el.addEventListener('click',function(){placeChip(+el.id.replace('target-',''));});
+  });
+
+  renderQuizActions();
+}
+
+function renderQuizActions(){
+  var qa=document.getElementById('quiz-actions');
+  qa.innerHTML='';
+  var b1=document.createElement('button');
+  b1.className='primary';b1.textContent='Revisar respuestas';
+  b1.addEventListener('click',checkRound);
+  var b2=document.createElement('button');
+  b2.textContent='No sé los que faltan';
+  b2.addEventListener('click',skipUnplaced);
+  qa.appendChild(b1);qa.appendChild(b2);
+}
+
+function selectChip(cp){
+  if(roundChecked)return;
+  var el=document.getElementById('chip-'+cp);
+  if(!el||el.classList.contains('used'))return;
+  var was=selectedChipIdx===cp;
+  document.querySelectorAll('.chip').forEach(function(c){c.classList.remove('selected');});
+  if(was){selectedChipIdx=null;return;}
+  el.classList.add('selected');selectedChipIdx=cp;
+}
+
+function placeChip(ti){
+  if(selectedChipIdx===null||roundChecked)return;
+  var prevT=null;
+  Object.keys(placements).forEach(function(k){if(placements[k]===selectedChipIdx)prevT=k;});
+  if(prevT!==null){document.getElementById('placed-'+prevT).textContent='';delete placements[prevT];}
+  var displaced=placements[ti];
+  if(displaced!==undefined)document.getElementById('chip-'+displaced).classList.remove('used');
+  placements[ti]=selectedChipIdx;
+  document.getElementById('placed-'+ti).textContent=currentPairs[currentChipOrder[selectedChipIdx]].a;
+  document.getElementById('chip-'+selectedChipIdx).classList.add('used');
+  selectedChipIdx=null;
+  document.querySelectorAll('.chip').forEach(function(c){c.classList.remove('selected');});
+}
+
+function skipUnplaced(){
+  if(roundChecked)return;
+  currentPairs.forEach(function(_,ti){if(placements[ti]===undefined)placements[ti]=-1;});
+  checkRound();
+}
+
+function checkRound(){
+  if(roundChecked)return;
+  var allSet=currentPairs.every(function(_,ti){return placements[ti]!==undefined;});
+  if(!allSet){document.getElementById('msg').textContent='Coloca todas las fichas o presiona "No sé los que faltan".';return;}
+  roundChecked=true;
+  var wrongs=0;
+  currentPairs.forEach(function(p,ti){
+    var cp=placements[ti],skipped=cp===-1,pi=skipped?-1:currentChipOrder[cp],ok=!skipped&&pi===ti;
+    var tgt=document.getElementById('target-'+ti),chp=skipped?null:document.getElementById('chip-'+cp);
+    if(ok){tgt.classList.add('correct');if(chp)chp.classList.add('correct');}
+    else{
+      wrongs++;tgt.classList.add('wrong');
+      if(chp)chp.classList.add('wrong-chip');
+      errors.push({a:p.a,b:p.b,answered:skipped?'(sin respuesta)':currentPairs[pi].a});
+      var pl=document.getElementById('placed-'+ti);
+      pl.innerHTML=skipped
+        ?'<span style="color:#A32D2D;font-size:12px">sin respuesta</span> <span style="color:#3B6D11;font-size:13px">✓ '+p.a+'</span>'
+        :'<span style="color:#A32D2D;text-decoration:line-through;font-size:13px">'+currentPairs[pi].a+'</span> <span style="color:#3B6D11;font-size:13px">✓ '+p.a+'</span>';
+    }
+  });
+  document.getElementById('msg').textContent=wrongs===0?'¡Todo correcto!':wrongs===1?'1 error.':wrongs+' errores.';
+  var isLast=currentRound===rounds.length-1;
+  var qa=document.getElementById('quiz-actions');
+  qa.innerHTML='';
+  var btn=document.createElement('button');
+  btn.className='primary';
+  btn.textContent=isLast?'Ver resumen':'Siguiente ronda →';
+  btn.addEventListener('click',isLast?showSummary:nextRound);
+  qa.appendChild(btn);
+}
+
+function nextRound(){currentRound++;renderRound();}
+
+function showSummary(){
+  var ec=errors.length;
+  document.getElementById('summary-box').innerHTML=
+    '<h3>'+(ec===0?'¡Sin errores! Perfecto 🎉':ec+' de '+pairs.length+' con error')+'</h3>'+
+    (ec===0?'<p class="perfect">Respondiste todo correctamente.</p>':
+      errors.map(function(e){
+        return '<div class="err-item"><span class="err-kanji">'+e.a+'</span><span class="err-sep">→</span><span class="err-reading">'+e.b+'</span><br><span class="err-wrong">Pusiste: '+e.answered+'</span></div>';
+      }).join(''));
+  show('screen-summary');
+}
+
+// ---- WIRE UP ALL BUTTONS ----
+document.getElementById('btn-add-one').addEventListener('click',function(){
+  var a=document.getElementById('new-a').value.trim();
+  var b=document.getElementById('new-b').value.trim();
+  if(!a||!b)return;
+  pairs.push({a:a,b:b});
+  document.getElementById('new-a').value='';
+  document.getElementById('new-b').value='';
+  renderEditor();
+  document.getElementById('pair-list').scrollTop=99999;
+});
+
+document.getElementById('bulk-toggle').addEventListener('click',function(){
+  var area=document.getElementById('bulk-area');
+  var open=area.classList.toggle('open');
+  document.getElementById('bulk-toggle').textContent=(open?'▾':'▸')+' Agregar o eliminar en masa';
+});
+
+document.getElementById('btn-bulk-add').addEventListener('click',function(){
+  var parsed=parseBulk();
+  var msg=document.getElementById('bulk-msg');
+  if(!parsed||!parsed.length){msg.style.color='#A32D2D';msg.textContent='No se encontraron pares válidos.';return;}
+  var added=0;
+  parsed.forEach(function(p){if(!pairs.some(function(x){return x.a===p.a&&x.b===p.b;})){pairs.push(p);added++;}});
+  msg.style.color='#3B6D11';msg.textContent=added+' par(es) agregado(s).';
+  document.getElementById('bulk-input').value='';
+  renderEditor();
+});
+
+document.getElementById('btn-bulk-del').addEventListener('click',function(){
+  var parsed=parseBulk();
+  var msg=document.getElementById('bulk-msg');
+  if(!parsed||!parsed.length){msg.style.color='#A32D2D';msg.textContent='No se encontraron pares válidos.';return;}
+  var before=pairs.length;
+  pairs=pairs.filter(function(x){return !parsed.some(function(p){return p.a===x.a&&p.b===x.b;});});
+  msg.style.color='#A32D2D';msg.textContent=(before-pairs.length)+' par(es) eliminado(s).';
+  document.getElementById('bulk-input').value='';
+  renderEditor();
+});
+
+document.getElementById('start-btn').addEventListener('click',startQuiz);
+document.getElementById('btn-go-editor').addEventListener('click',function(){show('screen-editor');renderEditor();});
+document.getElementById('btn-restart').addEventListener('click',startQuiz);
+document.getElementById('btn-summary-edit').addEventListener('click',function(){show('screen-editor');renderEditor();});
+
+renderEditor();
+</script>
