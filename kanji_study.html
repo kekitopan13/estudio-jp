@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kanji Study</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', sans-serif; background: #f5f5f7; color: #111; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+  h1 { font-size: 1.4rem; color: #5b21b6; margin-bottom: 4px; letter-spacing: 1px; }
+  .subtitle { font-size: 0.8rem; color: #888; margin-bottom: 24px; }
+
+  /* SETUP */
+  #setup { width: 100%; max-width: 600px; }
+  textarea { width: 100%; height: 220px; background: #fff; border: 1px solid #ccc; border-radius: 10px; color: #111; padding: 14px; font-size: 0.9rem; resize: vertical; line-height: 1.6; }
+  textarea::placeholder { color: #aaa; }
+  .btn { background: #7c3aed; color: #fff; border: none; border-radius: 8px; padding: 12px 28px; font-size: 1rem; cursor: pointer; transition: background 0.2s; }
+  .btn:hover { background: #6d28d9; }
+  .btn:disabled { background: #ccc; color: #888; cursor: default; }
+  .error-msg { color: #dc2626; font-size: 0.85rem; margin-top: 8px; }
+
+  /* PROGRESS */
+  #progress-bar-wrap { width: 100%; max-width: 600px; margin-bottom: 18px; display: none; }
+  .phase-label { font-size: 0.75rem; color: #666; margin-bottom: 4px; }
+  .bar-bg { background: #ddd; border-radius: 99px; height: 6px; }
+  .bar-fill { height: 6px; border-radius: 99px; background: #7c3aed; transition: width 0.3s; }
+
+  /* CARD */
+  #card { width: 100%; max-width: 600px; background: #fff; border-radius: 16px; padding: 28px; display: none; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+  .phase-badge { display: inline-block; font-size: 0.7rem; background: #ede9fe; color: #5b21b6; border-radius: 99px; padding: 3px 12px; margin-bottom: 16px; letter-spacing: 1px; text-transform: uppercase; }
+  .question-label { font-size: 0.75rem; color: #888; margin-bottom: 8px; }
+  .question-text { font-size: 2rem; font-weight: 700; color: #111; margin-bottom: 24px; letter-spacing: 2px; }
+
+  /* CHOICES */
+  .choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .choice-btn { background: #f9f9fb; border: 1px solid #ddd; border-radius: 10px; padding: 14px 10px; font-size: 1.1rem; color: #111; cursor: pointer; transition: all 0.15s; text-align: center; }
+  .choice-btn:hover:not(:disabled) { border-color: #7c3aed; background: #ede9fe; }
+  .choice-btn.correct { border-color: #16a34a; background: #f0fdf4; color: #15803d; }
+  .choice-btn.wrong { border-color: #dc2626; background: #fef2f2; color: #dc2626; }
+  .choice-btn:disabled { cursor: default; }
+
+  /* WRITE */
+  .write-input { width: 100%; background: #f9f9fb; border: 1px solid #ccc; border-radius: 10px; padding: 14px; font-size: 1.4rem; color: #111; text-align: center; outline: none; transition: border 0.2s; }
+  .write-input:focus { border-color: #7c3aed; }
+  .write-input.correct { border-color: #16a34a; background: #f0fdf4; }
+  .write-input.wrong { border-color: #dc2626; background: #fef2f2; }
+
+  /* FEEDBACK */
+  .feedback { margin-top: 18px; padding: 14px; border-radius: 10px; display: none; }
+  .feedback.correct { background: #f0fdf4; border: 1px solid #86efac; }
+  .feedback.wrong { background: #fef2f2; border: 1px solid #fca5a5; }
+  .feedback-title { font-size: 0.8rem; font-weight: 700; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1px; }
+  .feedback.correct .feedback-title { color: #15803d; }
+  .feedback.wrong .feedback-title { color: #dc2626; }
+  .feedback-correct-ans { font-size: 1.05rem; color: #5b21b6; margin-bottom: 4px; }
+  .feedback-meaning { font-size: 0.9rem; color: #555; }
+
+  /* NEXT */
+  .next-btn { margin-top: 16px; width: 100%; background: #7c3aed; color: #fff; border: none; border-radius: 8px; padding: 12px; font-size: 1rem; cursor: pointer; display: none; transition: background 0.2s; }
+  .next-btn:hover { background: #6d28d9; }
+
+  /* RETRY */
+  .retry-prompt { margin-top: 10px; font-size: 0.85rem; color: #dc2626; display: none; }
+
+  /* BETWEEN PHASES */
+  #phase-transition { width: 100%; max-width: 600px; background: #fff; border-radius: 16px; padding: 32px; display: none; text-align: center; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+  #phase-transition h2 { color: #5b21b6; margin-bottom: 10px; }
+  #phase-transition p { color: #555; font-size: 0.9rem; margin-bottom: 20px; }
+
+  /* RESULTS */
+  #results { width: 100%; max-width: 600px; display: none; }
+  .results-title { font-size: 1.3rem; color: #5b21b6; margin-bottom: 6px; }
+  .results-stats { font-size: 0.9rem; color: #666; margin-bottom: 20px; }
+  .mistake-item { background: #fff; border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; border-left: 3px solid #dc2626; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  .mistake-phase { font-size: 0.7rem; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+  .mistake-q { font-size: 1rem; color: #333; }
+  .mistake-ans { font-size: 0.9rem; color: #5b21b6; margin-top: 2px; }
+  .mistake-meaning { font-size: 0.85rem; color: #777; margin-top: 2px; }
+  .no-mistakes { color: #15803d; font-size: 1rem; padding: 20px 0; text-align: center; }
+  .restart-btn { margin-top: 20px; width: 100%; }
+
+  /* DOWNLOAD */
+  #dl-bar { width:100%; max-width:600px; text-align:right; margin-bottom:8px; display:none; }
+  #dl-bar a { font-size:0.8rem; color:#7c3aed; text-decoration:none; border:1px solid #c4b5fd; border-radius:6px; padding:4px 12px; }
+  #dl-bar a:hover { background:#ede9fe; }
+</style>
+</head>
+<body>
+
+<h1>漢字 Study</h1>
+<p class="subtitle">Sistema de estudio de kanji y vocabulario</p>
+
+<!-- SETUP -->
+<div id="setup">
+  <p style="font-size:0.85rem;color:#666;margin-bottom:10px;">Pega tu vocabulario abajo. Formato: <strong style="color:#5b21b6">kanji [tab] lectura [tab] significado</strong>, una palabra por línea.</p>
+  <textarea id="vocab-input" placeholder="並ぶ	ならぶ	algo o alguien hace fila, alinearse&#10;並べる	ならべる	ordenar algo en fila, alinear algo&#10;他人	たにん	desconocido, otra persona"></textarea>
+  <div id="input-error" class="error-msg"></div>
+  <br><br>
+  <button class="btn" onclick="startStudy()">Comenzar estudio</button>
+</div>
+
+<!-- PROGRESS -->
+<div id="progress-bar-wrap">
+  <div class="phase-label" id="phase-label"></div>
+  <div class="bar-bg"><div class="bar-fill" id="bar-fill" style="width:0%"></div></div>
+</div>
+
+<!-- CARD -->
+<div id="card">
+  <div class="phase-badge" id="phase-badge"></div>
+  <div class="question-label" id="q-label"></div>
+  <div class="question-text" id="q-text"></div>
+  <div id="choices-wrap" class="choices"></div>
+  <div id="write-wrap" style="display:none">
+    <input type="text" class="write-input" id="write-input" placeholder="Escribe la lectura en hiragana..." autocomplete="off" autocorrect="off" spellcheck="false">
+    <p class="retry-prompt" id="retry-prompt">✗ Incorrecto. Intenta de nuevo:</p>
+    <button class="btn" id="submit-write-btn" style="margin-top:12px;width:100%" onclick="checkWrite()">Confirmar</button>
+  </div>
+  <div class="feedback" id="feedback">
+    <div class="feedback-title" id="feedback-title"></div>
+    <div class="feedback-correct-ans" id="feedback-correct-ans"></div>
+    <div class="feedback-meaning" id="feedback-meaning"></div>
+  </div>
+  <button class="next-btn" id="next-btn" onclick="nextQuestion()">Siguiente →</button>
+</div>
+
+<!-- PHASE TRANSITION -->
+<div id="phase-transition">
+  <h2 id="pt-title"></h2>
+  <p id="pt-desc"></p>
+  <button class="btn" onclick="startNextSubPhase()">Continuar →</button>
+</div>
+
+<!-- RESULTS -->
+<div id="results">
+  <div class="results-title">📊 Resultados finales</div>
+  <div class="results-stats" id="results-stats"></div>
+  <div id="mistakes-list"></div>
+  <button class="btn restart-btn" onclick="restart()">Volver a empezar</button>
+</div>
+
+<script>
+const GROUP_SIZE = 10;
+let vocab = [];
+let allGroups = []; // array of arrays of words
+let groupIdx = 0;
+let subPhase = 'mc'; // 'mc' or 'write'
+let queue = [];
+let current = null;
+let mistakes = [];
+let totalQ = 0;
+let doneQ = 0;
+let writeAttempts = 0;
+let awaitingNext = false;
+
+function parseVocab(text) {
+  const lines = text.trim().split('\n').filter(l => l.trim());
+  const result = [];
+  for (const line of lines) {
+    const parts = line.split('\t');
+    if (parts.length < 3) return null;
+    result.push({ kanji: parts[0].trim(), reading: parts[1].trim(), meaning: parts[2].trim() });
+  }
+  return result.length >= 2 ? result : null;
+}
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function startStudy() {
+  const text = document.getElementById('vocab-input').value;
+  const parsed = parseVocab(text);
+  if (!parsed) {
+    document.getElementById('input-error').textContent = 'Error: necesitas al menos 2 palabras con 3 columnas separadas por tab.';
+    return;
+  }
+  document.getElementById('input-error').textContent = '';
+  vocab = shuffle([...parsed]);
+
+  // Split into groups of GROUP_SIZE
+  allGroups = [];
+  for (let i = 0; i < vocab.length; i += GROUP_SIZE) {
+    allGroups.push(vocab.slice(i, i + GROUP_SIZE));
+  }
+
+  groupIdx = 0;
+  subPhase = 'mc';
+  mistakes = [];
+
+  document.getElementById('setup').style.display = 'none';
+  document.getElementById('progress-bar-wrap').style.display = 'block';
+  document.getElementById('card').style.display = 'block';
+
+  loadSubPhase();
+}
+
+function loadSubPhase() {
+  const group = allGroups[groupIdx];
+  totalQ = group.length;
+  doneQ = 0;
+  writeAttempts = 0;
+  awaitingNext = false;
+
+  if (subPhase === 'mc') {
+    queue = shuffle(group.map(w => ({
+      word: w,
+      direction: Math.random() < 0.5 ? 'kr' : 'rk'
+    })));
+  } else {
+    queue = shuffle(group.map(w => ({ word: w })));
+  }
+
+  updateProgress();
+  showQuestion();
+}
+
+function updateProgress() {
+  const totalGroups = allGroups.length;
+  const phaseNum = subPhase === 'mc' ? 1 : 2;
+  document.getElementById('phase-label').textContent =
+    `Grupo ${groupIdx + 1}/${totalGroups} · Fase ${phaseNum} (${subPhase === 'mc' ? 'Alternativas' : 'Escritura'}) — ${doneQ}/${totalQ}`;
+  document.getElementById('bar-fill').style.width = totalQ ? (doneQ / totalQ * 100) + '%' : '0%';
+}
+
+function showQuestion() {
+  if (queue.length === 0) {
+    // Sub-phase finished
+    if (subPhase === 'mc') {
+      // Transition to write phase for same group
+      showTransition(
+        `¡Bien! Ahora a escribir`,
+        `Escribirás en hiragana las mismas ${allGroups[groupIdx].length} palabras del grupo ${groupIdx + 1}.`,
+        () => { subPhase = 'write'; loadSubPhase(); }
+      );
+    } else {
+      // Group finished
+      groupIdx++;
+      if (groupIdx >= allGroups.length) {
+        showResults();
+      } else {
+        showTransition(
+          `Grupo ${groupIdx} completado ✓`,
+          `Pasando al grupo ${groupIdx + 1} de ${allGroups.length} (${allGroups[groupIdx].length} palabras).`,
+          () => { subPhase = 'mc'; loadSubPhase(); }
+        );
+      }
+    }
+    return;
+  }
+
+  current = queue.shift();
+  awaitingNext = false;
+  writeAttempts = 0;
+
+  document.getElementById('card').style.display = 'block';
+  document.getElementById('phase-transition').style.display = 'none';
+
+  const badge = document.getElementById('phase-badge');
+  const qLabel = document.getElementById('q-label');
+  const qText = document.getElementById('q-text');
+  const choicesWrap = document.getElementById('choices-wrap');
+  const writeWrap = document.getElementById('write-wrap');
+  const feedback = document.getElementById('feedback');
+  const nextBtn = document.getElementById('next-btn');
+
+  feedback.style.display = 'none';
+  nextBtn.style.display = 'none';
+  document.getElementById('retry-prompt').style.display = 'none';
+
+  if (subPhase === 'mc') {
+    badge.textContent = `Grupo ${groupIdx + 1} · Alternativas`;
+    choicesWrap.style.display = 'grid';
+    writeWrap.style.display = 'none';
+
+    const dir = current.direction;
+    qLabel.textContent = dir === 'kr' ? '¿Cómo se lee?' : '¿Qué kanji corresponde?';
+    qText.textContent = dir === 'kr' ? current.word.kanji : current.word.reading;
+
+    const choices = buildChoices(current.word, dir);
+    choicesWrap.innerHTML = '';
+    choices.forEach(c => {
+      const btn = document.createElement('button');
+      btn.className = 'choice-btn';
+      btn.textContent = c.text;
+      btn.onclick = () => selectChoice(btn, c.correct, current.word, dir);
+      choicesWrap.appendChild(btn);
+    });
+  } else {
+    badge.textContent = `Grupo ${groupIdx + 1} · Escritura`;
+    choicesWrap.style.display = 'none';
+    writeWrap.style.display = 'block';
+    qLabel.textContent = '¿Cómo se lee? (escribe en hiragana)';
+    qText.textContent = current.word.kanji;
+    const inp = document.getElementById('write-input');
+    inp.value = '';
+    inp.className = 'write-input';
+    inp.disabled = false;
+    document.getElementById('submit-write-btn').disabled = false;
+    inp.focus();
+  }
+}
+
+function buildChoices(word, dir) {
+  const correct = dir === 'kr' ? word.reading : word.kanji;
+  const pool = vocab.filter(w => w !== word);
+  const scored = pool.map(w => {
+    const cand = dir === 'kr' ? w.reading : w.kanji;
+    return { text: cand, correct: false, score: similarity(correct, cand) };
+  });
+  scored.sort((a, b) => b.score - a.score);
+  const distractors = [];
+  const seen = new Set([correct]);
+  for (const s of scored) {
+    if (!seen.has(s.text)) { seen.add(s.text); distractors.push(s); }
+    if (distractors.length >= 3) break;
+  }
+  const all = [{ text: correct, correct: true }, ...distractors];
+  return shuffle(all);
+}
+
+function similarity(a, b) {
+  let shared = 0;
+  const bc = b.split('');
+  for (const ch of a) {
+    const i = bc.indexOf(ch);
+    if (i !== -1) { shared++; bc.splice(i, 1); }
+  }
+  return shared / Math.max(a.length, b.length);
+}
+
+function selectChoice(btn, isCorrect, word, dir) {
+  if (awaitingNext) return;
+  awaitingNext = true;
+  doneQ++;
+  const allBtns = document.querySelectorAll('.choice-btn');
+  allBtns.forEach(b => b.disabled = true);
+  const correctAnswer = dir === 'kr' ? word.reading : word.kanji;
+  if (isCorrect) {
+    btn.classList.add('correct');
+    showFeedback(true, correctAnswer, word.meaning);
+  } else {
+    btn.classList.add('wrong');
+    allBtns.forEach(b => { if (b.textContent === correctAnswer) b.classList.add('correct'); });
+    mistakes.push({ phase: `Grupo ${groupIdx+1} · Alternativas`, question: document.getElementById('q-text').textContent, correct: correctAnswer, meaning: word.meaning });
+    showFeedback(false, correctAnswer, word.meaning);
+  }
+  document.getElementById('next-btn').style.display = 'block';
+  updateProgress();
+}
+
+function checkWrite() {
+  const inp = document.getElementById('write-input');
+  const val = inp.value.trim();
+  const correct = current.word.reading;
+  if (val === correct) {
+    inp.className = 'write-input correct';
+    inp.disabled = true;
+    document.getElementById('submit-write-btn').disabled = true;
+    document.getElementById('retry-prompt').style.display = 'none';
+    if (writeAttempts === 0) doneQ++;
+    showFeedback(true, correct, current.word.meaning);
+    document.getElementById('next-btn').style.display = 'block';
+    if (writeAttempts > 0) doneQ++;
+    updateProgress();
+  } else {
+    inp.className = 'write-input wrong';
+    if (writeAttempts === 0) {
+      mistakes.push({ phase: `Grupo ${groupIdx+1} · Escritura`, question: current.word.kanji, correct, meaning: current.word.meaning });
+      showFeedback(false, correct, current.word.meaning);
+    }
+    writeAttempts++;
+    document.getElementById('retry-prompt').style.display = 'block';
+    setTimeout(() => {
+      inp.value = '';
+      inp.className = 'write-input';
+      document.getElementById('feedback').style.display = 'none';
+    }, 1800);
+  }
+}
+
+document.getElementById('write-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') checkWrite();
+});
+
+function showFeedback(correct, correctAns, meaning) {
+  const fb = document.getElementById('feedback');
+  fb.className = 'feedback ' + (correct ? 'correct' : 'wrong');
+  document.getElementById('feedback-title').textContent = correct ? '✓ Correcto' : '✗ Incorrecto';
+  document.getElementById('feedback-correct-ans').textContent = correct
+    ? `Respuesta: ${correctAns}`
+    : `Respuesta correcta: ${correctAns}`;
+  document.getElementById('feedback-meaning').textContent = `Significado: ${meaning}`;
+  fb.style.display = 'block';
+}
+
+let _nextSubPhaseCallback = null;
+function showTransition(title, desc, callback) {
+  document.getElementById('card').style.display = 'none';
+  const pt = document.getElementById('phase-transition');
+  pt.style.display = 'block';
+  document.getElementById('pt-title').textContent = title;
+  document.getElementById('pt-desc').textContent = desc;
+  _nextSubPhaseCallback = callback;
+}
+
+function startNextSubPhase() {
+  document.getElementById('phase-transition').style.display = 'none';
+  if (_nextSubPhaseCallback) _nextSubPhaseCallback();
+}
+
+function nextQuestion() {
+  showQuestion();
+}
+
+function showResults() {
+  document.getElementById('card').style.display = 'none';
+  document.getElementById('progress-bar-wrap').style.display = 'none';
+  document.getElementById('phase-transition').style.display = 'none';
+  document.getElementById('results').style.display = 'block';
+  document.getElementById('results-stats').textContent = `Errores cometidos: ${mistakes.length} en total`;
+  const list = document.getElementById('mistakes-list');
+  if (mistakes.length === 0) {
+    list.innerHTML = '<div class="no-mistakes">🎉 ¡Sin errores! ¡Perfecto!</div>';
+    return;
+  }
+  list.innerHTML = '';
+  mistakes.forEach(m => {
+    const div = document.createElement('div');
+    div.className = 'mistake-item';
+    div.innerHTML = `
+      <div class="mistake-phase">${m.phase}</div>
+      <div class="mistake-q">Pregunta: <strong>${m.question}</strong></div>
+      <div class="mistake-ans">Respuesta correcta: ${m.correct}</div>
+      <div class="mistake-meaning">Significado: ${m.meaning}</div>`;
+    list.appendChild(div);
+  });
+}
+
+function restart() {
+  mistakes = [];
+  groupIdx = 0;
+  subPhase = 'mc';
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('setup').style.display = 'block';
+}
+</script>
+</body>
+</html>
