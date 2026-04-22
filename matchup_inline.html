@@ -1,12 +1,12 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
+<!DOCTYPE html><html lang="es"><head>
+
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Match Up - Kanji</title>
 <style>
 :root {
-    --color-primary: #378ADD;
+    --color-primary: #e27c90;
     --color-correct: #3B6D11;
     --color-wrong: #A32D2D;
     --bg-main: #f5f5f7;
@@ -64,7 +64,7 @@ input, textarea, select {
     cursor:pointer;
     user-select:none;
 }
-.chip.selected{border-color: var(--color-primary); background: #e6f1fb; color: #185FA5; transform: scale(1.05);}
+.chip.selected{border-color: var(--color-primary); background: #fdeef2; color: #e27c90; transform: scale(1.05);}
 .chip.used{display:none;}
 .chip.correct{border-color:var(--color-correct); background:#eaf3de; color:var(--color-correct); display:inline-block; cursor:default;}
 .chip.wrong-chip{border-color:var(--color-wrong); background:#fcebeb; color:var(--color-wrong);}
@@ -96,21 +96,22 @@ input, textarea, select {
     font-weight: 600;
     width: 100%;
     margin-top: 10px;
-    box-shadow: 0 4px 6px rgba(55, 138, 221, 0.2);
+    box-shadow: 0 4px 6px rgba(226, 124, 144, 0.2);
     cursor:pointer;
 }
 .start-btn:disabled{background:#aaa; box-shadow:none;}
 
-.bulk-toggle { color: var(--color-primary); padding: 15px 0; display: block; font-weight: 500; cursor:pointer;}
+.bulk-toggle { color: #e27c90; padding: 15px 0; display: block; font-weight: 500; cursor:pointer;}
 .bulk-area{display:none; margin-bottom: 20px;}
 .bulk-area.open{display:block;}
 .bulk-hint{font-size:12px;color:#888;margin-bottom:6px;line-height:1.4}
 .bulk-btns{display:flex;gap:8px; margin-top:8px;}
 .btn-bulk-del{border:1px solid var(--color-wrong); background:#fff; color:var(--color-wrong); padding:16px; border-radius:var(--radius); font-weight:600; width:100%; cursor:pointer;}
+#screen-editor >:is(button,input,textarea){background-color: rgb(226, 124, 144);}
 
 .quiz-actions{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
-.quiz-actions button{width:100%;padding:16px;border-radius:var(--radius);font-size:1rem;font-weight:600;cursor:pointer;border:1px solid #ccc;background:#fff;color:#1a1a18;}
-.quiz-actions .primary{border-color:var(--color-primary);background:var(--color-primary);color:#fff}
+.quiz-actions button{width:100%;padding:16px;border-radius:var(--radius);font-size:1rem;font-weight:600;cursor:pointer;border:1px solid #e27c90;background:#e27c90;color:#fff;}
+.quiz-actions .primary{border-color:#e27c90;background:#e27c90;color:#fff}
 
 .err-item{padding:8px 0;border-bottom:1px solid #eee;font-size:14px;line-height:1.6}
 .err-item:last-child{border-bottom:none}
@@ -121,32 +122,34 @@ input, textarea, select {
 .perfect{color:var(--color-correct);font-size:14px;font-weight:500;}
 </style>
 </head>
-<body>
+<body data-cc-id="cc-1" style="cursor: crosshair; background-color: rgb(255, 239, 242);">
 
-<a href="index.html" class="nav-back">← メニュー</a>
+<a href="index.html" class="nav-back" style="color: #e27c90;">← メニュー</a>
 
 <div id="screen-editor" class="screen active">
+  <h1 style="font-size:31px; font-weight:700; color:#333; margin-bottom:8px;">Ejercicio de matchup</h1>
+  <p style="font-size:0.85rem; color:#888; margin-bottom:18px; line-height:1.6;">1. Agrega información en pares al ejercicio. Puedes agregarla una por una en la primera sección (y luego presionas "+ Agregar palabra individual") o en masa separando la información con puntos y comas (en el toggle que dice "Agregar en masa").<br>2. Una vez agregadas las palabras, selecciona de a cuántos pares deseas ejercitar.<br>3. Para empezar el ejercicio, selecciona "Empezar a practicar".</p>
   <div class="editor-header">
-    <h2>Palabras del quiz</h2>
+    <h2 style="font-size:19px;">Palabras del quiz</h2>
   </div>
-  <div class="pair-count" id="pair-count"></div>
+  <div class="pair-count" id="pair-count">0 pares cargados en tu lista</div>
   <div class="pair-list" id="pair-list"></div>
 
   <div style="background: white; padding: 15px; border-radius: var(--radius); margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
       <div style="display: flex; gap: 8px; margin-bottom: 10px;">
-        <input id="new-a" placeholder="Kanji" autocomplete="off" />
-        <input id="new-b" placeholder="Lectura" autocomplete="off" />
+        <input id="new-a" placeholder="Kanji" autocomplete="off">
+        <input id="new-b" placeholder="Lectura" autocomplete="off">
       </div>
-      <button class="start-btn" id="btn-add-one" style="margin-top:0">+ Agregar palabra</button>
+      <button class="start-btn" id="btn-add-one" style="margin-top:0; background-color: rgb(226, 124, 144);">+ Agregar palabra individual</button>
   </div>
 
-  <div class="bulk-toggle" id="bulk-toggle">▸ Agregar en masa (Punto y coma)</div>
+  <div class="bulk-toggle" id="bulk-toggle" style="color: rgb(226, 124, 144);">▸ Agregar en masa (Punto y coma)</div>
   <div class="bulk-area" id="bulk-area">
     <div class="bulk-hint">Pega pares separados por tab o punto y coma, un par por línea:<br><code>強調;きょうちょう</code></div>
     <textarea id="bulk-input" rows="5" placeholder="palabra;lectura"></textarea>
     <div class="bulk-btns">
-      <button class="primary" id="btn-bulk-add" style="margin-top:0;">Agregar a la lista</button>
-      <button class="btn-bulk-del" id="btn-bulk-del">Eliminar de la lista</button>
+      <button class="primary" id="btn-bulk-add" style="margin-top:0; background-color: rgb(226, 124, 144);">Agregar a la lista</button>
+
     </div>
     <div id="bulk-msg" style="font-size:12px; margin-top:6px; min-height:16px;"></div>
   </div>
@@ -156,23 +159,25 @@ input, textarea, select {
     <select id="doseSelect" style="margin-top: 5px;">
       <option value="3">3 palabras</option>
       <option value="4">4 palabras</option>
-      <option value="5" selected>5 palabras</option>
+      <option value="5" selected="">5 palabras</option>
       <option value="10">10 palabras</option>
       <option value="15">15 palabras</option>
       <option value="999">Todas</option>
     </select>
   </div>
-  <button class="start-btn" id="start-btn">¡Empezar a practicar! →</button>
+  <button class="start-btn" id="start-btn" disabled="">¡Empezar a practicar! →</button>
 </div>
 
 <div id="screen-quiz" class="screen">
+  <h1 style="font-size:31px; font-weight:700; color:#333; margin-bottom:8px;">Ejercicio de matchup</h1>
+  <p style="font-size:0.85rem; color:#888; margin-bottom:18px; line-height:1.6;">1. Haz clic en el concepto A y luego en el B para parearlos.<br>2. Cuando hayas pareado todo, selecciona <strong>Revisar respuestas</strong>.<br>3. Si hay palabras que no conoces, puedes seleccionar <strong>"No sé las que faltan"</strong>.</p>
   <div class="editor-header">
     <h2>Match up</h2>
-    <button id="btn-go-editor" style="border:none; background:none; color:var(--color-primary); font-size:1rem; cursor:pointer;">✎ Editar</button>
+    <button id="btn-go-editor" style="border:none; background:none; color: #e27c90; font-size:1rem; cursor:pointer;">✎ Editar</button>
   </div>
-  
+
   <div style="height:6px; background:#ddd; border-radius:3px; margin-bottom:8px;">
-      <div id="prog-bar" style="height:100%; background:var(--color-primary); width:0%; border-radius:3px; transition:width 0.3s;"></div>
+      <div id="prog-bar" style="height:100%; background:#e27c90; width:0%; border-radius:3px; transition:width 0.3s;"></div>
   </div>
   <div id="prog-txt" style="font-size:12px; color:#888; margin-bottom:20px;"></div>
   
@@ -184,9 +189,12 @@ input, textarea, select {
   
   <div class="quiz-actions" id="quiz-actions" style="margin-top:20px;"></div>
   <div id="msg" style="text-align:center; font-weight:500; font-size:14px; color:#666;"></div>
+
+  <button id="btn-volver-inicio" style="width:100%; margin-top:12px; padding:12px; border-radius:var(--radius); border:1px solid #ddd; background:white; color:#888; font-size:0.9rem; font-weight:500; cursor:pointer;">↩ Volver al inicio</button>
 </div>
 
 <div id="screen-summary" class="screen">
+  <h1 style="font-size:31px; font-weight:700; color:#333; margin-bottom:16px;">Ejercicio de matchup</h1>
   <div class="editor-header"><h2>Resultados</h2></div>
   <div id="summary-box" style="background:white; padding:20px; border-radius:var(--radius); margin-bottom:20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);"></div>
   
@@ -392,12 +400,36 @@ function nextRound(){currentRound++;renderRound();}
 
 function showSummary(){
   var ec=errors.length;
+  var total=currentPairs.length*(rounds.length);
+  var correct=pairs.length-ec;
+
+  // Build a lookup of errors for quick access
+  var errMap={};
+  errors.forEach(function(e){ errMap[e.a+'\t'+e.b]=e.answered; });
+
+  var tableRows=pairs.map(function(p){
+    var key=p.a+'\t'+p.b;
+    var wrong=errMap.hasOwnProperty(key);
+    return '<tr>'+
+      '<td style="padding:10px 12px; font-weight:600; font-size:15px;">'+p.a+'</td>'+
+      '<td style="padding:10px 12px; color:#555;">'+p.b+'</td>'+
+      '<td style="padding:10px 12px; text-align:center;">'+(wrong
+        ? '<span style="color:#A32D2D; font-size:13px;">✗ '+errMap[key]+'</span>'
+        : '<span style="color:#3B6D11; font-size:15px;">✓</span>'
+      )+'</td>'+
+    '</tr>';
+  }).join('');
+
   document.getElementById('summary-box').innerHTML=
-    '<h3 style="font-size:1.2rem; margin-bottom:15px; color:#333;">'+(ec===0?'¡Sin errores! Perfecto 🎉':ec+' de '+pairs.length+' con error')+'</h3>'+
-    (ec===0?'<p class="perfect">Respondiste todo correctamente.</p>':
-      errors.map(function(e){
-        return '<div class="err-item"><span class="err-kanji">'+e.a+'</span><span class="err-sep">→</span><span class="err-reading">'+e.b+'</span><br><span class="err-wrong">Pusiste: '+e.answered+'</span></div>';
-      }).join(''));
+    '<h3 style="font-size:1.1rem; margin-bottom:15px; color:#333;">'+(ec===0?'¡Sin errores! Perfecto 🎉':ec+' error(es) de '+pairs.length+' pares')+'</h3>'+
+    '<table style="width:100%; border-collapse:collapse; font-size:14px;">'+
+      '<thead><tr style="border-bottom:2px solid #eee;">'+
+        '<th style="padding:8px 12px; text-align:left; color:#888; font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Concepto A</th>'+
+        '<th style="padding:8px 12px; text-align:left; color:#888; font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Concepto B</th>'+
+        '<th style="padding:8px 12px; text-align:center; color:#888; font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Resultado</th>'+
+      '</tr></thead>'+
+      '<tbody>'+tableRows+'</tbody>'+
+    '</table>';
   show('screen-summary');
 }
 
@@ -430,17 +462,8 @@ document.getElementById('btn-bulk-add').addEventListener('click',function(){
   renderEditor();
 });
 
-document.getElementById('btn-bulk-del').addEventListener('click',function(){
-  var parsed=parseBulk();
-  var msg=document.getElementById('bulk-msg');
-  if(!parsed||!parsed.length){msg.style.color='var(--color-wrong)';msg.textContent='No se encontraron pares válidos.';return;}
-  var before=pairs.length;
-  pairs=pairs.filter(function(x){return !parsed.some(function(p){return p.a===x.a&&p.b===x.b;});});
-  msg.style.color='var(--color-wrong)';msg.textContent=(before-pairs.length)+' par(es) eliminado(s).';
-  document.getElementById('bulk-input').value='';
-  renderEditor();
-});
 
+document.getElementById('btn-volver-inicio').addEventListener('click',function(){show('screen-editor');renderEditor();});
 document.getElementById('start-btn').addEventListener('click',startQuiz);
 document.getElementById('btn-go-editor').addEventListener('click',function(){show('screen-editor');renderEditor();});
 document.getElementById('btn-restart').addEventListener('click',startQuiz);
@@ -448,5 +471,5 @@ document.getElementById('btn-summary-edit').addEventListener('click',function(){
 
 renderEditor();
 </script>
-</body>
-</html>
+
+</body></html>
