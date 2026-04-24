@@ -83,7 +83,7 @@ input, textarea, select {
 }
 .target.correct{border-color: var(--color-correct); background: #f0fdf4; cursor:default;}
 .target.wrong{border-color: var(--color-wrong); background: #fef2f2;}
-.t-reading{font-size: 0.8rem; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom:4px;}
+.t-reading{font-size: 0.8rem; color: #888; letter-spacing: 0.5px; margin-bottom:4px;}
 .t-placed{font-size: 1.2rem; font-weight: 700; color: var(--color-primary); min-height:22px;}
 
 .start-btn, .primary {
@@ -128,7 +128,7 @@ input, textarea, select {
 
 <div id="screen-editor" class="screen active">
   <h1 style="font-size:31px; font-weight:700; color:#333; margin-bottom:8px;">Ejercicio de matchup</h1>
-  <p style="font-size:0.85rem; color:#888; margin-bottom:18px; line-height:1.6;">1. Agrega información en pares al ejercicio. Puedes agregar par por par de forma individual, o en masa separando la información con puntos y comas (en el toggle que dice "Agregar en masa").<br>2. Una vez agregadas las palabras, selecciona de a cuántos pares deseas ejercitar.<br>3. Para empezar el ejercicio, selecciona "Empezar a practicar".</p>
+  <p style="font-size:0.85rem; color:#888; margin-bottom:18px; line-height:1.6;">1. Agrega información en pares al ejercicio. Puedes agregar <strong>par por par</strong> de forma individual, o <strong>en masa</strong> separando la información con puntos y comas (en el toggle que dice "Agregar en masa").<br>2. Una vez agregadas las palabras, selecciona de a cuántos pares deseas ejercitar.<br>3. Para empezar el ejercicio, selecciona <strong>"Empezar a practicar"</strong>.</p>
   <div class="editor-header">
     <h2 style="font-size:19px;">Palabras del quiz</h2>
   </div>
@@ -181,10 +181,11 @@ input, textarea, select {
   </div>
   <div id="prog-txt" style="font-size:12px; color:#888; margin-bottom:20px;"></div>
   
-  <p style="font-size:0.75rem; font-weight:600; color:#888; margin-bottom:10px; letter-spacing:0.5px;">SELECCIONA KANJI:</p>
+  <p style="font-size:0.75rem; font-weight:600; color:#888; margin-bottom:10px; letter-spacing:0.5px;">Haz clic en estos conceptos para unirlos con los de más abajo:</p>
   <div class="chips-wrap" id="chips-wrap"></div>
   
-  <p style="font-size:0.75rem; font-weight:600; color:#888; margin-bottom:10px; letter-spacing:0.5px;">TOCA LA LECTURA CORRESPONDIENTE:</p>
+  <p style="font-size:0.75rem; font-weight:600; color:#888; margin-bottom:10px; letter-spacing:0.5px;">
+</p>
   <div class="targets-wrap" id="targets-wrap"></div>
   
   <div class="quiz-actions" id="quiz-actions" style="margin-top:20px;"></div>
@@ -340,7 +341,19 @@ function selectChip(cp){
 }
 
 function placeChip(ti){
-  if(selectedChipIdx===null||roundChecked)return;
+  if(roundChecked)return;
+
+  // Si no hay chip seleccionado pero el target tiene uno colocado, devolverlo
+  if(selectedChipIdx===null){
+    if(placements[ti]!==undefined){
+      var cp=placements[ti];
+      document.getElementById('placed-'+ti).textContent='';
+      document.getElementById('chip-'+cp).classList.remove('used');
+      delete placements[ti];
+    }
+    return;
+  }
+
   var prevT=null;
   Object.keys(placements).forEach(function(k){if(placements[k]===selectedChipIdx)prevT=k;});
   if(prevT!==null){document.getElementById('placed-'+prevT).textContent='';delete placements[prevT];}
@@ -389,11 +402,24 @@ function checkRound(){
   var isLast=currentRound===rounds.length-1;
   var qa=document.getElementById('quiz-actions');
   qa.innerHTML='';
+
+  // Botón principal: siguiente ronda o ver resumen
   var btn=document.createElement('button');
   btn.className='primary';
   btn.textContent=isLast?'Ver resumen':'Siguiente ronda →';
   btn.addEventListener('click',isLast?showSummary:nextRound);
   qa.appendChild(btn);
+
+  // Botón: repetir este set
+  var btnRepeat=document.createElement('button');
+  btnRepeat.textContent='↩ Repetir este ronda';
+  btnRepeat.addEventListener('click',function(){
+    // Eliminar los errores de esta ronda del array global
+    var roundPairKeys=currentPairs.map(function(p){return p.a+'\t'+p.b;});
+    errors=errors.filter(function(e){return roundPairKeys.indexOf(e.a+'\t'+e.b)===-1;});
+    renderRound();
+  });
+  qa.appendChild(btnRepeat);
 }
 
 function nextRound(){currentRound++;renderRound();}
