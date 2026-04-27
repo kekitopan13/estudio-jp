@@ -1,12 +1,12 @@
-<!DOCTYPE html><html lang="es"><head>
-
-
+<!DOCTYPE html>
+<html lang="es">
+<head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Kanji Study</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Segoe UI', sans-serif; background: #f7f4ff; color: #111; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+  body { font-family: 'Segoe UI', sans-serif; background: #f7f4ff; color: #111; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 16px; }
 
   /* BACK LINK */
   #back-link { width: 100%; max-width: 600px; margin-bottom: 16px; }
@@ -18,7 +18,7 @@
 
   /* SETUP */
   #setup { width: 100%; max-width: 600px; }
-  textarea { width: 100%; height: 220px; background: #fff; border: 1px solid #ccc; border-radius: 10px; color: #111; padding: 14px; font-size: 0.9rem; resize: vertical; line-height: 1.6; }
+  textarea { width: 100%; height: 200px; background: #fff; border: 1px solid #ccc; border-radius: 10px; color: #111; padding: 14px; font-size: 0.9rem; resize: vertical; line-height: 1.6; }
   textarea::placeholder { color: #aaa; }
   .btn { background: #b07ddb; color: #fff; border: none; border-radius: 8px; padding: 12px 28px; font-size: 1rem; cursor: pointer; transition: background 0.2s; }
   .btn:hover { background: #9a64c8; }
@@ -32,20 +32,22 @@
 
   /* PROGRESS */
   #progress-bar-wrap { width: 100%; max-width: 600px; margin-bottom: 18px; display: none; }
-  .progress-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
-  .phase-label { font-size: 0.75rem; color: #666; }
+  .progress-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 10px; }
+  .phase-label { font-size: 0.75rem; color: #666; flex: 1; }
+  .progress-actions { display: flex; gap: 12px; align-items: center; flex-shrink: 0; }
   .bar-bg { background: #ddd; border-radius: 99px; height: 6px; }
   .bar-fill { height: 6px; border-radius: 99px; background: #b07ddb; transition: width 0.3s; }
 
   /* CARD */
-  #card { width: 100%; max-width: 600px; background: #fff; border-radius: 16px; padding: 28px; display: none; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+  #card { width: 100%; max-width: 600px; background: #fff; border-radius: 16px; padding: 22px 20px; display: none; box-shadow: 0 2px 12px rgba(0,0,0,0.07); }
   .phase-badge { display: inline-block; font-size: 0.7rem; background: #ede0f7; color: #7a4fa0; border-radius: 99px; padding: 3px 12px; margin-bottom: 16px; letter-spacing: 1px; text-transform: uppercase; }
   .question-label { font-size: 0.75rem; color: #888; margin-bottom: 8px; }
-  .question-text { font-size: 2rem; font-weight: 700; color: #111; margin-bottom: 24px; letter-spacing: 2px; }
+  .question-text { font-size: clamp(1.5rem, 6vw, 2rem); font-weight: 700; color: #111; margin-bottom: 20px; letter-spacing: 2px; }
 
   /* CHOICES */
   .choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .choice-btn { background: #f9f9fb; border: 1px solid #ddd; border-radius: 10px; padding: 14px 10px; font-size: 1.1rem; color: #111; cursor: pointer; transition: all 0.15s; text-align: center; }
+  @media (max-width: 400px) { .choices { grid-template-columns: 1fr; } }
+  .choice-btn { background: #f9f9fb; border: 1px solid #ddd; border-radius: 10px; padding: 14px 10px; font-size: 1.05rem; color: #111; cursor: pointer; transition: all 0.15s; text-align: center; line-height: 1.3; }
   .choice-btn:hover:not(:disabled) { border-color: #b07ddb; background: #ede0f7; }
   .choice-btn.correct { border-color: #16a34a; background: #f0fdf4; color: #15803d; }
   .choice-btn.wrong { border-color: #dc2626; background: #fef2f2; color: #dc2626; }
@@ -59,30 +61,40 @@
   .retry-prompt { margin-top: 10px; font-size: 0.85rem; color: #dc2626; display: none; }
 
   /* FEEDBACK */
-  .feedback { margin-top: 18px; padding: 14px; border-radius: 10px; display: none; }
+  .feedback { margin-top: 16px; padding: 13px; border-radius: 10px; display: none; }
   .feedback.correct { background: #f0fdf4; border: 1px solid #86efac; }
   .feedback.wrong { background: #fef2f2; border: 1px solid #fca5a5; }
-  .feedback-title { font-size: 0.8rem; font-weight: 700; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1px; }
+  .feedback-title { font-size: 0.8rem; font-weight: 700; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px; }
   .feedback.correct .feedback-title { color: #15803d; }
   .feedback.wrong .feedback-title { color: #dc2626; }
-  .feedback-correct-ans { font-size: 1.05rem; color: #7a4fa0; }
+  .feedback-correct-ans { font-size: 1rem; color: #7a4fa0; }
 
-  /* MEMORY CHECK (shown AFTER answering) */
-  #memory-check { display: none; margin-top: 18px; padding: 14px 16px; background: #fafafa; border: 1px solid #e5e5e5; border-radius: 12px; }
-  .memory-question { font-size: 0.88rem; color: #555; margin-bottom: 12px; }
-  .memory-buttons { display: flex; gap: 10px; }
-  .mem-btn { flex: 1; padding: 10px; border-radius: 10px; font-size: 0.95rem; cursor: pointer; border: 1px solid #ddd; background: #fff; color: #333; transition: all 0.15s; font-weight: 500; }
-  .mem-btn:hover:not(:disabled) { border-color: #b07ddb; background: #ede0f7; }
-  .mem-btn:disabled { cursor: default; opacity: 0.6; }
-  .meaning-reveal { margin-top: 12px; padding: 11px 14px; background: #f0e8f8; border: 1px solid #d4b8e8; border-radius: 10px; font-size: 0.95rem; color: #7a4fa0; display: none; }
-  .meaning-reveal .meaning-label { font-size: 0.68rem; color: #b07ddb; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+  /* POST-ANSWER OPTIONS */
+  #post-answer { display: none; margin-top: 16px; }
+  .post-label { font-size: 0.8rem; color: #888; margin-bottom: 10px; }
+  .post-options { display: flex; flex-direction: column; gap: 8px; }
+  .post-btn { background: #fff; border: 1px solid #ddd; border-radius: 10px; padding: 12px 16px; font-size: 0.92rem; color: #333; cursor: pointer; text-align: left; transition: all 0.15s; display: flex; align-items: center; gap: 10px; }
+  .post-btn:hover { border-color: #b07ddb; background: #f7f4ff; }
+  .post-btn .post-icon { font-size: 1.1rem; flex-shrink: 0; }
+
+  /* MEANING REVEAL (inside post-answer) */
+  .meaning-reveal { margin-top: 10px; padding: 11px 14px; background: #f0e8f8; border: 1px solid #d4b8e8; border-radius: 10px; font-size: 0.95rem; color: #7a4fa0; display: none; }
+  .meaning-label { font-size: 0.68rem; color: #b07ddb; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+
+  /* VOCAB EXERCISE (inside post-answer) */
+  #vocab-exercise { display: none; margin-top: 10px; }
+  .vocab-ex-label { font-size: 0.75rem; color: #888; margin-bottom: 6px; }
+  .vocab-ex-q { font-size: 1rem; font-weight: 600; color: #111; margin-bottom: 12px; line-height: 1.4; }
+  .vocab-feedback { margin-top: 10px; padding: 11px 13px; border-radius: 10px; display: none; font-size: 0.9rem; }
+  .vocab-feedback.correct { background: #f0fdf4; border: 1px solid #86efac; color: #15803d; }
+  .vocab-feedback.wrong { background: #fef2f2; border: 1px solid #fca5a5; color: #dc2626; }
 
   /* NEXT */
-  .next-btn { margin-top: 14px; width: 100%; background: #b07ddb; color: #fff; border: none; border-radius: 8px; padding: 12px; font-size: 1rem; cursor: pointer; display: none; transition: background 0.2s; }
+  .next-btn { margin-top: 14px; width: 100%; background: #b07ddb; color: #fff; border: none; border-radius: 8px; padding: 14px; font-size: 1rem; cursor: pointer; display: none; transition: background 0.2s; }
   .next-btn:hover { background: #9a64c8; }
 
   /* BETWEEN PHASES */
-  #phase-transition { width: 100%; max-width: 600px; background: #fff; border-radius: 16px; padding: 32px; display: none; text-align: center; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+  #phase-transition { width: 100%; max-width: 600px; background: #fff; border-radius: 16px; padding: 32px; display: none; text-align: center; box-shadow: 0 2px 12px rgba(0,0,0,0.07); }
   #phase-transition h2 { color: #7a4fa0; margin-bottom: 10px; }
   #phase-transition p { color: #555; font-size: 0.9rem; margin-bottom: 20px; }
 
@@ -94,37 +106,36 @@
   .restart-btn { margin-top: 20px; width: 100%; }
 
   /* RESULTS TABLE */
-  .results-table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.08); font-size: 0.9rem; }
+  .results-table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.07); font-size: 0.88rem; }
   .results-table thead tr { background: #ede0f7; }
-  .results-table th { padding: 11px 14px; text-align: left; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; color: #7a4fa0; font-weight: 700; }
-  .results-table td { padding: 11px 14px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+  .results-table th { padding: 11px 12px; text-align: left; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; color: #7a4fa0; font-weight: 700; }
+  .results-table td { padding: 11px 12px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
   .results-table tbody tr:last-child td { border-bottom: none; }
   .results-table tbody tr:hover { background: #fafafa; }
-  .td-kanji { font-size: 1.1rem; font-weight: 700; letter-spacing: 1px; color: #111; }
+  .td-kanji { font-size: 1.1rem; font-weight: 700; letter-spacing: 1px; }
   .td-meaning { color: #555; }
-  .tag-yes { background: #f0fdf4; color: #15803d; border: 1px solid #86efac; border-radius: 99px; padding: 2px 10px; font-size: 0.78rem; font-weight: 600; white-space: nowrap; }
-  .tag-no  { background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; border-radius: 99px; padding: 2px 10px; font-size: 0.78rem; font-weight: 600; white-space: nowrap; }
-  .tag-phase { background: #ede0f7; color: #7a4fa0; border-radius: 99px; padding: 2px 10px; font-size: 0.75rem; white-space: nowrap; }
+  .tag-yes { background: #f0fdf4; color: #15803d; border: 1px solid #86efac; border-radius: 99px; padding: 2px 9px; font-size: 0.75rem; font-weight: 600; white-space: nowrap; }
+  .tag-no  { background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; border-radius: 99px; padding: 2px 9px; font-size: 0.75rem; font-weight: 600; white-space: nowrap; }
+  .tag-phase { background: #ede0f7; color: #7a4fa0; border-radius: 99px; padding: 2px 9px; font-size: 0.73rem; white-space: nowrap; }
+  .tag-neutral { background: #f3f3f3; color: #777; border-radius: 99px; padding: 2px 9px; font-size: 0.75rem; white-space: nowrap; }
 </style>
 </head>
-<body data-cc-id="cc-1" style="cursor: crosshair; background-color: rgb(247, 244, 255);">
+<body>
 
 <!-- BACK LINK -->
 <div id="back-link">
   <a href="https://kekitopan13.github.io/estudio-jp/">← メニュー</a>
 </div>
 
-<h1 data-cc-id="cc-2" style="color: rgb(176, 125, 219);">漢字 Study</h1>
+<h1>漢字 Study</h1>
 <p class="subtitle">Sistema de estudio de kanji y vocabulario</p>
 
 <!-- SETUP -->
-<div id="setup" style="display: block;">
+<div id="setup">
   <p style="font-size:0.85rem;color:#666;margin-bottom:10px;">Pega tu vocabulario abajo. Formato: <strong style="color:#7a4fa0">kanji [tab] lectura [tab] significado</strong>, una palabra por línea.</p>
-  <textarea id="vocab-input" placeholder="並ぶ	ならぶ	algo o alguien hace fila, alinearse
-並べる	ならべる	ordenar algo en fila, alinear algo
-他人	たにん	desconocido, otra persona"></textarea>
+  <textarea id="vocab-input" placeholder="並ぶ	ならぶ	algo o alguien hace fila, alinearse&#10;並べる	ならべる	ordenar algo en fila, alinear algo&#10;他人	たにん	desconocido, otra persona"></textarea>
   <div id="input-error" class="error-msg"></div>
-  <div style="margin-top:18px;margin-bottom:4px;">
+  <div style="margin-top:18px;">
     <label style="font-size:0.85rem;color:#666;font-weight:600;">Tamaño del set:</label>
     <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
       <button class="size-btn active" data-val="5" onclick="selectSize(this)">5 palabras</button>
@@ -138,62 +149,82 @@
 </div>
 
 <!-- PROGRESS -->
-<div id="progress-bar-wrap" style="display: none;">
+<div id="progress-bar-wrap">
   <div class="progress-top">
-    <div class="phase-label" id="phase-label">Grupo 1/12 · Fase 2 (Escritura) — 1/5</div>
-    <button onclick="goToSetup()" style="font-size:0.8rem;color:#b07ddb;font-weight:500;background:none;border:none;cursor:pointer;padding:0;">← Volver al inicio</button>
+    <div class="phase-label" id="phase-label"></div>
+    <div class="progress-actions">
+      <button onclick="goToSetup()" style="font-size:0.8rem;color:#b07ddb;font-weight:500;background:none;border:none;cursor:pointer;padding:0;white-space:nowrap;">← Inicio</button>
+      <button onclick="finishEarly()" style="font-size:0.8rem;color:#888;font-weight:500;background:none;border:none;cursor:pointer;padding:0;white-space:nowrap;">Terminar sesión</button>
+    </div>
   </div>
-  <div class="bar-bg"><div class="bar-fill" id="bar-fill" style="width: 20%;"></div></div>
+  <div class="bar-bg"><div class="bar-fill" id="bar-fill" style="width:0%"></div></div>
 </div>
 
 <!-- CARD -->
-<div id="card" style="display: none;">
-  <div class="phase-badge" id="phase-badge">Grupo 1 · Escritura</div>
-  <div class="question-label" id="q-label">¿Cómo se lee? (escribe en hiragana)</div>
-  <div class="question-text" id="q-text">加速</div>
+<div id="card">
+  <div class="phase-badge" id="phase-badge"></div>
+  <div class="question-label" id="q-label"></div>
+  <div class="question-text" id="q-text"></div>
 
-  <!-- CHOICES (MC phase) -->
-  <div id="choices-wrap" class="choices" style="display: none;"><button class="choice-btn" disabled="">きそく</button><button class="choice-btn" disabled="">かがく</button><button class="choice-btn" disabled="">こうそく</button><button class="choice-btn correct" disabled="">かそく</button></div>
+  <!-- MC choices -->
+  <div id="choices-wrap" class="choices"></div>
 
-  <!-- WRITE (write phase) -->
-  <div id="write-wrap" style="display: block;">
+  <!-- Write input -->
+  <div id="write-wrap" style="display:none">
     <input type="text" class="write-input" id="write-input" placeholder="Escribe la lectura en hiragana..." autocomplete="off" autocorrect="off" spellcheck="false">
-    <p class="retry-prompt" id="retry-prompt" style="display: none;">✗ Incorrecto. Intenta de nuevo:</p>
+    <p class="retry-prompt" id="retry-prompt">✗ Incorrecto. Intenta de nuevo:</p>
     <button class="btn" id="submit-write-btn" style="margin-top:12px;width:100%" onclick="checkWrite()">Confirmar</button>
   </div>
 
-  <!-- FEEDBACK -->
-  <div class="feedback correct" id="feedback" style="display: none;">
-    <div class="feedback-title" id="feedback-title">✓ Correcto</div>
-    <div class="feedback-correct-ans" id="feedback-correct-ans">Respuesta: かって</div>
+  <!-- Feedback (correct / wrong) -->
+  <div class="feedback" id="feedback">
+    <div class="feedback-title" id="feedback-title"></div>
+    <div class="feedback-correct-ans" id="feedback-correct-ans"></div>
   </div>
 
-  <!-- MEMORY CHECK (shown AFTER answering) -->
-  <div id="memory-check" style="display: none;">
-    <p class="memory-question">¿Recuerdas qué significa esta palabra?</p>
-    <div class="memory-buttons">
-      <button class="mem-btn" id="mem-yes" onclick="memoryAnswer(true)">Sí, la recuerdo</button>
-      <button class="mem-btn" id="mem-no" onclick="memoryAnswer(false)">No, no la recuerdo</button>
+  <!-- Post-answer options -->
+  <div id="post-answer">
+    <p class="post-label">¿Qué quieres hacer ahora?</p>
+    <div class="post-options">
+      <button class="post-btn" onclick="postAction('meaning')">
+        <span class="post-icon">📖</span> Ver el significado de esta palabra
+      </button>
+      <button class="post-btn" onclick="postAction('vocab')">
+        <span class="post-icon">🧩</span> Ejercitar el vocabulario en español
+      </button>
+      <button class="post-btn" onclick="postAction('next')">
+        <span class="post-icon">➡️</span> Seguir
+      </button>
     </div>
-    <div class="meaning-reveal" id="meaning-reveal" style="display: none;">
+
+    <!-- Meaning reveal -->
+    <div class="meaning-reveal" id="meaning-reveal">
       <div class="meaning-label">Significado</div>
-      <div id="meaning-reveal-text">hacer algo a tu manera, sin permiso, comportamiento egoísta</div>
+      <div id="meaning-reveal-text"></div>
+    </div>
+
+    <!-- Vocab exercise -->
+    <div id="vocab-exercise">
+      <div class="vocab-ex-label" style="margin-top:14px;">Escoge la palabra que corresponde a:</div>
+      <div class="vocab-ex-q" id="vocab-ex-q"></div>
+      <div class="choices" id="vocab-choices" style="grid-template-columns:1fr;"></div>
+      <div class="vocab-feedback" id="vocab-feedback"></div>
     </div>
   </div>
 
-  <!-- NEXT -->
-  <button class="next-btn" id="next-btn" onclick="nextQuestion()" style="display: none;">Siguiente →</button>
+  <!-- Next button -->
+  <button class="next-btn" id="next-btn" onclick="nextQuestion()">Siguiente →</button>
 </div>
 
 <!-- PHASE TRANSITION -->
-<div id="phase-transition" style="display: none;">
-  <h2 id="pt-title">¡Bien! Ahora a escribir</h2>
-  <p id="pt-desc">Escribirás en hiragana las mismas 5 palabras del grupo 1.</p>
+<div id="phase-transition">
+  <h2 id="pt-title"></h2>
+  <p id="pt-desc"></p>
   <button class="btn" onclick="startNextSubPhase()">Continuar →</button>
 </div>
 
 <!-- RESULTS -->
-<div id="results" style="display: none;">
+<div id="results">
   <div class="results-title">📊 Resultados finales</div>
   <div class="results-stats" id="results-stats"></div>
   <div id="mistakes-list"></div>
@@ -205,15 +236,16 @@ let GROUP_SIZE = 5;
 let vocab = [];
 let allGroups = [];
 let groupIdx = 0;
-let subPhase = 'mc'; // 'mc' or 'write'
+let subPhase = 'mc';
 let queue = [];
 let current = null;
 let mistakes = [];
 let totalQ = 0;
 let doneQ = 0;
 let writeAttempts = 0;
-let awaitingMemory = false; // waiting for memory check answer
-let currentRemembered = null;
+let vocabExDone = false; // has vocab exercise been answered
+
+// ─── SETUP ────────────────────────────────────────────────────────────────────
 
 function selectSize(btn) {
   document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
@@ -233,22 +265,22 @@ function parseVocab(text) {
 }
 
 function shuffle(arr) {
-  for (let i = arr.length - 1; i > 0; i--) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
+    [a[i], a[j]] = [a[j], a[i]];
   }
-  return arr;
+  return a;
 }
 
 function goToSetup() {
-  mistakes = [];
-  groupIdx = 0;
-  subPhase = 'mc';
-  document.getElementById('results').style.display = 'none';
-  document.getElementById('card').style.display = 'none';
-  document.getElementById('progress-bar-wrap').style.display = 'none';
-  document.getElementById('phase-transition').style.display = 'none';
-  document.getElementById('setup').style.display = 'block';
+  mistakes = []; groupIdx = 0; subPhase = 'mc';
+  hide('results'); hide('card'); hide('progress-bar-wrap'); hide('phase-transition');
+  show('setup');
+}
+
+function finishEarly() {
+  showResults();
 }
 
 function startStudy() {
@@ -259,49 +291,30 @@ function startStudy() {
     return;
   }
   document.getElementById('input-error').textContent = '';
-  vocab = shuffle([...parsed]);
-
+  vocab = shuffle(parsed);
   allGroups = [];
-  for (let i = 0; i < vocab.length; i += GROUP_SIZE) {
-    allGroups.push(vocab.slice(i, i + GROUP_SIZE));
-  }
-
-  groupIdx = 0;
-  subPhase = 'mc';
-  mistakes = [];
-
-  document.getElementById('setup').style.display = 'none';
-  document.getElementById('progress-bar-wrap').style.display = 'block';
-  document.getElementById('card').style.display = 'block';
-
+  for (let i = 0; i < vocab.length; i += GROUP_SIZE) allGroups.push(vocab.slice(i, i + GROUP_SIZE));
+  groupIdx = 0; subPhase = 'mc'; mistakes = [];
+  hide('setup'); show('progress-bar-wrap'); show('card');
   loadSubPhase();
 }
 
+// ─── PHASE MANAGEMENT ─────────────────────────────────────────────────────────
+
 function loadSubPhase() {
   const group = allGroups[groupIdx];
-  totalQ = group.length;
-  doneQ = 0;
-  writeAttempts = 0;
-  awaitingMemory = false;
-
-  if (subPhase === 'mc') {
-    queue = shuffle(group.map(w => ({
-      word: w,
-      direction: Math.random() < 0.5 ? 'kr' : 'rk'
-    })));
-  } else {
-    queue = shuffle(group.map(w => ({ word: w })));
-  }
-
+  totalQ = group.length; doneQ = 0; writeAttempts = 0;
+  queue = subPhase === 'mc'
+    ? shuffle(group.map(w => ({ word: w, direction: Math.random() < 0.5 ? 'kr' : 'rk' })))
+    : shuffle(group.map(w => ({ word: w })));
   updateProgress();
   showQuestion();
 }
 
 function updateProgress() {
-  const totalGroups = allGroups.length;
   const phaseNum = subPhase === 'mc' ? 1 : 2;
   document.getElementById('phase-label').textContent =
-    `Grupo ${groupIdx + 1}/${totalGroups} · Fase ${phaseNum} (${subPhase === 'mc' ? 'Alternativas' : 'Escritura'}) — ${doneQ}/${totalQ}`;
+    `Grupo ${groupIdx + 1}/${allGroups.length} · Fase ${phaseNum} (${subPhase === 'mc' ? 'Alternativas' : 'Escritura'}) — ${doneQ}/${totalQ}`;
   document.getElementById('bar-fill').style.width = totalQ ? (doneQ / totalQ * 100) + '%' : '0%';
 }
 
@@ -310,55 +323,41 @@ function updateProgress() {
 function showQuestion() {
   if (queue.length === 0) {
     if (subPhase === 'mc') {
-      showTransition(
-        `¡Bien! Ahora a escribir`,
+      showTransition(`¡Bien! Ahora a escribir`,
         `Escribirás en hiragana las mismas ${allGroups[groupIdx].length} palabras del grupo ${groupIdx + 1}.`,
-        () => { subPhase = 'write'; loadSubPhase(); }
-      );
+        () => { subPhase = 'write'; loadSubPhase(); });
     } else {
       groupIdx++;
-      if (groupIdx >= allGroups.length) {
-        showResults();
-      } else {
-        showTransition(
-          `Grupo ${groupIdx} completado ✓`,
+      if (groupIdx >= allGroups.length) { showResults(); }
+      else {
+        showTransition(`Grupo ${groupIdx} completado ✓`,
           `Pasando al grupo ${groupIdx + 1} de ${allGroups.length} (${allGroups[groupIdx].length} palabras).`,
-          () => { subPhase = 'mc'; loadSubPhase(); }
-        );
+          () => { subPhase = 'mc'; loadSubPhase(); });
       }
     }
     return;
   }
 
   current = queue.shift();
-  awaitingMemory = false;
-  currentRemembered = null;
   writeAttempts = 0;
+  vocabExDone = false;
 
-  document.getElementById('card').style.display = 'block';
-  document.getElementById('phase-transition').style.display = 'none';
-  document.getElementById('feedback').style.display = 'none';
-  document.getElementById('memory-check').style.display = 'none';
-  document.getElementById('meaning-reveal').style.display = 'none';
-  document.getElementById('next-btn').style.display = 'none';
-  document.getElementById('retry-prompt').style.display = 'none';
-  document.querySelectorAll('.mem-btn').forEach(b => b.disabled = false);
+  hide('phase-transition'); show('card');
+  hide('feedback'); hide('post-answer'); hide('meaning-reveal');
+  hide('vocab-exercise'); hide('next-btn'); hide('retry-prompt');
+  document.querySelectorAll('.post-btn').forEach(b => b.disabled = false);
 
   const badge = document.getElementById('phase-badge');
-  const qLabel = document.getElementById('q-label');
-  const qText = document.getElementById('q-text');
   const choicesWrap = document.getElementById('choices-wrap');
   const writeWrap = document.getElementById('write-wrap');
 
   if (subPhase === 'mc') {
     badge.textContent = `Grupo ${groupIdx + 1} · Alternativas`;
-    choicesWrap.style.display = 'grid';
-    writeWrap.style.display = 'none';
-
     const dir = current.direction;
-    qLabel.textContent = dir === 'kr' ? '¿Cómo se lee?' : '¿Qué kanji corresponde?';
-    qText.textContent = dir === 'kr' ? current.word.kanji : current.word.reading;
-
+    document.getElementById('q-label').textContent = dir === 'kr' ? '¿Cómo se lee?' : '¿Qué kanji corresponde?';
+    document.getElementById('q-text').textContent = dir === 'kr' ? current.word.kanji : current.word.reading;
+    show('choices-wrap'); hide('write-wrap');
+    choicesWrap.style.display = 'grid';
     const choices = buildChoices(current.word, dir);
     choicesWrap.innerHTML = '';
     choices.forEach(c => {
@@ -370,37 +369,86 @@ function showQuestion() {
     });
   } else {
     badge.textContent = `Grupo ${groupIdx + 1} · Escritura`;
-    choicesWrap.style.display = 'none';
-    writeWrap.style.display = 'block';
-    qLabel.textContent = '¿Cómo se lee? (escribe en hiragana)';
-    qText.textContent = current.word.kanji;
+    document.getElementById('q-label').textContent = '¿Cómo se lee? (escribe en hiragana)';
+    document.getElementById('q-text').textContent = current.word.kanji;
+    hide('choices-wrap'); show('write-wrap');
     const inp = document.getElementById('write-input');
-    inp.value = '';
-    inp.className = 'write-input';
-    inp.disabled = false;
+    inp.value = ''; inp.className = 'write-input'; inp.disabled = false;
     document.getElementById('submit-write-btn').disabled = false;
     inp.focus();
   }
 }
 
-// ─── AFTER ANSWERING: show memory check ───────────────────────────────────────
+// ─── POST-ANSWER OPTIONS ──────────────────────────────────────────────────────
 
-function showMemoryCheck() {
-  document.getElementById('memory-check').style.display = 'block';
-  document.getElementById('meaning-reveal').style.display = 'none';
-  document.querySelectorAll('.mem-btn').forEach(b => b.disabled = false);
-  awaitingMemory = true;
+function showPostAnswer() {
+  show('post-answer');
+  hide('meaning-reveal');
+  hide('vocab-exercise');
+  hide('next-btn');
+  document.getElementById('vocab-feedback').style.display = 'none';
+  document.querySelectorAll('.post-btn').forEach(b => b.disabled = false);
 }
 
-function memoryAnswer(remembered) {
-  document.querySelectorAll('.mem-btn').forEach(b => b.disabled = true);
-  currentRemembered = remembered;
-  if (!remembered) {
+function postAction(action) {
+  document.querySelectorAll('.post-btn').forEach(b => b.disabled = true);
+
+  if (action === 'meaning') {
     document.getElementById('meaning-reveal-text').textContent = current.word.meaning;
-    document.getElementById('meaning-reveal').style.display = 'block';
+    show('meaning-reveal');
+    show('next-btn');
+  } else if (action === 'vocab') {
+    showVocabExercise();
+  } else {
+    nextQuestion();
   }
-  document.getElementById('next-btn').style.display = 'block';
-  awaitingMemory = false;
+}
+
+// ─── VOCAB EXERCISE ───────────────────────────────────────────────────────────
+
+function showVocabExercise() {
+  show('vocab-exercise');
+  document.getElementById('vocab-feedback').style.display = 'none';
+
+  // Question: show the kanji/reading, ask for the meaning in Spanish
+  document.getElementById('vocab-ex-q').textContent = current.word.kanji + '　(' + current.word.reading + ')';
+  document.querySelector('.vocab-ex-label').textContent = '¿Cuál es el significado de esta palabra?';
+
+  const correct = current.word.meaning;
+  const pool = vocab.filter(w => w.kanji !== current.word.kanji);
+  const distractors = shuffle(pool).slice(0, 3).map(w => ({ text: w.meaning, correct: false }));
+  const choices = shuffle([{ text: correct, correct: true }, ...distractors]);
+
+  const wrap = document.getElementById('vocab-choices');
+  wrap.innerHTML = '';
+  choices.forEach(c => {
+    const btn = document.createElement('button');
+    btn.className = 'choice-btn';
+    btn.textContent = c.text;
+    btn.style.fontSize = '0.88rem';
+    btn.style.textAlign = 'left';
+    btn.style.padding = '12px';
+    btn.onclick = () => checkVocabChoice(btn, c.correct, correct, wrap);
+    wrap.appendChild(btn);
+  });
+}
+
+function checkVocabChoice(btn, isCorrect, correctAns, wrap) {
+  if (vocabExDone) return;
+  vocabExDone = true;
+  [...wrap.querySelectorAll('.choice-btn')].forEach(b => {
+    b.disabled = true;
+    if (b.textContent === correctAns) b.classList.add('correct');
+  });
+  if (!isCorrect) btn.classList.add('wrong');
+
+  const fb = document.getElementById('vocab-feedback');
+  fb.className = 'vocab-feedback ' + (isCorrect ? 'correct' : 'wrong');
+  fb.textContent = isCorrect
+    ? `✓ Correcto: ${correctAns}`
+    : `✗ Incorrecto. El significado correcto era: ${correctAns}`;
+  fb.style.display = 'block';
+  show('next-btn');
 }
 
 // ─── MC PHASE ─────────────────────────────────────────────────────────────────
@@ -410,13 +458,12 @@ function buildChoices(word, dir) {
   const pool = vocab.filter(w => w !== word);
   const scored = pool.map(w => {
     const cand = dir === 'kr' ? w.reading : w.kanji;
-    return { text: cand, correct: false, score: similarity(correct, cand) };
-  });
-  scored.sort((a, b) => b.score - a.score);
+    return { text: cand, score: similarity(correct, cand) };
+  }).sort((a, b) => b.score - a.score);
   const distractors = [];
   const seen = new Set([correct]);
   for (const s of scored) {
-    if (!seen.has(s.text)) { seen.add(s.text); distractors.push(s); }
+    if (!seen.has(s.text)) { seen.add(s.text); distractors.push({ text: s.text, correct: false }); }
     if (distractors.length >= 3) break;
   }
   return shuffle([{ text: correct, correct: true }, ...distractors]);
@@ -425,33 +472,24 @@ function buildChoices(word, dir) {
 function similarity(a, b) {
   let shared = 0;
   const bc = b.split('');
-  for (const ch of a) {
-    const i = bc.indexOf(ch);
-    if (i !== -1) { shared++; bc.splice(i, 1); }
-  }
+  for (const ch of a) { const i = bc.indexOf(ch); if (i !== -1) { shared++; bc.splice(i, 1); } }
   return shared / Math.max(a.length, b.length);
 }
 
 function selectChoice(btn, isCorrect, word, dir) {
-  if (awaitingMemory) return;
   doneQ++;
-  const allBtns = document.querySelectorAll('.choice-btn');
+  const allBtns = document.querySelectorAll('#choices-wrap .choice-btn');
   allBtns.forEach(b => b.disabled = true);
   const correctAnswer = dir === 'kr' ? word.reading : word.kanji;
-
-  if (isCorrect) {
-    btn.classList.add('correct');
-    showFeedback(true, correctAnswer);
-  } else {
-    btn.classList.add('wrong');
+  btn.classList.add(isCorrect ? 'correct' : 'wrong');
+  if (!isCorrect) {
     allBtns.forEach(b => { if (b.textContent === correctAnswer) b.classList.add('correct'); });
-    mistakes.push({ phase: 'Alternativas', grupo: groupIdx + 1, kanji: word.kanji, reading: word.reading, meaning: word.meaning, rememberedRef: current });
-    showFeedback(false, correctAnswer);
-  }
+    mistakes.push({ phase: 'Alternativas', grupo: groupIdx + 1, kanji: word.kanji, reading: word.reading, meaning: word.meaning });
+    current._mistakeRef = mistakes[mistakes.length - 1];
+  } else { current._mistakeRef = null; }
+  showFeedback(isCorrect, correctAnswer);
   updateProgress();
-  showMemoryCheck();
-  // Store mistake reference to attach remembered status later
-  current._mistakeRef = !isCorrect ? mistakes[mistakes.length - 1] : null;
+  showPostAnswer();
 }
 
 // ─── WRITE PHASE ──────────────────────────────────────────────────────────────
@@ -460,39 +498,33 @@ function checkWrite() {
   const inp = document.getElementById('write-input');
   const val = inp.value.trim();
   const correct = current.word.reading;
-
   if (val === correct) {
     inp.className = 'write-input correct';
     inp.disabled = true;
     document.getElementById('submit-write-btn').disabled = true;
-    document.getElementById('retry-prompt').style.display = 'none';
+    hide('retry-prompt');
     if (writeAttempts === 0) doneQ++;
     showFeedback(true, correct);
     updateProgress();
-    showMemoryCheck();
     current._mistakeRef = null;
+    showPostAnswer();
   } else {
     inp.className = 'write-input wrong';
     if (writeAttempts === 0) {
-      mistakes.push({ phase: 'Escritura', grupo: groupIdx + 1, kanji: current.word.kanji, reading: current.word.reading, meaning: current.word.meaning, rememberedRef: current });
+      mistakes.push({ phase: 'Escritura', grupo: groupIdx + 1, kanji: current.word.kanji, reading: current.word.reading, meaning: current.word.meaning });
       current._mistakeRef = mistakes[mistakes.length - 1];
     }
     writeAttempts++;
-    document.getElementById('retry-prompt').style.display = 'block';
+    show('retry-prompt');
     showFeedback(false, correct);
     setTimeout(() => {
-      inp.value = '';
-      inp.className = 'write-input';
-      document.getElementById('feedback').style.display = 'none';
-      document.getElementById('retry-prompt').style.display = 'block';
-      inp.focus();
+      inp.value = ''; inp.className = 'write-input';
+      hide('feedback'); hide('retry-prompt'); inp.focus();
     }, 1800);
   }
 }
 
-document.getElementById('write-input').addEventListener('keydown', e => {
-  if (e.key === 'Enter') checkWrite();
-});
+document.getElementById('write-input').addEventListener('keydown', e => { if (e.key === 'Enter') checkWrite(); });
 
 // ─── SHARED ───────────────────────────────────────────────────────────────────
 
@@ -500,70 +532,55 @@ function showFeedback(isCorrect, correctAns) {
   const fb = document.getElementById('feedback');
   fb.className = 'feedback ' + (isCorrect ? 'correct' : 'wrong');
   document.getElementById('feedback-title').textContent = isCorrect ? '✓ Correcto' : '✗ Incorrecto';
-  document.getElementById('feedback-correct-ans').textContent = isCorrect
-    ? `Respuesta: ${correctAns}`
-    : `Respuesta correcta: ${correctAns}`;
-  fb.style.display = 'block';
+  document.getElementById('feedback-correct-ans').textContent = isCorrect ? `Respuesta: ${correctAns}` : `Respuesta correcta: ${correctAns}`;
+  show('feedback');
 }
 
 function nextQuestion() {
-  // Attach remembered status to the mistake record if exists
-  if (current._mistakeRef) {
-    current._mistakeRef.remembered = currentRemembered;
-  }
   showQuestion();
 }
 
 let _nextSubPhaseCallback = null;
 function showTransition(title, desc, callback) {
-  document.getElementById('card').style.display = 'none';
-  const pt = document.getElementById('phase-transition');
-  pt.style.display = 'block';
+  hide('card');
+  show('phase-transition');
   document.getElementById('pt-title').textContent = title;
   document.getElementById('pt-desc').textContent = desc;
   _nextSubPhaseCallback = callback;
 }
 
 function startNextSubPhase() {
-  document.getElementById('phase-transition').style.display = 'none';
+  hide('phase-transition');
   if (_nextSubPhaseCallback) _nextSubPhaseCallback();
 }
 
 function showResults() {
-  document.getElementById('card').style.display = 'none';
-  document.getElementById('progress-bar-wrap').style.display = 'none';
-  document.getElementById('phase-transition').style.display = 'none';
-  document.getElementById('results').style.display = 'block';
+  hide('card'); hide('progress-bar-wrap'); hide('phase-transition');
+  show('results');
   document.getElementById('results-stats').textContent = `Errores cometidos: ${mistakes.length} en total`;
   const list = document.getElementById('mistakes-list');
   if (mistakes.length === 0) {
-    list.innerHTML = '<div class="no-mistakes">🎉 ¡Sin errores! ¡Perfecto!</div>';
-    return;
+    list.innerHTML = '<div class="no-mistakes">🎉 ¡Sin errores! ¡Perfecto!</div>'; return;
   }
-  let html = `<table class="results-table">
-    <thead><tr>
-      <th>Palabra</th>
-      <th>Lectura</th>
-      <th>Significado</th>
-      <th>¿La recordabas?</th>
-      <th>Fase</th>
-    </tr></thead><tbody>`;
+  let html = `<table class="results-table"><thead><tr>
+    <th>Palabra</th><th>Lectura</th><th>Significado</th><th>Fase</th>
+  </tr></thead><tbody>`;
   mistakes.forEach(m => {
-    const recTag = m.remembered === false
-      ? '<span class="tag-no">No</span>'
-      : '<span class="tag-yes">Sí</span>';
     html += `<tr>
       <td class="td-kanji">${m.kanji}</td>
       <td>${m.reading}</td>
       <td class="td-meaning">${m.meaning}</td>
-      <td style="text-align:center">${recTag}</td>
       <td><span class="tag-phase">${m.phase}</span></td>
     </tr>`;
   });
   html += '</tbody></table>';
   list.innerHTML = html;
 }
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+
+function show(id) { const el = document.getElementById(id); if (el) el.style.display = 'block'; }
+function hide(id) { const el = document.getElementById(id); if (el) el.style.display = 'none'; }
 </script>
-
-
-</body></html>
+</body>
+</html>
