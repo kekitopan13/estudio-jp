@@ -2,792 +2,585 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Kanji Study</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&family=Noto+Sans+JP:wght@300;400;500&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap" rel="stylesheet">
-<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
-<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
-<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-  html, body { height: 100%; background: #f0faf6; }
-  body {
-    font-family: 'DM Sans', sans-serif;
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
-    min-height: 100vh;
-    background: #e8f6f0;
-  }
-  #root {
-    width: 100%;
-    max-width: 430px;
-    min-height: 100vh;
-    min-height: 100dvh;
-    display: flex;
-    flex-direction: column;
-    background: #f7fdfb;
-    position: relative;
-  }
-  .kanji-font { font-family: 'Noto Serif JP', serif; }
-  .jp-font { font-family: 'Noto Sans JP', sans-serif; }
-  button { -webkit-appearance: none; appearance: none; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', sans-serif; background: #f7f4ff; color: #111; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 16px; }
+
+  /* BACK LINK */
+  #back-link { width: 100%; max-width: 600px; margin-bottom: 16px; }
+  #back-link a { display: inline-flex; align-items: center; gap: 4px; color: #b07ddb; font-size: 0.9rem; text-decoration: none; font-weight: 500; }
+  #back-link a:hover { text-decoration: underline; }
+
+  h1 { font-size: 1.4rem; color: #7a4fa0; margin-bottom: 4px; letter-spacing: 1px; }
+  .subtitle { font-size: 0.8rem; color: #888; margin-bottom: 24px; }
+
+  /* SETUP */
+  #setup { width: 100%; max-width: 600px; }
+  textarea { width: 100%; height: 200px; background: #fff; border: 1px solid #ccc; border-radius: 10px; color: #111; padding: 14px; font-size: 0.9rem; resize: vertical; line-height: 1.6; }
+  textarea::placeholder { color: #aaa; }
+  .btn { background: #b07ddb; color: #fff; border: none; border-radius: 8px; padding: 12px 28px; font-size: 1rem; cursor: pointer; transition: background 0.2s; }
+  .btn:hover { background: #9a64c8; }
+  .btn:disabled { background: #ccc; color: #888; cursor: default; }
+  .error-msg { color: #dc2626; font-size: 0.85rem; margin-top: 8px; }
+
+  /* SIZE BUTTONS */
+  .size-btn { background: #f9f9fb; border: 1px solid #ddd; border-radius: 8px; padding: 8px 18px; font-size: 0.9rem; color: #555; cursor: pointer; transition: all 0.15s; }
+  .size-btn:hover { border-color: #b07ddb; color: #b07ddb; }
+  .size-btn.active { background: #ede0f7; border-color: #b07ddb; color: #7a4fa0; font-weight: 600; }
+
+  /* PROGRESS */
+  #progress-bar-wrap { width: 100%; max-width: 600px; margin-bottom: 18px; display: none; }
+  .progress-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 10px; }
+  .phase-label { font-size: 0.75rem; color: #666; flex: 1; }
+  .progress-actions { display: flex; gap: 12px; align-items: center; flex-shrink: 0; }
+  .bar-bg { background: #ddd; border-radius: 99px; height: 6px; }
+  .bar-fill { height: 6px; border-radius: 99px; background: #b07ddb; transition: width 0.3s; }
+
+  /* CARD */
+  #card { width: 100%; max-width: 600px; background: #fff; border-radius: 16px; padding: 22px 20px; display: none; box-shadow: 0 2px 12px rgba(0,0,0,0.07); }
+  .phase-badge { display: inline-block; font-size: 0.7rem; background: #ede0f7; color: #7a4fa0; border-radius: 99px; padding: 3px 12px; margin-bottom: 16px; letter-spacing: 1px; text-transform: uppercase; }
+  .question-label { font-size: 0.75rem; color: #888; margin-bottom: 8px; }
+  .question-text { font-size: clamp(1.5rem, 6vw, 2rem); font-weight: 700; color: #111; margin-bottom: 20px; letter-spacing: 2px; }
+
+  /* CHOICES */
+  .choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media (max-width: 400px) { .choices { grid-template-columns: 1fr; } }
+  .choice-btn { background: #f9f9fb; border: 1px solid #ddd; border-radius: 10px; padding: 14px 10px; font-size: 1.05rem; color: #111; cursor: pointer; transition: all 0.15s; text-align: center; line-height: 1.3; }
+  .choice-btn:hover:not(:disabled) { border-color: #b07ddb; background: #ede0f7; }
+  .choice-btn.correct { border-color: #16a34a; background: #f0fdf4; color: #15803d; }
+  .choice-btn.wrong { border-color: #dc2626; background: #fef2f2; color: #dc2626; }
+  .choice-btn:disabled { cursor: default; }
+
+  /* WRITE */
+  .write-input { width: 100%; background: #f9f9fb; border: 1px solid #ccc; border-radius: 10px; padding: 14px; font-size: 1.4rem; color: #111; text-align: center; outline: none; transition: border 0.2s; }
+  .write-input:focus { border-color: #b07ddb; }
+  .write-input.correct { border-color: #16a34a; background: #f0fdf4; }
+  .write-input.wrong { border-color: #dc2626; background: #fef2f2; }
+  .retry-prompt { margin-top: 10px; font-size: 0.85rem; color: #dc2626; display: none; }
+
+  /* FEEDBACK */
+  .feedback { margin-top: 16px; padding: 13px; border-radius: 10px; display: none; }
+  .feedback.correct { background: #f0fdf4; border: 1px solid #86efac; }
+  .feedback.wrong { background: #fef2f2; border: 1px solid #fca5a5; }
+  .feedback-title { font-size: 0.8rem; font-weight: 700; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px; }
+  .feedback.correct .feedback-title { color: #15803d; }
+  .feedback.wrong .feedback-title { color: #dc2626; }
+  .feedback-correct-ans { font-size: 1rem; color: #7a4fa0; }
+
+  /* POST-ANSWER OPTIONS */
+  #post-answer { display: none; margin-top: 16px; }
+  .post-label { font-size: 0.8rem; color: #888; margin-bottom: 10px; }
+  .post-options { display: flex; flex-direction: column; gap: 8px; }
+  .post-btn { background: #fff; border: 1px solid #ddd; border-radius: 10px; padding: 12px 16px; font-size: 0.92rem; color: #333; cursor: pointer; text-align: left; transition: all 0.15s; display: flex; align-items: center; gap: 10px; }
+  .post-btn:hover { border-color: #b07ddb; background: #f7f4ff; }
+  .post-btn .post-icon { font-size: 1.1rem; flex-shrink: 0; }
+
+  /* MEANING REVEAL (inside post-answer) */
+  .meaning-reveal { margin-top: 10px; padding: 11px 14px; background: #f0e8f8; border: 1px solid #d4b8e8; border-radius: 10px; font-size: 0.95rem; color: #7a4fa0; display: none; }
+  .meaning-label { font-size: 0.68rem; color: #b07ddb; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+
+  /* VOCAB EXERCISE (inside post-answer) */
+  #vocab-exercise { display: none; margin-top: 10px; }
+  .vocab-ex-label { font-size: 0.75rem; color: #888; margin-bottom: 6px; }
+  .vocab-ex-q { font-size: 1rem; font-weight: 600; color: #111; margin-bottom: 12px; line-height: 1.4; }
+  .vocab-feedback { margin-top: 10px; padding: 11px 13px; border-radius: 10px; display: none; font-size: 0.9rem; }
+  .vocab-feedback.correct { background: #f0fdf4; border: 1px solid #86efac; color: #15803d; }
+  .vocab-feedback.wrong { background: #fef2f2; border: 1px solid #fca5a5; color: #dc2626; }
+
+  /* NEXT */
+  .next-btn { margin-top: 14px; width: 100%; background: #b07ddb; color: #fff; border: none; border-radius: 8px; padding: 14px; font-size: 1rem; cursor: pointer; display: none; transition: background 0.2s; }
+  .next-btn:hover { background: #9a64c8; }
+
+  /* BETWEEN PHASES */
+  #phase-transition { width: 100%; max-width: 600px; background: #fff; border-radius: 16px; padding: 32px; display: none; text-align: center; box-shadow: 0 2px 12px rgba(0,0,0,0.07); }
+  #phase-transition h2 { color: #7a4fa0; margin-bottom: 10px; }
+  #phase-transition p { color: #555; font-size: 0.9rem; margin-bottom: 20px; }
+
+  /* RESULTS */
+  #results { width: 100%; max-width: 600px; display: none; }
+  .results-title { font-size: 1.3rem; color: #7a4fa0; margin-bottom: 6px; }
+  .results-stats { font-size: 0.9rem; color: #666; margin-bottom: 20px; }
+  .no-mistakes { color: #15803d; font-size: 1rem; padding: 20px 0; text-align: center; }
+  .restart-btn { margin-top: 20px; width: 100%; }
+
+  /* RESULTS TABLE */
+  .results-table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.07); font-size: 0.88rem; }
+  .results-table thead tr { background: #ede0f7; }
+  .results-table th { padding: 11px 12px; text-align: left; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; color: #7a4fa0; font-weight: 700; }
+  .results-table td { padding: 11px 12px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+  .results-table tbody tr:last-child td { border-bottom: none; }
+  .results-table tbody tr:hover { background: #fafafa; }
+  .td-kanji { font-size: 1.1rem; font-weight: 700; letter-spacing: 1px; }
+  .td-meaning { color: #555; }
+  .tag-yes { background: #f0fdf4; color: #15803d; border: 1px solid #86efac; border-radius: 99px; padding: 2px 9px; font-size: 0.75rem; font-weight: 600; white-space: nowrap; }
+  .tag-no  { background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; border-radius: 99px; padding: 2px 9px; font-size: 0.75rem; font-weight: 600; white-space: nowrap; }
+  .tag-phase { background: #ede0f7; color: #7a4fa0; border-radius: 99px; padding: 2px 9px; font-size: 0.73rem; white-space: nowrap; }
+  .tag-neutral { background: #f3f3f3; color: #777; border-radius: 99px; padding: 2px 9px; font-size: 0.75rem; white-space: nowrap; }
 </style>
 </head>
 <body>
-<div id="root"></div>
-<script type="text/babel">
-const { useState, useEffect } = React;
 
-// ─── HELPERS ────────────────────────────────────────────────────────────────
-function isKanji(ch) {
-  return /[\u4e00-\u9faf\u3400-\u4dbf]/.test(ch);
+<!-- BACK LINK -->
+<div id="back-link">
+  <a href="https://kekitopan13.github.io/estudio-jp/">← メニュー</a>
+</div>
+
+<h1>漢字 Study</h1>
+<p class="subtitle">Sistema de estudio de kanji y vocabulario</p>
+
+<!-- SETUP -->
+<div id="setup">
+  <p style="font-size:0.85rem;color:#666;margin-bottom:10px;">Pega tu vocabulario abajo. Formato: <strong style="color:#7a4fa0">kanji [tab] lectura [tab] significado</strong>, una palabra por línea.</p>
+  <textarea id="vocab-input" placeholder="並ぶ	ならぶ	algo o alguien hace fila, alinearse&#10;並べる	ならべる	ordenar algo en fila, alinear algo&#10;他人	たにん	desconocido, otra persona"></textarea>
+  <div id="input-error" class="error-msg"></div>
+  <div style="margin-top:18px;">
+    <label style="font-size:0.85rem;color:#666;font-weight:600;">Tamaño del set:</label>
+    <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+      <button class="size-btn active" data-val="5" onclick="selectSize(this)">5 palabras</button>
+      <button class="size-btn" data-val="10" onclick="selectSize(this)">10 palabras</button>
+      <button class="size-btn" data-val="15" onclick="selectSize(this)">15 palabras</button>
+      <button class="size-btn" data-val="20" onclick="selectSize(this)">20 palabras</button>
+    </div>
+  </div>
+  <br>
+  <button class="btn" onclick="startStudy()">Comenzar estudio</button>
+</div>
+
+<!-- PROGRESS -->
+<div id="progress-bar-wrap">
+  <div class="progress-top">
+    <div class="phase-label" id="phase-label"></div>
+    <div class="progress-actions">
+      <button onclick="goToSetup()" style="font-size:0.8rem;color:#b07ddb;font-weight:500;background:none;border:none;cursor:pointer;padding:0;white-space:nowrap;">← Inicio</button>
+      <button onclick="finishEarly()" style="font-size:0.8rem;color:#888;font-weight:500;background:none;border:none;cursor:pointer;padding:0;white-space:nowrap;">Terminar sesión</button>
+    </div>
+  </div>
+  <div class="bar-bg"><div class="bar-fill" id="bar-fill" style="width:0%"></div></div>
+</div>
+
+<!-- CARD -->
+<div id="card">
+  <div class="phase-badge" id="phase-badge"></div>
+  <div class="question-label" id="q-label"></div>
+  <div class="question-text" id="q-text"></div>
+
+  <!-- MC choices -->
+  <div id="choices-wrap" class="choices"></div>
+
+  <!-- Write input -->
+  <div id="write-wrap" style="display:none">
+    <input type="text" class="write-input" id="write-input" placeholder="Escribe la lectura en hiragana..." autocomplete="off" autocorrect="off" spellcheck="false">
+    <p class="retry-prompt" id="retry-prompt">✗ Incorrecto. Intenta de nuevo:</p>
+    <button class="btn" id="submit-write-btn" style="margin-top:12px;width:100%" onclick="checkWrite()">Confirmar</button>
+  </div>
+
+  <!-- Feedback (correct / wrong) -->
+  <div class="feedback" id="feedback">
+    <div class="feedback-title" id="feedback-title"></div>
+    <div class="feedback-correct-ans" id="feedback-correct-ans"></div>
+  </div>
+
+  <!-- Post-answer options -->
+  <div id="post-answer">
+    <p class="post-label">¿Qué quieres hacer ahora?</p>
+    <div class="post-options">
+      <button class="post-btn" onclick="postAction('meaning')">
+        <span class="post-icon">📖</span> Ver el significado de esta palabra
+      </button>
+      <button class="post-btn" onclick="postAction('vocab')">
+        <span class="post-icon">🧩</span> Ejercitar el vocabulario en español
+      </button>
+      <button class="post-btn" onclick="postAction('next')">
+        <span class="post-icon">➡️</span> Seguir
+      </button>
+    </div>
+
+    <!-- Meaning reveal -->
+    <div class="meaning-reveal" id="meaning-reveal">
+      <div class="meaning-label">Significado</div>
+      <div id="meaning-reveal-text"></div>
+    </div>
+
+    <!-- Vocab exercise -->
+    <div id="vocab-exercise">
+      <div class="vocab-ex-label" style="margin-top:14px;">Escoge la palabra que corresponde a:</div>
+      <div class="vocab-ex-q" id="vocab-ex-q"></div>
+      <div class="choices" id="vocab-choices" style="grid-template-columns:1fr;"></div>
+      <div class="vocab-feedback" id="vocab-feedback"></div>
+    </div>
+  </div>
+
+  <!-- Next button -->
+  <button class="next-btn" id="next-btn" onclick="nextQuestion()">Siguiente →</button>
+</div>
+
+<!-- PHASE TRANSITION -->
+<div id="phase-transition">
+  <h2 id="pt-title"></h2>
+  <p id="pt-desc"></p>
+  <button class="btn" onclick="startNextSubPhase()">Continuar →</button>
+</div>
+
+<!-- RESULTS -->
+<div id="results">
+  <div class="results-title">📊 Resultados finales</div>
+  <div class="results-stats" id="results-stats"></div>
+  <div id="mistakes-list"></div>
+  <button class="btn restart-btn" onclick="goToSetup()">Volver a empezar</button>
+</div>
+
+<script>
+let GROUP_SIZE = 5;
+let vocab = [];
+let allGroups = [];
+let groupIdx = 0;
+let subPhase = 'mc';
+let queue = [];
+let current = null;
+let mistakes = [];
+let totalQ = 0;
+let doneQ = 0;
+let writeAttempts = 0;
+let vocabExDone = false; // has vocab exercise been answered
+
+// ─── SETUP ────────────────────────────────────────────────────────────────────
+
+function selectSize(btn) {
+  document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  GROUP_SIZE = parseInt(btn.dataset.val);
 }
-function wordToChars(w) { return [...w]; }
-function shuffle(arr) { return [...arr].sort(() => Math.random() - 0.5); }
 
-// ─── COLORES ────────────────────────────────────────────────────────────────
-const C = {
-  bg:          "#f7fdfb",
-  bgAlt:       "#edf7f3",
-  bgCard:      "#ffffff",
-  bgDeep:      "#e4f5ef",
-  text:        "#1a2e28",
-  textMuted:   "#5a7a72",
-  textDim:     "#9bbdb5",
-  mint:        "#B3EEE3",
-  mintDark:    "#7dd4c4",
-  mintDeep:    "#4fbfac",
-  pink:        "#FA7DB3",
-  pinkLight:   "rgba(250,125,179,0.15)",
-  pinkDark:    "#e8609a",
-  correct:     "#4fbfac",
-  correctBg:   "rgba(79,191,172,0.12)",
-  wrong:       "#FA7DB3",
-  wrongBg:     "rgba(250,125,179,0.15)",
-  border:      "#c8e8e0",
-  borderLight: "#dff2ed",
-  white:       "#ffffff",
-  shadow:      "0 2px 12px rgba(79,191,172,0.12)",
-  shadowCard:  "0 1px 4px rgba(0,0,0,0.06)",
-};
-
-// ─── VOCABULARIO POR DEFECTO ─────────────────────────────────────────────────
-const DEFAULT_DB = `久\t永久\tえいきゅう\tpermanente, para siempre
-久\t久しぶり\tひさしぶり\tdespués de mucho tiempo
-争\tきょう争\tきょうそう\tcompetencia
-争\t言い争い\tいいあらそい\tdiscusión verbal`;
-
-function parseDB(text) {
-  const lines = text.trim().split("\n").filter(l => l.trim());
-  const byKanji = {};
-  const words = [];
+function parseVocab(text) {
+  const lines = text.trim().split('\n').filter(l => l.trim());
+  const result = [];
   for (const line of lines) {
-    const parts = line.split("\t");
-    if (parts.length < 4) continue;
-    const [kanjiClave, kanjiWord, furigana, es] = parts.map(p => p.trim());
-    if (!kanjiClave || !kanjiWord || !furigana || !es) continue;
-    const chars = wordToChars(kanjiWord);
-    const word = { kanjiClave, kanji: kanjiWord, furigana, es, chars };
-    words.push(word);
-    if (!byKanji[kanjiClave]) byKanji[kanjiClave] = [];
-    byKanji[kanjiClave].push(word);
+    const parts = line.split('\t');
+    if (parts.length < 3) return null;
+    result.push({ kanji: parts[0].trim(), reading: parts[1].trim(), meaning: parts[2].trim() });
   }
-  return { words, byKanji, kanjiKeys: Object.keys(byKanji) };
+  return result.length >= 2 ? result : null;
 }
 
-function buildKanjiPool(words) {
-  return [...new Set(words.flatMap(w => w.chars.filter(isKanji)))];
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
 }
 
-let CURRENT_DB = parseDB(DEFAULT_DB);
-let ALL_KANJI_POOL = buildKanjiPool(CURRENT_DB.words);
-
-function getKanjiChars(word) { return word.chars.filter(isKanji); }
-
-function getDistractors(correctChars, count = 7) {
-  const pool = ALL_KANJI_POOL.filter(k => !correctChars.includes(k));
-  return shuffle(pool).slice(0, Math.min(count, pool.length));
+function goToSetup() {
+  mistakes = []; groupIdx = 0; subPhase = 'mc';
+  hide('results'); hide('card'); hide('progress-bar-wrap'); hide('phase-transition');
+  show('setup');
 }
 
-// ─── COMPONENTES COMPARTIDOS ─────────────────────────────────────────────────
-
-function ProgressBar({ current, total }) {
-  const pct = Math.round((current / total) * 100);
-  return (
-    <div style={{ height: 5, background: C.bgDeep, borderRadius: 3, overflow: "hidden" }}>
-      <div style={{
-        height: "100%", width: `${pct}%`,
-        background: `linear-gradient(90deg, ${C.mintDeep}, ${C.pink})`,
-        borderRadius: 3, transition: "width 0.4s ease",
-      }} />
-    </div>
-  );
+function finishEarly() {
+  showResults();
 }
 
-// Barra de navegación superior compartida para ejercicios
-function ExerciseTopBar({ stepCurrent, stepTotal, roundCurrent, roundTotal, onClose, onFinish, devMode, onDevSkip }) {
-  return (
-    <div style={{
-      padding: "12px 16px 10px",
-      display: "flex", alignItems: "center", gap: 8,
-      background: C.white, borderBottom: `1px solid ${C.borderLight}`,
-      position: "sticky", top: 0, zIndex: 10,
-    }}>
-      <button onClick={onClose} style={{
-        width: 34, height: 34, borderRadius: "50%",
-        background: C.bgDeep, border: `1px solid ${C.border}`,
-        color: C.textMuted, fontSize: 16, cursor: "pointer",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        flexShrink: 0,
-      }}>✕</button>
-      <div style={{ flex: 1 }}>
-        <ProgressBar current={stepCurrent} total={stepTotal} />
-        <div style={{ fontSize: 10, color: C.textDim, marginTop: 3 }}>Ronda {roundCurrent}/{roundTotal}</div>
-      </div>
-      {devMode && (
-        <button onClick={onDevSkip} style={{
-          padding: "5px 10px", borderRadius: 8,
-          background: C.pinkLight, border: `1px solid ${C.pink}`,
-          color: C.pinkDark, fontSize: 11, cursor: "pointer",
-          fontFamily: "'DM Sans', sans-serif", flexShrink: 0,
-        }}>skip →</button>
-      )}
-      <button onClick={onFinish} style={{
-        padding: "5px 10px", borderRadius: 8,
-        background: "transparent", border: `1px solid ${C.border}`,
-        color: C.textMuted, fontSize: 11, cursor: "pointer",
-        fontFamily: "'DM Sans', sans-serif", flexShrink: 0,
-      }}>Terminar</button>
-    </div>
-  );
+function startStudy() {
+  const text = document.getElementById('vocab-input').value;
+  const parsed = parseVocab(text);
+  if (!parsed) {
+    document.getElementById('input-error').textContent = 'Error: necesitas al menos 2 palabras con 3 columnas separadas por tab.';
+    return;
+  }
+  document.getElementById('input-error').textContent = '';
+  vocab = shuffle(parsed);
+  allGroups = [];
+  for (let i = 0; i < vocab.length; i += GROUP_SIZE) allGroups.push(vocab.slice(i, i + GROUP_SIZE));
+  groupIdx = 0; subPhase = 'mc'; mistakes = [];
+  hide('setup'); show('progress-bar-wrap'); show('card');
+  loadSubPhase();
 }
 
-// Barra superior para pantallas de config/fin
-function PageTopBar({ onHome }) {
-  return (
-    <div style={{
-      padding: "12px 16px",
-      display: "flex", alignItems: "center", justifyContent: "space-between",
-      background: C.white, borderBottom: `1px solid ${C.borderLight}`,
-    }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <span className="kanji-font" style={{ fontSize: 20, color: C.mintDeep }}>漢</span>
-        <span style={{ fontSize: 15, fontWeight: 600, color: C.text }}>Kanji Study</span>
-      </div>
-      <div style={{ display: "flex", gap: 8 }}>
-        {onHome && (
-          <button onClick={onHome} style={{
-            padding: "6px 12px", borderRadius: 8,
-            background: C.bgDeep, border: `1px solid ${C.border}`,
-            color: C.textMuted, fontSize: 12, cursor: "pointer",
-            fontFamily: "'DM Sans', sans-serif",
-          }}>Inicio</button>
-        )}
-        <a href="https://kekitopan13.github.io/estudio-jp/" target="_blank" rel="noopener noreferrer" style={{
-          padding: "6px 12px", borderRadius: 8,
-          background: C.mint, border: "none",
-          color: C.text, fontSize: 12, cursor: "pointer",
-          fontFamily: "'DM Sans', sans-serif", fontWeight: 500,
-          textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4,
-        }}>Menú ↗</a>
-      </div>
-    </div>
-  );
+// ─── PHASE MANAGEMENT ─────────────────────────────────────────────────────────
+
+function loadSubPhase() {
+  const group = allGroups[groupIdx];
+  totalQ = group.length; doneQ = 0; writeAttempts = 0;
+  queue = subPhase === 'mc'
+    ? shuffle(group.map(w => ({ word: w, direction: Math.random() < 0.5 ? 'kr' : 'rk' })))
+    : shuffle(group.map(w => ({ word: w })));
+  updateProgress();
+  showQuestion();
 }
 
-function TypeLabel({ label, color }) {
-  return (
-    <div style={{
-      fontSize: 10, letterSpacing: "0.14em", fontWeight: 700,
-      color: color || C.textMuted, textTransform: "uppercase",
-    }}>{label}</div>
-  );
+function updateProgress() {
+  const phaseNum = subPhase === 'mc' ? 1 : 2;
+  document.getElementById('phase-label').textContent =
+    `Grupo ${groupIdx + 1}/${allGroups.length} · Fase ${phaseNum} (${subPhase === 'mc' ? 'Alternativas' : 'Escritura'}) — ${doneQ}/${totalQ}`;
+  document.getElementById('bar-fill').style.width = totalQ ? (doneQ / totalQ * 100) + '%' : '0%';
 }
 
-function KanjiDisplay({ word, showFurigana = true, size = 88 }) {
-  return (
-    <div style={{ textAlign: "center" }}>
-      <div className="kanji-font" style={{
-        fontSize: size, color: C.text,
-        lineHeight: 1.1, letterSpacing: "0.04em",
-      }}>{word.kanji}</div>
-      {showFurigana && (
-        <div className="jp-font" style={{
-          fontSize: 20, color: C.textMuted, marginTop: 8,
-          letterSpacing: "0.2em",
-        }}>{word.furigana}</div>
-      )}
-    </div>
-  );
-}
+// ─── SHOW QUESTION ────────────────────────────────────────────────────────────
 
-function PrimaryBtn({ onClick, children, disabled }) {
-  return (
-    <button onClick={onClick} disabled={disabled} style={{
-      width: "100%", padding: "17px",
-      background: disabled ? C.bgDeep : `linear-gradient(135deg, ${C.mintDeep}, ${C.mintDark})`,
-      border: "none", borderRadius: 14,
-      color: disabled ? C.textDim : C.white,
-      fontSize: 17, fontWeight: 600,
-      cursor: disabled ? "not-allowed" : "pointer",
-      fontFamily: "'DM Sans', sans-serif",
-      boxShadow: disabled ? "none" : C.shadow,
-      transition: "transform 0.1s",
-    }}
-    onPointerDown={e => { if (!disabled) e.currentTarget.style.transform = "scale(0.97)"; }}
-    onPointerUp={e => e.currentTarget.style.transform = "scale(1)"}
-    onPointerLeave={e => e.currentTarget.style.transform = "scale(1)"}
-    >{children}</button>
-  );
-}
-
-// ─── EJERCICIO 1: EXPOSICIÓN ─────────────────────────────────────────────────
-function ExposicionEx({ word, onNext }) {
-  return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "20px 24px 28px", gap: 18 }}>
-      <KanjiDisplay word={word} showFurigana={true} size={88} />
-      <div style={{
-        background: C.bgCard, borderRadius: 14, padding: "16px 20px",
-        border: `1px solid ${C.borderLight}`, boxShadow: C.shadowCard,
-      }}>
-        <div style={{ fontSize: 10, color: C.textDim, marginBottom: 4, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em" }}>Significado</div>
-        <div style={{ fontSize: 17, color: C.text, lineHeight: 1.5 }}>{word.es}</div>
-      </div>
-      <div style={{ display: "flex", justifyContent: "center", gap: 8, flexWrap: "wrap" }}>
-        {word.chars.filter(isKanji).map((ch, i) => (
-          <div key={i} className="kanji-font" style={{
-            width: 48, height: 48, display: "flex", alignItems: "center", justifyContent: "center",
-            background: C.bgDeep, border: `1px solid ${C.border}`,
-            borderRadius: 10, fontSize: 24, color: C.mintDeep,
-          }}>{ch}</div>
-        ))}
-      </div>
-      <div style={{ flex: 1 }} />
-      <PrimaryBtn onClick={onNext}>OK</PrimaryBtn>
-    </div>
-  );
-}
-
-// ─── EJERCICIO 2: CONSTRUCCIÓN ───────────────────────────────────────────────
-function ConstruccionEx({ word, onNext }) {
-  const correctKanjis = getKanjiChars(word);
-  const [slots, setSlots] = useState(correctKanjis.map(() => null));
-  const [pool, setPool] = useState(() => shuffle([...correctKanjis, ...getDistractors(correctKanjis, 9 - correctKanjis.length)]));
-  const [errors, setErrors] = useState(new Set());
-  const [done, setDone] = useState(false);
-
-  const kanjiPositionsInWord = word.chars.reduce((acc, ch, i) => {
-    if (isKanji(ch)) acc.push(i);
-    return acc;
-  }, []);
-
-  function handleSelect(k, poolIdx) {
-    if (errors.has(poolIdx)) return;
-    const nextEmpty = slots.findIndex(s => s === null);
-    if (nextEmpty === -1) return;
-    const expected = correctKanjis[nextEmpty];
-    if (k === expected) {
-      const newSlots = [...slots];
-      newSlots[nextEmpty] = k;
-      setSlots(newSlots);
-      setPool(prev => prev.map((p, i) => i === poolIdx ? null : p));
-      setErrors(new Set());
-      if (newSlots.every(s => s !== null)) setTimeout(() => setDone(true), 350);
+function showQuestion() {
+  if (queue.length === 0) {
+    if (subPhase === 'mc') {
+      showTransition(`¡Bien! Ahora a escribir`,
+        `Escribirás en hiragana las mismas ${allGroups[groupIdx].length} palabras del grupo ${groupIdx + 1}.`,
+        () => { subPhase = 'write'; loadSubPhase(); });
     } else {
-      setErrors(prev => new Set([...prev, poolIdx]));
+      groupIdx++;
+      if (groupIdx >= allGroups.length) { showResults(); }
+      else {
+        showTransition(`Grupo ${groupIdx} completado ✓`,
+          `Pasando al grupo ${groupIdx + 1} de ${allGroups.length} (${allGroups[groupIdx].length} palabras).`,
+          () => { subPhase = 'mc'; loadSubPhase(); });
+      }
     }
+    return;
   }
 
-  return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "16px 20px 24px", gap: 12 }}>
-      <div style={{ textAlign: "center" }}>
-        <div style={{ fontSize: 14, color: C.textMuted, marginBottom: 6 }}>{word.es}</div>
-        <div className="jp-font" style={{ fontSize: 24, color: C.text, letterSpacing: "0.18em", marginBottom: 12 }}>
-          {word.furigana}
-        </div>
-        <div style={{ display: "flex", justifyContent: "center", gap: 6, flexWrap: "wrap" }}>
-          {word.chars.map((ch, i) => {
-            const kanjiIdx = kanjiPositionsInWord.indexOf(i);
-            if (isKanji(ch)) {
-              const filled = slots[kanjiIdx];
-              return (
-                <div key={i} className="kanji-font" style={{
-                  width: 54, height: 54,
-                  border: `2px dashed ${filled ? C.mintDeep : C.border}`,
-                  borderRadius: 11,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 28, color: filled ? C.mintDeep : "transparent",
-                  background: filled ? C.correctBg : "transparent",
-                  transition: "all 0.2s",
-                }}>{filled || ch}</div>
-              );
-            } else {
-              return (
-                <div key={i} className="jp-font" style={{
-                  width: 34, height: 54,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 24, color: C.textMuted,
-                }}>{ch}</div>
-              );
-            }
-          })}
-        </div>
-      </div>
+  current = queue.shift();
+  writeAttempts = 0;
+  vocabExDone = false;
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, width: "100%" }}>
-        {pool.map((k, i) => {
-          if (k === null) return <div key={i} style={{ height: 68 }} />;
-          const isErr = errors.has(i);
-          return (
-            <button key={i} onClick={() => handleSelect(k, i)} className="kanji-font" style={{
-              height: 68, fontSize: 34,
-              background: isErr ? C.wrongBg : C.bgCard,
-              border: `1.5px solid ${isErr ? C.wrong : C.border}`,
-              borderRadius: 12, color: isErr ? C.pinkDark : C.text,
-              cursor: "pointer", transition: "all 0.15s",
-              fontFamily: "'Noto Serif JP', serif",
-              boxShadow: C.shadowCard,
-            }}>{k}</button>
-          );
-        })}
-      </div>
+  hide('phase-transition'); show('card');
+  hide('feedback'); hide('post-answer'); hide('meaning-reveal');
+  hide('vocab-exercise'); hide('next-btn'); hide('retry-prompt');
+  document.querySelectorAll('.post-btn').forEach(b => b.disabled = false);
 
-      {done && <PrimaryBtn onClick={onNext}>Continuar →</PrimaryBtn>}
-    </div>
-  );
-}
+  const badge = document.getElementById('phase-badge');
+  const choicesWrap = document.getElementById('choices-wrap');
+  const writeWrap = document.getElementById('write-wrap');
 
-// ─── EJERCICIO 3: LECTURA ────────────────────────────────────────────────────
-function LecturaEx({ word, allWords, onNext }) {
-  const correct = word.furigana;
-  const distractors = allWords.filter(w => w.furigana !== correct).sort(() => Math.random() - 0.5).slice(0, 1).map(w => w.furigana);
-  const [options] = useState(() => shuffle([correct, ...distractors]));
-  const [chosen, setChosen] = useState(null);
-  const [wrong, setWrong] = useState(new Set());
-
-  function handlePick(opt) {
-    if (chosen) return;
-    if (opt === correct) { setChosen(opt); setTimeout(onNext, 650); }
-    else setWrong(prev => new Set([...prev, opt]));
-  }
-
-  return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "20px 20px 28px", gap: 20 }}>
-      <KanjiDisplay word={word} showFurigana={false} size={88} />
-      <div style={{ flex: 1 }} />
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {options.map((opt, i) => {
-          const isWrong = wrong.has(opt);
-          const isCorrect = chosen === opt;
-          return (
-            <button key={i} onClick={() => handlePick(opt)} className="jp-font" style={{
-              padding: "18px 20px", borderRadius: 13, fontSize: 22,
-              background: isCorrect ? C.correctBg : isWrong ? C.wrongBg : C.bgCard,
-              border: `1.5px solid ${isCorrect ? C.mintDeep : isWrong ? C.pink : C.border}`,
-              color: isCorrect ? C.mintDeep : isWrong ? C.pinkDark : C.text,
-              cursor: "pointer", transition: "all 0.15s",
-              letterSpacing: "0.15em", textAlign: "center",
-              fontFamily: "'Noto Sans JP', sans-serif",
-              boxShadow: C.shadowCard,
-            }}>{opt}</button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// ─── EJERCICIO 4: COMPRENSIÓN ────────────────────────────────────────────────
-function ComprehensionEx({ word, allWords, onNext }) {
-  const correct = word.es;
-  const distractors = allWords.filter(w => w.es !== correct).sort(() => Math.random() - 0.5).slice(0, 1).map(w => w.es);
-  const [options] = useState(() => shuffle([correct, ...distractors]));
-  const [chosen, setChosen] = useState(null);
-  const [wrong, setWrong] = useState(new Set());
-
-  function handlePick(opt) {
-    if (chosen) return;
-    if (opt === correct) { setChosen(opt); setTimeout(onNext, 650); }
-    else setWrong(prev => new Set([...prev, opt]));
-  }
-
-  return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "20px 20px 28px", gap: 18 }}>
-      <KanjiDisplay word={word} showFurigana={true} size={84} />
-      <div style={{ flex: 1 }} />
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {options.map((opt, i) => {
-          const isWrong = wrong.has(opt);
-          const isCorrect = chosen === opt;
-          return (
-            <button key={i} onClick={() => handlePick(opt)} style={{
-              padding: "17px 20px", borderRadius: 13, fontSize: 15,
-              background: isCorrect ? C.correctBg : isWrong ? C.wrongBg : C.bgCard,
-              border: `1.5px solid ${isCorrect ? C.mintDeep : isWrong ? C.pink : C.border}`,
-              color: isCorrect ? C.mintDeep : isWrong ? C.pinkDark : C.text,
-              cursor: "pointer", transition: "all 0.15s",
-              textAlign: "left", lineHeight: 1.5,
-              fontFamily: "'DM Sans', sans-serif",
-              boxShadow: C.shadowCard,
-            }}>{opt}</button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// ─── PANTALLA ENTRE RONDAS ───────────────────────────────────────────────────
-function RoundTransitionScreen({ roundDone, roundTotal, wordsInRound, onContinue, onHome }) {
-  return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflowY: "auto" }}>
-      <PageTopBar onHome={onHome} />
-      <div style={{ flex: 1, padding: "28px 24px 24px", display: "flex", flexDirection: "column", gap: 20 }}>
-        <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 12, color: C.textMuted, letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: 600, marginBottom: 12 }}>
-            Ronda {roundDone} completada
-          </div>
-          <div style={{ display: "flex", gap: 6, justifyContent: "center", marginBottom: 4 }}>
-            {Array.from({ length: roundTotal }).map((_, i) => (
-              <div key={i} style={{
-                width: i < roundDone ? 28 : 8, height: 6, borderRadius: 3,
-                background: i < roundDone ? C.mintDeep : C.border,
-                transition: "all 0.4s ease",
-              }} />
-            ))}
-          </div>
-        </div>
-
-        <div style={{ background: C.bgCard, borderRadius: 14, overflow: "hidden", border: `1px solid ${C.borderLight}`, boxShadow: C.shadowCard }}>
-          <div style={{ padding: "10px 16px", borderBottom: `1px solid ${C.borderLight}`, background: C.bgAlt }}>
-            <div style={{ fontSize: 10, color: C.textMuted, letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600 }}>Palabras de esta ronda</div>
-          </div>
-          {wordsInRound.map((w, i) => (
-            <div key={i} style={{
-              display: "flex", alignItems: "center", gap: 10, padding: "11px 16px",
-              borderBottom: i < wordsInRound.length - 1 ? `1px solid ${C.borderLight}` : "none",
-            }}>
-              <span className="kanji-font" style={{ fontSize: 20, color: C.text, minWidth: 54 }}>{w.kanji}</span>
-              <span className="jp-font" style={{ fontSize: 12, color: C.textMuted, minWidth: 72 }}>{w.furigana}</span>
-              <span style={{ fontSize: 12, color: C.textDim, lineHeight: 1.4 }}>{w.es}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div style={{ padding: "0 24px 32px", flexShrink: 0 }}>
-        <PrimaryBtn onClick={onContinue}>
-          {roundDone < roundTotal ? `Ronda ${roundDone + 1} →` : "Ver resultados →"}
-        </PrimaryBtn>
-      </div>
-    </div>
-  );
-}
-
-// ─── PANTALLA FINAL ──────────────────────────────────────────────────────────
-function FinScreen({ allSessionWords, onNewSession }) {
-  return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-      <PageTopBar onHome={onNewSession} />
-      <div style={{ flex: 1, overflowY: "auto", padding: "28px 24px 16px", display: "flex", flexDirection: "column", gap: 20 }}>
-        <div style={{ textAlign: "center" }}>
-          <div className="kanji-font" style={{ fontSize: 44, color: C.mintDeep, marginBottom: 6 }}>完了</div>
-          <div style={{ fontSize: 22, fontWeight: 700, color: C.text, marginBottom: 4 }}>¡Sesión completada!</div>
-          <div style={{ fontSize: 13, color: C.textMuted }}>Practicaste {allSessionWords.length} palabras en total</div>
-        </div>
-
-        <div style={{ background: C.bgCard, borderRadius: 14, overflow: "hidden", border: `1px solid ${C.borderLight}`, boxShadow: C.shadowCard }}>
-          <div style={{ padding: "10px 16px", borderBottom: `1px solid ${C.borderLight}`, background: C.bgAlt }}>
-            <div style={{ fontSize: 10, color: C.textMuted, letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600 }}>Vocabulario practicado</div>
-          </div>
-          {allSessionWords.map((w, i) => (
-            <div key={i} style={{
-              display: "flex", alignItems: "center", gap: 10, padding: "12px 16px",
-              borderBottom: i < allSessionWords.length - 1 ? `1px solid ${C.borderLight}` : "none",
-            }}>
-              <span className="kanji-font" style={{ fontSize: 20, color: C.text, minWidth: 54 }}>{w.kanji}</span>
-              <span className="jp-font" style={{ fontSize: 12, color: C.textMuted, minWidth: 72 }}>{w.furigana}</span>
-              <span style={{ fontSize: 12, color: C.textDim, lineHeight: 1.4 }}>{w.es}</span>
-            </div>
-          ))}
-        </div>
-
-        <PrimaryBtn onClick={onNewSession}>Nueva sesión</PrimaryBtn>
-      </div>
-    </div>
-  );
-}
-
-// ─── PANTALLA DE CONFIG ──────────────────────────────────────────────────────
-function ConfigScreen({ onStart, devMode, onToggleDevMode }) {
-  const [dbText, setDbText] = useState(DEFAULT_DB);
-  const [parsed, setParsed] = useState(() => parseDB(DEFAULT_DB));
-  const [kanjiDose, setKanjiDose] = useState(2);
-  const [parseError, setParseError] = useState(null);
-  const [showDB, setShowDB] = useState(false);
-
-  function handleDBChange(val) {
-    setDbText(val);
-    try {
-      const p = parseDB(val);
-      if (p.kanjiKeys.length === 0) { setParseError("No se encontraron entradas válidas. Revisá el formato."); return; }
-      setParsed(p);
-      setParseError(null);
-      setKanjiDose(d => Math.min(d, p.kanjiKeys.length));
-    } catch(e) { setParseError("Error al parsear el texto."); }
-  }
-
-  function clearDB() { handleDBChange(""); }
-
-  const maxKanjis = parsed.kanjiKeys.length;
-  const doseOptions = [...new Set([1, 2, 3, 4, 5, Math.ceil(maxKanjis/2), maxKanjis].filter(n => n >= 1 && n <= maxKanjis))].sort((a,b)=>a-b).slice(0,6);
-
-  function handleStart() {
-    if (parseError || parsed.kanjiKeys.length === 0) return;
-    onStart(parsed, kanjiDose);
-  }
-
-  return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-      <PageTopBar />
-
-      <div style={{ flex: 1, overflowY: "auto", padding: "20px 20px 16px", display: "flex", flexDirection: "column", gap: 20 }}>
-
-        {/* Base de datos */}
-        <div style={{ background: C.bgCard, borderRadius: 14, border: `1px solid ${C.borderLight}`, boxShadow: C.shadowCard, overflow: "hidden" }}>
-          <div style={{ padding: "12px 16px", background: C.bgAlt, borderBottom: `1px solid ${C.borderLight}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: C.text }}>Base de datos</div>
-              {!parseError && parsed.kanjiKeys.length > 0 && (
-                <div style={{ fontSize: 11, color: C.textMuted, marginTop: 1 }}>{parsed.kanjiKeys.length} kanjis · {parsed.words.length} palabras</div>
-              )}
-            </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={clearDB} style={{
-                background: "none", border: `1px solid ${C.pink}`, borderRadius: 7,
-                color: C.pinkDark, fontSize: 11, cursor: "pointer",
-                padding: "3px 10px", fontFamily: "'DM Sans', sans-serif",
-              }}>Borrar todo</button>
-              <button onClick={() => setShowDB(v => !v)} style={{
-                background: "none", border: `1px solid ${C.border}`, borderRadius: 7,
-                color: C.mintDeep, fontSize: 11, cursor: "pointer",
-                padding: "3px 10px", fontFamily: "'DM Sans', sans-serif",
-              }}>{showDB ? "Cerrar ↑" : "Editar ↓"}</button>
-            </div>
-          </div>
-
-          {showDB && (
-            <div style={{ padding: "12px 16px" }}>
-              <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 8, lineHeight: 1.5 }}>
-                Formato: <span style={{ color: C.mintDeep, fontFamily: "monospace", fontSize: 10 }}>kanji_clave [tab] palabra [tab] furigana [tab] significado</span>
-              </div>
-              <textarea
-                value={dbText}
-                onChange={e => handleDBChange(e.target.value)}
-                spellCheck={false}
-                style={{
-                  width: "100%", minHeight: 160,
-                  background: C.bgDeep,
-                  border: `1.5px solid ${parseError ? C.pink : C.border}`,
-                  borderRadius: 10, padding: "12px 14px",
-                  color: C.text, fontSize: 12,
-                  fontFamily: "'Noto Sans JP', monospace",
-                  lineHeight: 1.8, resize: "vertical", outline: "none",
-                }}
-              />
-              {parseError && <div style={{ fontSize: 11, color: C.pinkDark, marginTop: 4 }}>{parseError}</div>}
-            </div>
-          )}
-
-          {!showDB && !parseError && parsed.kanjiKeys.length > 0 && (
-            <div style={{ padding: "12px 16px", display: "flex", flexWrap: "wrap", gap: 6 }}>
-              {parsed.kanjiKeys.map((k, i) => (
-                <div key={i} style={{
-                  display: "flex", alignItems: "center", gap: 5,
-                  background: C.bgDeep, borderRadius: 8, padding: "5px 10px",
-                  border: `1px solid ${C.border}`,
-                }}>
-                  <span className="kanji-font" style={{ fontSize: 18, color: C.text }}>{k}</span>
-                  <span style={{ fontSize: 10, color: C.textDim }}>×{parsed.byKanji[k].length}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Selector de dosis */}
-        {!parseError && parsed.kanjiKeys.length > 0 && (
-          <div style={{ background: C.bgCard, borderRadius: 14, border: `1px solid ${C.borderLight}`, boxShadow: C.shadowCard, overflow: "hidden" }}>
-            <div style={{ padding: "12px 16px", background: C.bgAlt, borderBottom: `1px solid ${C.borderLight}` }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: C.text }}>Kanjis por ronda</div>
-              <div style={{ fontSize: 11, color: C.textMuted, marginTop: 1 }}>
-                {kanjiDose} kanjis · {Math.ceil(parsed.kanjiKeys.length / kanjiDose)} rondas en total
-              </div>
-            </div>
-            <div style={{ padding: "12px 16px" }}>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                {doseOptions.map(d => (
-                  <button key={d} onClick={() => setKanjiDose(d)} style={{
-                    minWidth: 48, padding: "10px 8px",
-                    background: kanjiDose === d ? C.correctBg : C.bgDeep,
-                    border: `1.5px solid ${kanjiDose === d ? C.mintDeep : C.border}`,
-                    borderRadius: 10, color: kanjiDose === d ? C.mintDeep : C.text,
-                    fontSize: 17, fontWeight: 600, cursor: "pointer",
-                    fontFamily: "'DM Sans', sans-serif", flex: 1,
-                  }}>{d}</button>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Modo revisión */}
-        <button onClick={onToggleDevMode} style={{
-          padding: "11px 16px", borderRadius: 12, cursor: "pointer",
-          background: devMode ? C.pinkLight : C.bgCard,
-          border: `1.5px solid ${devMode ? C.pink : C.border}`,
-          color: devMode ? C.pinkDark : C.textMuted,
-          fontSize: 12, fontFamily: "'DM Sans', sans-serif",
-          display: "flex", alignItems: "center", gap: 8,
-          boxShadow: C.shadowCard,
-        }}>
-          <span>{devMode ? "⚡" : "○"}</span>
-          Modo revisión {devMode ? "activado" : "desactivado"}
-          <span style={{ color: C.textDim, fontSize: 10, marginLeft: "auto" }}>skip rápido</span>
-        </button>
-
-        <PrimaryBtn onClick={handleStart} disabled={!!parseError || parsed.kanjiKeys.length === 0}>
-          Empezar →
-        </PrimaryBtn>
-      </div>
-    </div>
-  );
-}
-
-// ─── GENERADOR DE SECUENCIA ──────────────────────────────────────────────────
-function buildSequence(words) {
-  const steps = [];
-  const GROUP = 2;
-  for (let g = 0; g < words.length; g += GROUP) {
-    const group = words.slice(g, g + GROUP);
-    group.forEach(w => steps.push({ type: "exposicion", word: w }));
-    group.forEach(w => steps.push({ type: "construccion", word: w }));
-    group.forEach(w => steps.push({ type: "lectura", word: w }));
-    group.forEach(w => steps.push({ type: "comprension", word: w }));
-  }
-  return steps;
-}
-
-const TYPE_LABELS = { exposicion: "Memoriza", construccion: "Construye", lectura: "Lectura", comprension: "Comprensión" };
-const TYPE_COLORS = { exposicion: C.textDim, construccion: "#7a9eff", lectura: C.pinkDark, comprension: C.mintDeep };
-
-// ─── APP ROOT ────────────────────────────────────────────────────────────────
-function App() {
-  const [phase, setPhase] = useState("config");
-  const [allWords, setAllWords] = useState(CURRENT_DB.words);
-  const [devMode, setDevMode] = useState(false);
-  const [rounds, setRounds] = useState([]);
-  const [roundIdx, setRoundIdx] = useState(0);
-  const [sequence, setSequence] = useState([]);
-  const [stepIdx, setStepIdx] = useState(0);
-  const [allSessionWords, setAllSessionWords] = useState([]);
-
-  function startSession(parsed, kanjiDose) {
-    CURRENT_DB = parsed;
-    ALL_KANJI_POOL = buildKanjiPool(parsed.words);
-    setAllWords(parsed.words);
-    const shuffledKeys = shuffle(parsed.kanjiKeys);
-    const allRounds = [];
-    for (let i = 0; i < shuffledKeys.length; i += kanjiDose) {
-      const slice = shuffledKeys.slice(i, i + kanjiDose);
-      allRounds.push(slice.flatMap(k => parsed.byKanji[k]));
-    }
-    setRounds(allRounds);
-    setRoundIdx(0);
-    setAllSessionWords([]);
-    setSequence(buildSequence(allRounds[0]));
-    setStepIdx(0);
-    setPhase("session");
-  }
-
-  function nextStep() {
-    if (stepIdx + 1 < sequence.length) { setStepIdx(i => i + 1); return; }
-    setAllSessionWords(prev => [...prev, ...rounds[roundIdx]]);
-    setPhase("transition");
-  }
-
-  function continueAfterTransition() {
-    const next = roundIdx + 1;
-    if (next < rounds.length) {
-      setRoundIdx(next);
-      setSequence(buildSequence(rounds[next]));
-      setStepIdx(0);
-      setPhase("session");
-    } else {
-      setPhase("fin");
-    }
-  }
-
-  function handleFinish() {
-    const roundWords = rounds[roundIdx] || [];
-    setAllSessionWords(prev => {
-      const already = new Set(prev.map(w => w.kanji));
-      return [...prev, ...roundWords.filter(w => !already.has(w.kanji))];
+  if (subPhase === 'mc') {
+    badge.textContent = `Grupo ${groupIdx + 1} · Alternativas`;
+    const dir = current.direction;
+    document.getElementById('q-label').textContent = dir === 'kr' ? '¿Cómo se lee?' : '¿Qué kanji corresponde?';
+    document.getElementById('q-text').textContent = dir === 'kr' ? current.word.kanji : current.word.reading;
+    show('choices-wrap'); hide('write-wrap');
+    choicesWrap.style.display = 'grid';
+    const choices = buildChoices(current.word, dir);
+    choicesWrap.innerHTML = '';
+    choices.forEach(c => {
+      const btn = document.createElement('button');
+      btn.className = 'choice-btn';
+      btn.textContent = c.text;
+      btn.onclick = () => selectChoice(btn, c.correct, current.word, dir);
+      choicesWrap.appendChild(btn);
     });
-    setPhase("fin");
+  } else {
+    badge.textContent = `Grupo ${groupIdx + 1} · Escritura`;
+    document.getElementById('q-label').textContent = '¿Cómo se lee? (escribe en hiragana)';
+    document.getElementById('q-text').textContent = current.word.kanji;
+    hide('choices-wrap'); show('write-wrap');
+    const inp = document.getElementById('write-input');
+    inp.value = ''; inp.className = 'write-input'; inp.disabled = false;
+    document.getElementById('submit-write-btn').disabled = false;
+    inp.focus();
   }
-
-  function goHome() { setPhase("config"); }
-
-  if (phase === "config") return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
-      <ConfigScreen onStart={startSession} devMode={devMode} onToggleDevMode={() => setDevMode(v => !v)} />
-    </div>
-  );
-
-  if (phase === "transition") return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
-      <RoundTransitionScreen
-        roundDone={roundIdx + 1} roundTotal={rounds.length}
-        wordsInRound={rounds[roundIdx]} onContinue={continueAfterTransition} onHome={goHome}
-      />
-    </div>
-  );
-
-  if (phase === "fin") return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
-      <FinScreen allSessionWords={allSessionWords} onNewSession={goHome} />
-    </div>
-  );
-
-  const step = sequence[stepIdx];
-  const word = step.word;
-
-  return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
-      <ExerciseTopBar
-        stepCurrent={stepIdx + 1} stepTotal={sequence.length}
-        roundCurrent={roundIdx + 1} roundTotal={rounds.length}
-        onClose={goHome} onFinish={handleFinish}
-        devMode={devMode} onDevSkip={nextStep}
-      />
-      <div style={{ padding: "16px 20px 6px" }}>
-        <TypeLabel label={TYPE_LABELS[step.type]} color={TYPE_COLORS[step.type]} />
-      </div>
-      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-        {step.type === "exposicion" && <ExposicionEx key={`${roundIdx}-${stepIdx}`} word={word} onNext={nextStep} />}
-        {step.type === "construccion" && <ConstruccionEx key={`${roundIdx}-${stepIdx}`} word={word} onNext={nextStep} />}
-        {step.type === "lectura" && <LecturaEx key={`${roundIdx}-${stepIdx}`} word={word} allWords={allWords} onNext={nextStep} />}
-        {step.type === "comprension" && <ComprehensionEx key={`${roundIdx}-${stepIdx}`} word={word} allWords={allWords} onNext={nextStep} />}
-      </div>
-    </div>
-  );
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+// ─── POST-ANSWER OPTIONS ──────────────────────────────────────────────────────
+
+function showPostAnswer() {
+  show('post-answer');
+  hide('meaning-reveal');
+  hide('vocab-exercise');
+  hide('next-btn');
+  document.getElementById('vocab-feedback').style.display = 'none';
+  document.querySelectorAll('.post-btn').forEach(b => b.disabled = false);
+}
+
+function postAction(action) {
+  document.querySelectorAll('.post-btn').forEach(b => b.disabled = true);
+
+  if (action === 'meaning') {
+    document.getElementById('meaning-reveal-text').textContent = current.word.meaning;
+    show('meaning-reveal');
+    show('next-btn');
+  } else if (action === 'vocab') {
+    showVocabExercise();
+  } else {
+    nextQuestion();
+  }
+}
+
+// ─── VOCAB EXERCISE ───────────────────────────────────────────────────────────
+
+function showVocabExercise() {
+  show('vocab-exercise');
+  document.getElementById('vocab-feedback').style.display = 'none';
+
+  // Question: show the kanji/reading, ask for the meaning in Spanish
+  document.getElementById('vocab-ex-q').textContent = current.word.kanji + '　(' + current.word.reading + ')';
+  document.querySelector('.vocab-ex-label').textContent = '¿Cuál es el significado de esta palabra?';
+
+  const correct = current.word.meaning;
+  const pool = vocab.filter(w => w.kanji !== current.word.kanji);
+  const distractors = shuffle(pool).slice(0, 3).map(w => ({ text: w.meaning, correct: false }));
+  const choices = shuffle([{ text: correct, correct: true }, ...distractors]);
+
+  const wrap = document.getElementById('vocab-choices');
+  wrap.innerHTML = '';
+  choices.forEach(c => {
+    const btn = document.createElement('button');
+    btn.className = 'choice-btn';
+    btn.textContent = c.text;
+    btn.style.fontSize = '0.88rem';
+    btn.style.textAlign = 'left';
+    btn.style.padding = '12px';
+    btn.onclick = () => checkVocabChoice(btn, c.correct, correct, wrap);
+    wrap.appendChild(btn);
+  });
+}
+
+function checkVocabChoice(btn, isCorrect, correctAns, wrap) {
+  if (vocabExDone) return;
+  vocabExDone = true;
+  [...wrap.querySelectorAll('.choice-btn')].forEach(b => {
+    b.disabled = true;
+    if (b.textContent === correctAns) b.classList.add('correct');
+  });
+  if (!isCorrect) btn.classList.add('wrong');
+
+  const fb = document.getElementById('vocab-feedback');
+  fb.className = 'vocab-feedback ' + (isCorrect ? 'correct' : 'wrong');
+  fb.textContent = isCorrect
+    ? `✓ Correcto: ${correctAns}`
+    : `✗ Incorrecto. El significado correcto era: ${correctAns}`;
+  fb.style.display = 'block';
+  show('next-btn');
+}
+
+// ─── MC PHASE ─────────────────────────────────────────────────────────────────
+
+function buildChoices(word, dir) {
+  const correct = dir === 'kr' ? word.reading : word.kanji;
+  const pool = vocab.filter(w => w !== word);
+  const scored = pool.map(w => {
+    const cand = dir === 'kr' ? w.reading : w.kanji;
+    return { text: cand, score: similarity(correct, cand) };
+  }).sort((a, b) => b.score - a.score);
+  const distractors = [];
+  const seen = new Set([correct]);
+  for (const s of scored) {
+    if (!seen.has(s.text)) { seen.add(s.text); distractors.push({ text: s.text, correct: false }); }
+    if (distractors.length >= 3) break;
+  }
+  return shuffle([{ text: correct, correct: true }, ...distractors]);
+}
+
+function similarity(a, b) {
+  let shared = 0;
+  const bc = b.split('');
+  for (const ch of a) { const i = bc.indexOf(ch); if (i !== -1) { shared++; bc.splice(i, 1); } }
+  return shared / Math.max(a.length, b.length);
+}
+
+function selectChoice(btn, isCorrect, word, dir) {
+  doneQ++;
+  const allBtns = document.querySelectorAll('#choices-wrap .choice-btn');
+  allBtns.forEach(b => b.disabled = true);
+  const correctAnswer = dir === 'kr' ? word.reading : word.kanji;
+  btn.classList.add(isCorrect ? 'correct' : 'wrong');
+  if (!isCorrect) {
+    allBtns.forEach(b => { if (b.textContent === correctAnswer) b.classList.add('correct'); });
+    mistakes.push({ phase: 'Alternativas', grupo: groupIdx + 1, kanji: word.kanji, reading: word.reading, meaning: word.meaning });
+    current._mistakeRef = mistakes[mistakes.length - 1];
+  } else { current._mistakeRef = null; }
+  showFeedback(isCorrect, correctAnswer);
+  updateProgress();
+  showPostAnswer();
+}
+
+// ─── WRITE PHASE ──────────────────────────────────────────────────────────────
+
+function checkWrite() {
+  const inp = document.getElementById('write-input');
+  const val = inp.value.trim();
+  const correct = current.word.reading;
+  if (val === correct) {
+    inp.className = 'write-input correct';
+    inp.disabled = true;
+    document.getElementById('submit-write-btn').disabled = true;
+    hide('retry-prompt');
+    if (writeAttempts === 0) doneQ++;
+    showFeedback(true, correct);
+    updateProgress();
+    current._mistakeRef = null;
+    showPostAnswer();
+  } else {
+    inp.className = 'write-input wrong';
+    if (writeAttempts === 0) {
+      mistakes.push({ phase: 'Escritura', grupo: groupIdx + 1, kanji: current.word.kanji, reading: current.word.reading, meaning: current.word.meaning });
+      current._mistakeRef = mistakes[mistakes.length - 1];
+    }
+    writeAttempts++;
+    show('retry-prompt');
+    showFeedback(false, correct);
+    setTimeout(() => {
+      inp.value = ''; inp.className = 'write-input';
+      hide('feedback'); hide('retry-prompt'); inp.focus();
+    }, 1800);
+  }
+}
+
+document.getElementById('write-input').addEventListener('keydown', e => { if (e.key === 'Enter') checkWrite(); });
+
+// ─── SHARED ───────────────────────────────────────────────────────────────────
+
+function showFeedback(isCorrect, correctAns) {
+  const fb = document.getElementById('feedback');
+  fb.className = 'feedback ' + (isCorrect ? 'correct' : 'wrong');
+  document.getElementById('feedback-title').textContent = isCorrect ? '✓ Correcto' : '✗ Incorrecto';
+  document.getElementById('feedback-correct-ans').textContent = isCorrect ? `Respuesta: ${correctAns}` : `Respuesta correcta: ${correctAns}`;
+  show('feedback');
+}
+
+function nextQuestion() {
+  showQuestion();
+}
+
+let _nextSubPhaseCallback = null;
+function showTransition(title, desc, callback) {
+  hide('card');
+  show('phase-transition');
+  document.getElementById('pt-title').textContent = title;
+  document.getElementById('pt-desc').textContent = desc;
+  _nextSubPhaseCallback = callback;
+}
+
+function startNextSubPhase() {
+  hide('phase-transition');
+  if (_nextSubPhaseCallback) _nextSubPhaseCallback();
+}
+
+function showResults() {
+  hide('card'); hide('progress-bar-wrap'); hide('phase-transition');
+  show('results');
+  document.getElementById('results-stats').textContent = `Errores cometidos: ${mistakes.length} en total`;
+  const list = document.getElementById('mistakes-list');
+  if (mistakes.length === 0) {
+    list.innerHTML = '<div class="no-mistakes">🎉 ¡Sin errores! ¡Perfecto!</div>'; return;
+  }
+  let html = `<table class="results-table"><thead><tr>
+    <th>Palabra</th><th>Lectura</th><th>Significado</th><th>Fase</th>
+  </tr></thead><tbody>`;
+  mistakes.forEach(m => {
+    html += `<tr>
+      <td class="td-kanji">${m.kanji}</td>
+      <td>${m.reading}</td>
+      <td class="td-meaning">${m.meaning}</td>
+      <td><span class="tag-phase">${m.phase}</span></td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  list.innerHTML = html;
+}
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+
+function show(id) { const el = document.getElementById(id); if (el) el.style.display = 'block'; }
+function hide(id) { const el = document.getElementById(id); if (el) el.style.display = 'none'; }
 </script>
 </body>
 </html>
