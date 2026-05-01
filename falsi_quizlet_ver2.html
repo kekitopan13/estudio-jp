@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kanji Study</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', sans-serif; background: #f7f4ff; color: #111; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 16px; }
+
+  /* BACK LINK */
+  #back-link { width: 100%; max-width: 600px; margin-bottom: 16px; }
+  #back-link a { display: inline-flex; align-items: center; gap: 4px; color: #b07ddb; font-size: 0.9rem; text-decoration: none; font-weight: 500; }
+  #back-link a:hover { text-decoration: underline; }
+
+  h1 { font-size: 1.4rem; color: #7a4fa0; margin-bottom: 4px; letter-spacing: 1px; }
+  .subtitle { font-size: 0.8rem; color: #888; margin-bottom: 24px; }
+
+  /* SETUP */
+  #setup { width: 100%; max-width: 600px; }
+  textarea { width: 100%; height: 200px; background: #fff; border: 1px solid #ccc; border-radius: 10px; color: #111; padding: 14px; font-size: 0.9rem; resize: vertical; line-height: 1.6; }
+  textarea::placeholder { color: #aaa; }
+  .btn { background: #b07ddb; color: #fff; border: none; border-radius: 8px; padding: 12px 28px; font-size: 1rem; cursor: pointer; transition: background 0.2s; }
+  .btn:hover { background: #9a64c8; }
+  .btn:disabled { background: #ccc; color: #888; cursor: default; }
+  .error-msg { color: #dc2626; font-size: 0.85rem; margin-top: 8px; }
+
+  /* SIZE BUTTONS */
+  .size-btn { background: #f9f9fb; border: 1px solid #ddd; border-radius: 8px; padding: 8px 18px; font-size: 0.9rem; color: #555; cursor: pointer; transition: all 0.15s; }
+  .size-btn:hover { border-color: #b07ddb; color: #b07ddb; }
+  .size-btn.active { background: #ede0f7; border-color: #b07ddb; color: #7a4fa0; font-weight: 600; }
+
+  /* MODE BUTTONS */
+  .mode-btn { background: #f9f9fb; border: 1px solid #ddd; border-radius: 8px; padding: 10px 14px; font-size: 0.88rem; color: #555; cursor: pointer; transition: all 0.15s; text-align: left; }
+  .mode-btn:hover { border-color: #b07ddb; color: #b07ddb; }
+  .mode-btn.active { background: #ede0f7; border-color: #b07ddb; color: #7a4fa0; font-weight: 600; }
+
+  /* FAMILIARITY RESULTS */
+  .summary-block { background: #fff; border-radius: 12px; padding: 16px 18px; margin-bottom: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.07); }
+  .summary-block h3 { color: #7a4fa0; font-size: 1rem; margin-bottom: 10px; }
+  .summary-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 0.9rem; color: #444; gap: 10px; }
+  .summary-row .label { color: #888; }
+  .summary-row .value { color: #111; font-weight: 500; text-align: right; }
+
+  .word-card { background: #fff; border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+  .word-card .wc-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 4px; flex-wrap: wrap; }
+  .word-card .wc-kanji { font-size: 1.3rem; font-weight: 700; letter-spacing: 1px; color: #111; }
+  .word-card .wc-status { font-size: 0.78rem; padding: 3px 10px; border-radius: 99px; white-space: nowrap; }
+  .word-card .wc-sub { font-size: 0.85rem; color: #666; margin-bottom: 8px; }
+  .word-card .wc-relations { font-size: 0.8rem; color: #555; line-height: 1.6; }
+  .word-card .wc-relations span { display: inline-block; margin-right: 10px; }
+
+  .status-muy { background: #e6f7ee; color: #15803d; border: 1px solid #86efac; }
+  .status-bastante { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+  .status-proceso { background: #fef9c3; color: #a16207; border: 1px solid #fde68a; }
+  .status-necesita { background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; }
+
+  .results-section-title { font-size: 0.95rem; color: #7a4fa0; font-weight: 600; margin: 18px 0 8px; }
+  .results-hint { font-size: 0.85rem; color: #666; margin-bottom: 10px; line-height: 1.5; }
+
+  /* PROGRESS */
+  #progress-bar-wrap { width: 100%; max-width: 600px; margin-bottom: 18px; display: none; }
+  .progress-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 10px; }
+  .phase-label { font-size: 0.75rem; color: #666; flex: 1; }
+  .progress-actions { display: flex; gap: 12px; align-items: center; flex-shrink: 0; }
+  .bar-bg { background: #ddd; border-radius: 99px; height: 6px; }
+  .bar-fill { height: 6px; border-radius: 99px; background: #b07ddb; transition: width 0.3s; }
+
+  /* CARD */
+  #card { width: 100%; max-width: 600px; background: #fff; border-radius: 16px; padding: 22px 20px; display: none; box-shadow: 0 2px 12px rgba(0,0,0,0.07); }
+  .phase-badge { display: inline-block; font-size: 0.7rem; background: #ede0f7; color: #7a4fa0; border-radius: 99px; padding: 3px 12px; margin-bottom: 16px; letter-spacing: 1px; text-transform: uppercase; }
+  .question-label { font-size: 0.75rem; color: #888; margin-bottom: 8px; }
+  .question-text { font-size: clamp(1.5rem, 6vw, 2rem); font-weight: 700; color: #111; margin-bottom: 20px; letter-spacing: 2px; }
+
+  /* CHOICES */
+  .choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media (max-width: 400px) { .choices { grid-template-columns: 1fr; } }
+  .choice-btn { background: #f9f9fb; border: 1px solid #ddd; border-radius: 10px; padding: 14px 10px; font-size: 1.05rem; color: #111; cursor: pointer; transition: all 0.15s; text-align: center; line-height: 1.3; }
+  .choice-btn:hover:not(:disabled) { border-color: #b07ddb; background: #ede0f7; }
+  .choice-btn.correct { border-color: #16a34a; background: #f0fdf4; color: #15803d; }
+  .choice-btn.wrong { border-color: #dc2626; background: #fef2f2; color: #dc2626; }
+  .choice-btn:disabled { cursor: default; }
+
+  /* WRITE */
+  .write-input { width: 100%; background: #f9f9fb; border: 1px solid #ccc; border-radius: 10px; padding: 14px; font-size: 1.4rem; color: #111; text-align: center; outline: none; transition: border 0.2s; }
+  .write-input:focus { border-color: #b07ddb; }
+  .write-input.correct { border-color: #16a34a; background: #f0fdf4; }
+  .write-input.wrong { border-color: #dc2626; background: #fef2f2; }
+  .retry-prompt { margin-top: 10px; font-size: 0.85rem; color: #dc2626; display: none; }
+
+  /* FEEDBACK */
+  .feedback { margin-top: 16px; padding: 13px; border-radius: 10px; display: none; }
+  .feedback.correct { background: #f0fdf4; border: 1px solid #86efac; }
+  .feedback.wrong { background: #fef2f2; border: 1px solid #fca5a5; }
+  .feedback-title { font-size: 0.8rem; font-weight: 700; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px; }
+  .feedback.correct .feedback-title { color: #15803d; }
+  .feedback.wrong .feedback-title { color: #dc2626; }
+  .feedback-correct-ans { font-size: 1rem; color: #7a4fa0; }
+
+  /* POST-ANSWER OPTIONS */
+  #post-answer { display: none; margin-top: 16px; }
+  .post-label { font-size: 0.8rem; color: #888; margin-bottom: 10px; }
+  .post-options { display: flex; flex-direction: column; gap: 8px; }
+  .post-btn { background: #fff; border: 1px solid #ddd; border-radius: 10px; padding: 12px 16px; font-size: 0.92rem; color: #333; cursor: pointer; text-align: left; transition: all 0.15s; display: flex; align-items: center; gap: 10px; }
+  .post-btn:hover { border-color: #b07ddb; background: #f7f4ff; }
+  .post-btn .post-icon { font-size: 1.1rem; flex-shrink: 0; }
+
+  /* MEANING REVEAL (inside post-answer) */
+  .meaning-reveal { margin-top: 10px; padding: 11px 14px; background: #f0e8f8; border: 1px solid #d4b8e8; border-radius: 10px; font-size: 0.95rem; color: #7a4fa0; display: none; }
+  .meaning-label { font-size: 0.68rem; color: #b07ddb; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+
+  /* VOCAB EXERCISE (inside post-answer) */
+  #vocab-exercise { display: none; margin-top: 10px; }
+  .vocab-ex-label { font-size: 0.75rem; color: #888; margin-bottom: 6px; }
+  .vocab-ex-q { font-size: 1rem; font-weight: 600; color: #111; margin-bottom: 12px; line-height: 1.4; }
+  .vocab-feedback { margin-top: 10px; padding: 11px 13px; border-radius: 10px; display: none; font-size: 0.9rem; }
+  .vocab-feedback.correct { background: #f0fdf4; border: 1px solid #86efac; color: #15803d; }
+  .vocab-feedback.wrong { background: #fef2f2; border: 1px solid #fca5a5; color: #dc2626; }
+
+  /* NEXT */
+  .next-btn { margin-top: 14px; width: 100%; background: #b07ddb; color: #fff; border: none; border-radius: 8px; padding: 14px; font-size: 1rem; cursor: pointer; display: none; transition: background 0.2s; }
+  .next-btn:hover { background: #9a64c8; }
+
+  /* BETWEEN PHASES */
+  #phase-transition { width: 100%; max-width: 600px; background: #fff; border-radius: 16px; padding: 32px; display: none; text-align: center; box-shadow: 0 2px 12px rgba(0,0,0,0.07); }
+  #phase-transition h2 { color: #7a4fa0; margin-bottom: 10px; }
+  #phase-transition p { color: #555; font-size: 0.9rem; margin-bottom: 20px; }
+
+  /* RESULTS */
+  #results { width: 100%; max-width: 600px; display: none; }
+  .results-title { font-size: 1.3rem; color: #7a4fa0; margin-bottom: 6px; }
+  .results-stats { font-size: 0.9rem; color: #666; margin-bottom: 20px; }
+  .no-mistakes { color: #15803d; font-size: 1rem; padding: 20px 0; text-align: center; }
+  .restart-btn { margin-top: 20px; width: 100%; }
+
+  /* RESULTS TABLE */
+  .results-table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.07); font-size: 0.88rem; }
+  .results-table thead tr { background: #ede0f7; }
+  .results-table th { padding: 11px 12px; text-align: left; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; color: #7a4fa0; font-weight: 700; }
+  .results-table td { padding: 11px 12px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+  .results-table tbody tr:last-child td { border-bottom: none; }
+  .results-table tbody tr:hover { background: #fafafa; }
+  .td-kanji { font-size: 1.1rem; font-weight: 700; letter-spacing: 1px; }
+  .td-meaning { color: #555; }
+  .tag-yes { background: #f0fdf4; color: #15803d; border: 1px solid #86efac; border-radius: 99px; padding: 2px 9px; font-size: 0.75rem; font-weight: 600; white-space: nowrap; }
+  .tag-no  { background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; border-radius: 99px; padding: 2px 9px; font-size: 0.75rem; font-weight: 600; white-space: nowrap; }
+  .tag-phase { background: #ede0f7; color: #7a4fa0; border-radius: 99px; padding: 2px 9px; font-size: 0.73rem; white-space: nowrap; }
+  .tag-neutral { background: #f3f3f3; color: #777; border-radius: 99px; padding: 2px 9px; font-size: 0.75rem; white-space: nowrap; }
+</style>
+</head>
+<body>
+
+<!-- BACK LINK -->
+<div id="back-link">
+  <a href="https://kekitopan13.github.io/estudio-jp/">← メニュー</a>
+</div>
+
+<h1>漢字 Study</h1>
+<p class="subtitle">Sistema de estudio de kanji y vocabulario</p>
+
+<!-- SETUP -->
+<div id="setup">
+  <p style="font-size:0.85rem;color:#666;margin-bottom:10px;">Pega tu vocabulario abajo. Formato: <strong style="color:#7a4fa0">kanji [tab] lectura [tab] significado</strong>, una palabra por línea.</p>
+  <textarea id="vocab-input" placeholder="並ぶ	ならぶ	algo o alguien hace fila, alinearse&#10;並べる	ならべる	ordenar algo en fila, alinear algo&#10;他人	たにん	desconocido, otra persona"></textarea>
+  <div id="input-error" class="error-msg"></div>
+  <div style="margin-top:18px;">
+    <label style="font-size:0.85rem;color:#666;font-weight:600;">Tamaño del set:</label>
+    <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+      <button class="size-btn active" data-val="5" onclick="selectSize(this)">5 palabras</button>
+      <button class="size-btn" data-val="10" onclick="selectSize(this)">10 palabras</button>
+      <button class="size-btn" data-val="15" onclick="selectSize(this)">15 palabras</button>
+      <button class="size-btn" data-val="20" onclick="selectSize(this)">20 palabras</button>
+    </div>
+  </div>
+  <div style="margin-top:18px;">
+    <label style="font-size:0.85rem;color:#666;font-weight:600;">Conceptos a ejercitar:</label>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
+      <button class="mode-btn active" data-val="abc" onclick="selectMode(this)">Completo: kanji + lectura + significado</button>
+      <button class="mode-btn" data-val="ab" onclick="selectMode(this)">Kanji + lectura</button>
+      <button class="mode-btn" data-val="ac" onclick="selectMode(this)">Kanji + significado</button>
+      <button class="mode-btn" data-val="bc" onclick="selectMode(this)">Lectura + significado</button>
+    </div>
+  </div>
+  <br>
+  <button class="btn" onclick="startStudy()">Comenzar estudio</button>
+</div>
+
+<!-- PROGRESS -->
+<div id="progress-bar-wrap">
+  <div class="progress-top">
+    <div class="phase-label" id="phase-label"></div>
+    <div class="progress-actions">
+      <button onclick="goToSetup()" style="font-size:0.8rem;color:#b07ddb;font-weight:500;background:none;border:none;cursor:pointer;padding:0;white-space:nowrap;">← Inicio</button>
+      <button onclick="finishEarly()" style="font-size:0.8rem;color:#888;font-weight:500;background:none;border:none;cursor:pointer;padding:0;white-space:nowrap;">Terminar sesión</button>
+    </div>
+  </div>
+  <div class="bar-bg"><div class="bar-fill" id="bar-fill" style="width:0%"></div></div>
+</div>
+
+<!-- CARD -->
+<div id="card">
+  <div class="phase-badge" id="phase-badge"></div>
+  <div class="question-label" id="q-label"></div>
+  <div class="question-text" id="q-text"></div>
+
+  <!-- MC choices -->
+  <div id="choices-wrap" class="choices"></div>
+
+  <!-- Write input -->
+  <div id="write-wrap" style="display:none">
+    <input type="text" class="write-input" id="write-input" placeholder="Escribe la lectura en hiragana..." autocomplete="off" autocorrect="off" spellcheck="false">
+    <p class="retry-prompt" id="retry-prompt">✗ Incorrecto. Intenta de nuevo:</p>
+    <button class="btn" id="submit-write-btn" style="margin-top:12px;width:100%" onclick="checkWrite()">Confirmar</button>
+  </div>
+
+  <!-- Feedback (correct / wrong) -->
+  <div class="feedback" id="feedback">
+    <div class="feedback-title" id="feedback-title"></div>
+    <div class="feedback-correct-ans" id="feedback-correct-ans"></div>
+  </div>
+
+  <!-- Post-answer options -->
+  <div id="post-answer">
+    <p class="post-label">¿Qué quieres hacer ahora?</p>
+    <div class="post-options">
+      <button class="post-btn" id="post-meaning-btn" onclick="postAction('meaning')">
+        <span class="post-icon">📖</span> Ver el significado de esta palabra
+      </button>
+      <button class="post-btn" id="post-vocab-btn" onclick="postAction('vocab')">
+        <span class="post-icon">🧩</span> Ejercitar el vocabulario en español
+      </button>
+      <button class="post-btn" id="post-next-btn" onclick="postAction('next')">
+        <span class="post-icon">➡️</span> Seguir
+      </button>
+    </div>
+
+    <!-- Meaning reveal -->
+    <div class="meaning-reveal" id="meaning-reveal">
+      <div class="meaning-label">Significado</div>
+      <div id="meaning-reveal-text"></div>
+    </div>
+
+    <!-- Vocab exercise -->
+    <div id="vocab-exercise">
+      <div class="vocab-ex-label" style="margin-top:14px;">Escoge la palabra que corresponde a:</div>
+      <div class="vocab-ex-q" id="vocab-ex-q"></div>
+      <div class="choices" id="vocab-choices" style="grid-template-columns:1fr;"></div>
+      <div class="vocab-feedback" id="vocab-feedback"></div>
+    </div>
+  </div>
+
+  <!-- Next button -->
+  <button class="next-btn" id="next-btn" onclick="nextQuestion()">Siguiente →</button>
+</div>
+
+<!-- PHASE TRANSITION -->
+<div id="phase-transition">
+  <h2 id="pt-title"></h2>
+  <p id="pt-desc"></p>
+  <button class="btn" onclick="startNextSubPhase()">Continuar →</button>
+</div>
+
+<!-- RESULTS -->
+<div id="results">
+  <div class="results-title">📊 Resumen de la sesión</div>
+  <div id="results-content"></div>
+  <button class="btn restart-btn" onclick="goToSetup()">Volver a empezar</button>
+</div>
+
+<script>
+let GROUP_SIZE = 5;
+let STUDY_MODE = 'abc';
+let vocab = [];
+let allGroups = [];
+let groupIdx = 0;
+let subPhase = 'mc';
+let queue = [];
+let current = null;
+let mistakes = [];
+let attempts = [];
+let totalQ = 0;
+let doneQ = 0;
+let writeAttempts = 0;
+let vocabExDone = false; // has vocab exercise been answered
+
+const MODE_LABELS = {
+  abc: 'Kanji + lectura + significado',
+  ab: 'Kanji + lectura',
+  ac: 'Kanji + significado',
+  bc: 'Lectura + significado'
+};
+
+const RELATION_LABELS = {
+  'kanji→reading': 'Kanji → lectura',
+  'reading→kanji': 'Lectura → kanji',
+  'kanji→meaning': 'Kanji → significado',
+  'meaning→kanji': 'Significado → kanji',
+  'reading→meaning': 'Lectura → significado',
+  'meaning→reading': 'Significado → lectura',
+  'write:kanji→reading': 'Escritura (kanji → lectura)',
+  'vocab_extra:meaning': 'Vocabulario extra (significado)'
+};
+
+const QUESTION_LABELS = {
+  'kanji→reading': '¿Cómo se lee?',
+  'reading→kanji': '¿Qué kanji corresponde?',
+  'kanji→meaning': '¿Qué significa?',
+  'meaning→kanji': '¿Qué palabra corresponde?',
+  'reading→meaning': '¿Qué significa esta lectura?',
+  'meaning→reading': '¿Qué lectura corresponde?'
+};
+
+// ─── SETUP ────────────────────────────────────────────────────────────────────
+
+function selectSize(btn) {
+  document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  GROUP_SIZE = parseInt(btn.dataset.val);
+}
+
+function selectMode(btn) {
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  STUDY_MODE = btn.dataset.val;
+}
+
+function modeIncludesWrite() {
+  // La fase de escritura existe sólo si el modo incluye kanji + lectura
+  return STUDY_MODE === 'ab' || STUDY_MODE === 'abc';
+}
+
+function modeIncludesMeaning() {
+  return STUDY_MODE.includes('c');
+}
+
+function getRelationsForMode(mode) {
+  if (mode === 'ab') return [{from:'kanji',to:'reading'},{from:'reading',to:'kanji'}];
+  if (mode === 'ac') return [{from:'kanji',to:'meaning'},{from:'meaning',to:'kanji'}];
+  if (mode === 'bc') return [{from:'reading',to:'meaning'},{from:'meaning',to:'reading'}];
+  // abc
+  return [
+    {from:'kanji',to:'reading'},
+    {from:'reading',to:'kanji'},
+    {from:'kanji',to:'meaning'},
+    {from:'meaning',to:'kanji'},
+    {from:'reading',to:'meaning'},
+    {from:'meaning',to:'reading'}
+  ];
+}
+
+function parseVocab(text) {
+  const lines = text.trim().split('\n').filter(l => l.trim());
+  const result = [];
+  for (const line of lines) {
+    const parts = line.split('\t');
+    if (parts.length < 3) return null;
+    result.push({ kanji: parts[0].trim(), reading: parts[1].trim(), meaning: parts[2].trim() });
+  }
+  return result.length >= 2 ? result : null;
+}
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function goToSetup() {
+  mistakes = []; attempts = []; groupIdx = 0; subPhase = 'mc';
+  hide('results'); hide('card'); hide('progress-bar-wrap'); hide('phase-transition');
+  show('setup');
+}
+
+function finishEarly() {
+  showResults();
+}
+
+function startStudy() {
+  const text = document.getElementById('vocab-input').value;
+  const parsed = parseVocab(text);
+  if (!parsed) {
+    document.getElementById('input-error').textContent = 'Error: necesitas al menos 2 palabras con 3 columnas separadas por tab.';
+    return;
+  }
+  document.getElementById('input-error').textContent = '';
+  vocab = shuffle(parsed);
+  allGroups = [];
+  for (let i = 0; i < vocab.length; i += GROUP_SIZE) allGroups.push(vocab.slice(i, i + GROUP_SIZE));
+  groupIdx = 0; subPhase = 'mc'; mistakes = []; attempts = [];
+  hide('setup'); show('progress-bar-wrap'); show('card');
+  loadSubPhase();
+}
+
+// ─── PHASE MANAGEMENT ─────────────────────────────────────────────────────────
+
+function loadSubPhase() {
+  const group = allGroups[groupIdx];
+  totalQ = group.length; doneQ = 0; writeAttempts = 0;
+  if (subPhase === 'mc') {
+    const relations = getRelationsForMode(STUDY_MODE);
+    queue = shuffle(group.map(w => {
+      const rel = relations[Math.floor(Math.random() * relations.length)];
+      return { word: w, from: rel.from, to: rel.to };
+    }));
+  } else {
+    // write phase: siempre kanji → reading
+    queue = shuffle(group.map(w => ({ word: w, from: 'kanji', to: 'reading' })));
+  }
+  updateProgress();
+  showQuestion();
+}
+
+function updateProgress() {
+  const phaseNum = subPhase === 'mc' ? 1 : 2;
+  document.getElementById('phase-label').textContent =
+    `Grupo ${groupIdx + 1}/${allGroups.length} · Fase ${phaseNum} (${subPhase === 'mc' ? 'Alternativas' : 'Escritura'}) — ${doneQ}/${totalQ}`;
+  document.getElementById('bar-fill').style.width = totalQ ? (doneQ / totalQ * 100) + '%' : '0%';
+}
+
+// ─── SHOW QUESTION ────────────────────────────────────────────────────────────
+
+function showQuestion() {
+  if (queue.length === 0) {
+    if (subPhase === 'mc') {
+      if (modeIncludesWrite()) {
+        showTransition(`¡Bien! Ahora a escribir`,
+          `Escribirás en hiragana las mismas ${allGroups[groupIdx].length} palabras del grupo ${groupIdx + 1}.`,
+          () => { subPhase = 'write'; loadSubPhase(); });
+      } else {
+        // Saltar fase de escritura: pasar al siguiente grupo o terminar
+        groupIdx++;
+        if (groupIdx >= allGroups.length) { showResults(); }
+        else {
+          showTransition(`Grupo ${groupIdx} completado ✓`,
+            `Pasando al grupo ${groupIdx + 1} de ${allGroups.length} (${allGroups[groupIdx].length} palabras).`,
+            () => { subPhase = 'mc'; loadSubPhase(); });
+        }
+      }
+    } else {
+      groupIdx++;
+      if (groupIdx >= allGroups.length) { showResults(); }
+      else {
+        showTransition(`Grupo ${groupIdx} completado ✓`,
+          `Pasando al grupo ${groupIdx + 1} de ${allGroups.length} (${allGroups[groupIdx].length} palabras).`,
+          () => { subPhase = 'mc'; loadSubPhase(); });
+      }
+    }
+    return;
+  }
+
+  current = queue.shift();
+  writeAttempts = 0;
+  vocabExDone = false;
+
+  hide('phase-transition'); show('card');
+  hide('feedback'); hide('post-answer'); hide('meaning-reveal');
+  hide('vocab-exercise'); hide('next-btn'); hide('retry-prompt');
+  document.querySelectorAll('.post-btn').forEach(b => b.disabled = false);
+
+  const badge = document.getElementById('phase-badge');
+  const choicesWrap = document.getElementById('choices-wrap');
+  const writeWrap = document.getElementById('write-wrap');
+
+  if (subPhase === 'mc') {
+    badge.textContent = `Grupo ${groupIdx + 1} · Alternativas`;
+    const relKey = current.from + '→' + current.to;
+    document.getElementById('q-label').textContent = QUESTION_LABELS[relKey] || '';
+    document.getElementById('q-text').textContent = current.word[current.from];
+    show('choices-wrap'); hide('write-wrap');
+    choicesWrap.style.display = 'grid';
+    const choices = buildChoices(current.word, current.from, current.to);
+    choicesWrap.innerHTML = '';
+    choices.forEach(c => {
+      const btn = document.createElement('button');
+      btn.className = 'choice-btn';
+      btn.textContent = c.text;
+      btn.onclick = () => selectChoice(btn, c.correct, current.word, current.from, current.to);
+      choicesWrap.appendChild(btn);
+    });
+  } else {
+    badge.textContent = `Grupo ${groupIdx + 1} · Escritura`;
+    document.getElementById('q-label').textContent = '¿Cómo se lee? (escribe en hiragana)';
+    document.getElementById('q-text').textContent = current.word.kanji;
+    hide('choices-wrap'); show('write-wrap');
+    const inp = document.getElementById('write-input');
+    inp.value = ''; inp.className = 'write-input'; inp.disabled = false;
+    document.getElementById('submit-write-btn').disabled = false;
+    inp.focus();
+  }
+}
+
+// ─── POST-ANSWER OPTIONS ──────────────────────────────────────────────────────
+
+function showPostAnswer() {
+  show('post-answer');
+  hide('meaning-reveal');
+  hide('vocab-exercise');
+  hide('next-btn');
+  document.getElementById('vocab-feedback').style.display = 'none';
+  document.querySelectorAll('.post-btn').forEach(b => b.disabled = false);
+
+  // Adaptar visibilidad de los botones según contexto
+  const meaningBtn = document.getElementById('post-meaning-btn');
+  const vocabBtn = document.getElementById('post-vocab-btn');
+
+  // El botón "Ver significado" se oculta si la pregunta actual ya era sobre significado
+  const wasAboutMeaning = current && (current.from === 'meaning' || current.to === 'meaning');
+  if (subPhase === 'mc' && wasAboutMeaning) {
+    meaningBtn.style.display = 'none';
+  } else {
+    meaningBtn.style.display = '';
+  }
+
+  // El ejercicio extra de vocabulario sólo tiene sentido si hay significado disponible
+  // (siempre está disponible en la base, pero lo mostramos sólo si la pregunta no era ya sobre meaning)
+  if (subPhase === 'mc' && wasAboutMeaning) {
+    vocabBtn.style.display = 'none';
+  } else {
+    vocabBtn.style.display = '';
+  }
+}
+
+function postAction(action) {
+  document.querySelectorAll('.post-btn').forEach(b => b.disabled = true);
+
+  if (action === 'meaning') {
+    document.getElementById('meaning-reveal-text').textContent = current.word.meaning;
+    show('meaning-reveal');
+    show('next-btn');
+  } else if (action === 'vocab') {
+    showVocabExercise();
+  } else {
+    nextQuestion();
+  }
+}
+
+// ─── VOCAB EXERCISE ───────────────────────────────────────────────────────────
+
+function showVocabExercise() {
+  show('vocab-exercise');
+  document.getElementById('vocab-feedback').style.display = 'none';
+
+  // Question: show the kanji/reading, ask for the meaning in Spanish
+  document.getElementById('vocab-ex-q').textContent = current.word.kanji + '　(' + current.word.reading + ')';
+  document.querySelector('.vocab-ex-label').textContent = '¿Cuál es el significado de esta palabra?';
+
+  const correct = current.word.meaning;
+  const pool = vocab.filter(w => w.kanji !== current.word.kanji);
+  const distractors = shuffle(pool).slice(0, 3).map(w => ({ text: w.meaning, correct: false }));
+  const choices = shuffle([{ text: correct, correct: true }, ...distractors]);
+
+  const wrap = document.getElementById('vocab-choices');
+  wrap.innerHTML = '';
+  choices.forEach(c => {
+    const btn = document.createElement('button');
+    btn.className = 'choice-btn';
+    btn.textContent = c.text;
+    btn.style.fontSize = '0.88rem';
+    btn.style.textAlign = 'left';
+    btn.style.padding = '12px';
+    btn.onclick = () => checkVocabChoice(btn, c.correct, correct, wrap);
+    wrap.appendChild(btn);
+  });
+}
+
+function checkVocabChoice(btn, isCorrect, correctAns, wrap) {
+  if (vocabExDone) return;
+  vocabExDone = true;
+  [...wrap.querySelectorAll('.choice-btn')].forEach(b => {
+    b.disabled = true;
+    if (b.textContent === correctAns) b.classList.add('correct');
+  });
+  if (!isCorrect) btn.classList.add('wrong');
+
+  // Registrar intento de vocabulario extra
+  attempts.push({
+    kanji: current.word.kanji,
+    reading: current.word.reading,
+    meaning: current.word.meaning,
+    from: 'kanji_reading',
+    to: 'meaning',
+    exerciseType: 'vocab_extra',
+    correct: isCorrect,
+    errors: isCorrect ? 0 : 1,
+    firstTryCorrect: isCorrect,
+    group: groupIdx + 1,
+    mode: STUDY_MODE
+  });
+
+  const fb = document.getElementById('vocab-feedback');
+  fb.className = 'vocab-feedback ' + (isCorrect ? 'correct' : 'wrong');
+  fb.textContent = isCorrect
+    ? `✓ Correcto: ${correctAns}`
+    : `✗ Incorrecto. El significado correcto era: ${correctAns}`;
+  fb.style.display = 'block';
+  show('next-btn');
+}
+
+// ─── MC PHASE ─────────────────────────────────────────────────────────────────
+
+function buildChoices(word, fromConcept, toConcept) {
+  const correct = word[toConcept];
+  const pool = vocab.filter(w => w !== word);
+  const scored = pool.map(w => {
+    const cand = w[toConcept];
+    return { text: cand, score: similarity(correct, cand) };
+  }).sort((a, b) => b.score - a.score);
+  const distractors = [];
+  const seen = new Set([correct]);
+  for (const s of scored) {
+    if (!seen.has(s.text)) { seen.add(s.text); distractors.push({ text: s.text, correct: false }); }
+    if (distractors.length >= 3) break;
+  }
+  return shuffle([{ text: correct, correct: true }, ...distractors]);
+}
+
+function similarity(a, b) {
+  let shared = 0;
+  const bc = b.split('');
+  for (const ch of a) { const i = bc.indexOf(ch); if (i !== -1) { shared++; bc.splice(i, 1); } }
+  return shared / Math.max(a.length, b.length);
+}
+
+function selectChoice(btn, isCorrect, word, fromConcept, toConcept) {
+  doneQ++;
+  const allBtns = document.querySelectorAll('#choices-wrap .choice-btn');
+  allBtns.forEach(b => b.disabled = true);
+  const correctAnswer = word[toConcept];
+  btn.classList.add(isCorrect ? 'correct' : 'wrong');
+  if (!isCorrect) {
+    allBtns.forEach(b => { if (b.textContent === correctAnswer) b.classList.add('correct'); });
+    mistakes.push({ phase: 'Alternativas', grupo: groupIdx + 1, kanji: word.kanji, reading: word.reading, meaning: word.meaning, relation: fromConcept + '→' + toConcept });
+    current._mistakeRef = mistakes[mistakes.length - 1];
+  } else { current._mistakeRef = null; }
+
+  // Registrar intento
+  attempts.push({
+    kanji: word.kanji,
+    reading: word.reading,
+    meaning: word.meaning,
+    from: fromConcept,
+    to: toConcept,
+    exerciseType: 'multiple_choice',
+    correct: isCorrect,
+    errors: isCorrect ? 0 : 1,
+    firstTryCorrect: isCorrect,
+    group: groupIdx + 1,
+    mode: STUDY_MODE
+  });
+
+  showFeedback(isCorrect, correctAnswer);
+  updateProgress();
+  showPostAnswer();
+}
+
+// ─── WRITE PHASE ──────────────────────────────────────────────────────────────
+
+function checkWrite() {
+  const inp = document.getElementById('write-input');
+  const val = inp.value.trim();
+  const correct = current.word.reading;
+  if (val === correct) {
+    inp.className = 'write-input correct';
+    inp.disabled = true;
+    document.getElementById('submit-write-btn').disabled = true;
+    hide('retry-prompt');
+    if (writeAttempts === 0) doneQ++;
+    showFeedback(true, correct);
+    updateProgress();
+    current._mistakeRef = null;
+    // Registrar intento de escritura (al lograr el acierto final)
+    attempts.push({
+      kanji: current.word.kanji,
+      reading: current.word.reading,
+      meaning: current.word.meaning,
+      from: 'kanji',
+      to: 'reading',
+      exerciseType: 'write',
+      correct: true,
+      errors: writeAttempts,
+      firstTryCorrect: writeAttempts === 0,
+      group: groupIdx + 1,
+      mode: STUDY_MODE
+    });
+    showPostAnswer();
+  } else {
+    inp.className = 'write-input wrong';
+    if (writeAttempts === 0) {
+      mistakes.push({ phase: 'Escritura', grupo: groupIdx + 1, kanji: current.word.kanji, reading: current.word.reading, meaning: current.word.meaning, relation: 'kanji→reading' });
+      current._mistakeRef = mistakes[mistakes.length - 1];
+    }
+    writeAttempts++;
+    show('retry-prompt');
+    showFeedback(false, correct);
+    setTimeout(() => {
+      inp.value = ''; inp.className = 'write-input';
+      hide('feedback'); hide('retry-prompt'); inp.focus();
+    }, 1800);
+  }
+}
+
+document.getElementById('write-input').addEventListener('keydown', e => { if (e.key === 'Enter') checkWrite(); });
+
+// ─── SHARED ───────────────────────────────────────────────────────────────────
+
+function showFeedback(isCorrect, correctAns) {
+  const fb = document.getElementById('feedback');
+  fb.className = 'feedback ' + (isCorrect ? 'correct' : 'wrong');
+  document.getElementById('feedback-title').textContent = isCorrect ? '✓ Correcto' : '✗ Incorrecto';
+  document.getElementById('feedback-correct-ans').textContent = isCorrect ? `Respuesta: ${correctAns}` : `Respuesta correcta: ${correctAns}`;
+  show('feedback');
+}
+
+function nextQuestion() {
+  showQuestion();
+}
+
+let _nextSubPhaseCallback = null;
+function showTransition(title, desc, callback) {
+  hide('card');
+  show('phase-transition');
+  document.getElementById('pt-title').textContent = title;
+  document.getElementById('pt-desc').textContent = desc;
+  _nextSubPhaseCallback = callback;
+}
+
+function startNextSubPhase() {
+  hide('phase-transition');
+  if (_nextSubPhaseCallback) _nextSubPhaseCallback();
+}
+
+// ─── FAMILIARITY ALGORITHM ────────────────────────────────────────────────────
+
+function calculateFamiliarity(attemptsList) {
+  const weights = { multiple_choice: 1, write: 2, vocab_extra: 1 };
+  const byWord = {};
+
+  for (const a of attemptsList) {
+    if (!byWord[a.kanji]) {
+      byWord[a.kanji] = {
+        kanji: a.kanji,
+        reading: a.reading,
+        meaning: a.meaning,
+        scoreGanado: 0,
+        scorePosible: 0,
+        relations: {} // key → { ganado, posible }
+      };
+    }
+    const w = byWord[a.kanji];
+    const peso = weights[a.exerciseType] || 1;
+
+    let multiplicador;
+    if (a.errors === 0) multiplicador = 1;
+    else if (a.errors === 1) multiplicador = 0.5;
+    else multiplicador = 0.25;
+    if (!a.correct && a.exerciseType !== 'write') {
+      // Para multiple_choice y vocab_extra, si no es correcto se considera con su error count.
+      // Pero si en algún caso se marcara como skipped/no completado, sería 0. Aquí seguimos la regla.
+    }
+
+    const ganado = peso * multiplicador;
+    const posible = peso;
+    w.scoreGanado += ganado;
+    w.scorePosible += posible;
+
+    // Relación key
+    let relKey;
+    if (a.exerciseType === 'write') relKey = 'write:' + a.from + '→' + a.to;
+    else if (a.exerciseType === 'vocab_extra') relKey = 'vocab_extra:' + a.to;
+    else relKey = a.from + '→' + a.to;
+
+    if (!w.relations[relKey]) w.relations[relKey] = { ganado: 0, posible: 0 };
+    w.relations[relKey].ganado += ganado;
+    w.relations[relKey].posible += posible;
+  }
+
+  return Object.values(byWord).map(w => {
+    const score = w.scorePosible > 0 ? w.scoreGanado / w.scorePosible : 0;
+    let estado;
+    if (score >= 0.85) estado = 'Muy familiar';
+    else if (score >= 0.65) estado = 'Bastante familiar';
+    else if (score >= 0.40) estado = 'En proceso';
+    else estado = 'Necesita más exposición';
+
+    const relations = {};
+    for (const k of Object.keys(w.relations)) {
+      const r = w.relations[k];
+      relations[k] = r.posible > 0 ? r.ganado / r.posible : 0;
+    }
+
+    return {
+      kanji: w.kanji,
+      reading: w.reading,
+      meaning: w.meaning,
+      score,
+      estado,
+      relations
+    };
+  });
+}
+
+function statusClass(estado) {
+  if (estado === 'Muy familiar') return 'status-muy';
+  if (estado === 'Bastante familiar') return 'status-bastante';
+  if (estado === 'En proceso') return 'status-proceso';
+  return 'status-necesita';
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function calculateAreaAverages(attemptsList) {
+  // Promedio de score por relación (usando la misma lógica de pesos/multiplicadores)
+  const weights = { multiple_choice: 1, write: 2, vocab_extra: 1 };
+  const byRel = {};
+  for (const a of attemptsList) {
+    let relKey;
+    if (a.exerciseType === 'write') relKey = 'write:' + a.from + '→' + a.to;
+    else if (a.exerciseType === 'vocab_extra') relKey = 'vocab_extra:' + a.to;
+    else relKey = a.from + '→' + a.to;
+    const peso = weights[a.exerciseType] || 1;
+    let mult;
+    if (a.errors === 0) mult = 1;
+    else if (a.errors === 1) mult = 0.5;
+    else mult = 0.25;
+    if (!byRel[relKey]) byRel[relKey] = { ganado: 0, posible: 0, count: 0 };
+    byRel[relKey].ganado += peso * mult;
+    byRel[relKey].posible += peso;
+    byRel[relKey].count += 1;
+  }
+  const result = {};
+  for (const k of Object.keys(byRel)) {
+    result[k] = { score: byRel[k].posible > 0 ? byRel[k].ganado / byRel[k].posible : 0, count: byRel[k].count };
+  }
+  return result;
+}
+
+function showResults() {
+  hide('card'); hide('progress-bar-wrap'); hide('phase-transition');
+  show('results');
+  const container = document.getElementById('results-content');
+
+  if (attempts.length === 0) {
+    container.innerHTML = '<div class="summary-block"><p style="color:#666;">No hay intentos registrados en esta sesión.</p></div>';
+    return;
+  }
+
+  const familiarity = calculateFamiliarity(attempts);
+  const areaAvgs = calculateAreaAverages(attempts);
+
+  // ── A. Resumen general ──
+  const wordsPracticed = familiarity.length;
+  const totalAttempts = attempts.length;
+  const modeName = MODE_LABELS[STUDY_MODE] || STUDY_MODE;
+
+  // Área más familiar / a reforzar (sólo si hay >= 2 áreas con datos suficientes)
+  const areaEntries = Object.entries(areaAvgs).filter(([k, v]) => v.count >= 2);
+  let areaMasFamiliar = null, areaAReforzar = null;
+  if (areaEntries.length >= 2) {
+    const sorted = [...areaEntries].sort((a, b) => b[1].score - a[1].score);
+    areaMasFamiliar = sorted[0];
+    areaAReforzar = sorted[sorted.length - 1];
+    // Sólo distinguimos si los scores son distintos
+    if (areaMasFamiliar[1].score === areaAReforzar[1].score) {
+      areaMasFamiliar = null;
+      areaAReforzar = null;
+    }
+  }
+
+  let summaryHtml = `<div class="summary-block">
+    <h3>Resumen general</h3>
+    <div class="summary-row"><span class="label">Sesión</span><span class="value">Completada</span></div>
+    <div class="summary-row"><span class="label">Modo usado</span><span class="value">${escapeHtml(modeName)}</span></div>
+    <div class="summary-row"><span class="label">Palabras practicadas</span><span class="value">${wordsPracticed}</span></div>
+    <div class="summary-row"><span class="label">Intentos registrados</span><span class="value">${totalAttempts}</span></div>`;
+
+  if (areaMasFamiliar && areaAReforzar) {
+    const labelMas = RELATION_LABELS[areaMasFamiliar[0]] || areaMasFamiliar[0];
+    const labelMenos = RELATION_LABELS[areaAReforzar[0]] || areaAReforzar[0];
+    summaryHtml += `
+      <div class="summary-row"><span class="label">Área más familiar</span><span class="value">${escapeHtml(labelMas)} (${Math.round(areaMasFamiliar[1].score * 100)}%)</span></div>
+      <div class="summary-row"><span class="label">Área a reforzar</span><span class="value">${escapeHtml(labelMenos)} (${Math.round(areaAReforzar[1].score * 100)}%)</span></div>`;
+  } else {
+    summaryHtml += `<div class="summary-row"><span class="label" style="font-style:italic;">Todavía no hay suficientes datos para comparar áreas.</span><span class="value"></span></div>`;
+  }
+  summaryHtml += `</div>`;
+
+  // ── B. Familiaridad por palabra ──
+  const sortedFam = [...familiarity].sort((a, b) => b.score - a.score);
+  let famHtml = `<div class="results-section-title">Familiaridad por palabra</div>`;
+  for (const w of sortedFam) {
+    const pct = Math.round(w.score * 100);
+    const cls = statusClass(w.estado);
+    let relsHtml = '';
+    const relKeys = Object.keys(w.relations);
+    if (relKeys.length > 0) {
+      relsHtml = '<div class="wc-relations">' + relKeys.map(k => {
+        const label = RELATION_LABELS[k] || k;
+        return `<span>${escapeHtml(label)}: ${Math.round(w.relations[k] * 100)}%</span>`;
+      }).join(' · ') + '</div>';
+    }
+    famHtml += `<div class="word-card">
+      <div class="wc-top">
+        <div class="wc-kanji">${escapeHtml(w.kanji)}</div>
+        <div class="wc-status ${cls}">${escapeHtml(w.estado)} · ${pct}%</div>
+      </div>
+      <div class="wc-sub">${escapeHtml(w.reading)} · ${escapeHtml(w.meaning)}</div>
+      ${relsHtml}
+    </div>`;
+  }
+
+  // ── C. Para seguir practicando ──
+  const aReforzar = sortedFam.filter(w => w.estado === 'En proceso' || w.estado === 'Necesita más exposición');
+  let practiceHtml = '';
+  if (aReforzar.length > 0) {
+    practiceHtml = `<div class="results-section-title">Para seguir practicando</div>
+      <p class="results-hint">Estas palabras todavía se están afirmando. Conviene repetirlas con apoyo en otra sesión.</p>`;
+    for (const w of aReforzar) {
+      const pct = Math.round(w.score * 100);
+      const cls = statusClass(w.estado);
+      practiceHtml += `<div class="word-card">
+        <div class="wc-top">
+          <div class="wc-kanji">${escapeHtml(w.kanji)}</div>
+          <div class="wc-status ${cls}">${escapeHtml(w.estado)} · ${pct}%</div>
+        </div>
+        <div class="wc-sub">${escapeHtml(w.reading)} · ${escapeHtml(w.meaning)}</div>
+      </div>`;
+    }
+  }
+
+  // ── D. Tabla de errores (al final, secundaria) ──
+  let mistakesHtml = '';
+  if (mistakes.length > 0) {
+    mistakesHtml = `<div class="results-section-title">Respuestas que conviene mirar de nuevo</div>
+      <table class="results-table"><thead><tr>
+        <th>Palabra</th><th>Lectura</th><th>Significado</th><th>Fase</th>
+      </tr></thead><tbody>`;
+    mistakes.forEach(m => {
+      mistakesHtml += `<tr>
+        <td class="td-kanji">${escapeHtml(m.kanji)}</td>
+        <td>${escapeHtml(m.reading)}</td>
+        <td class="td-meaning">${escapeHtml(m.meaning)}</td>
+        <td><span class="tag-phase">${escapeHtml(m.phase)}</span></td>
+      </tr>`;
+    });
+    mistakesHtml += '</tbody></table>';
+  }
+
+  container.innerHTML = summaryHtml + famHtml + practiceHtml + mistakesHtml;
+}
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+
+function show(id) { const el = document.getElementById(id); if (el) el.style.display = 'block'; }
+function hide(id) { const el = document.getElementById(id); if (el) el.style.display = 'none'; }
+</script>
+</body>
+</html>
