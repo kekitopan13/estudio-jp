@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Kanji Study</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&family=Noto+Sans+JP:wght@300;400;500&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; background: #f0faf6; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+    background: #e8f6f0;
+  }
+  #root {
+    width: 100%;
+    max-width: 430px;
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    background: #f7fdfb;
+    position: relative;
+  }
+  .kanji-font { font-family: 'Noto Serif JP', serif; }
+  .jp-font { font-family: 'Noto Sans JP', sans-serif; }
+  button { -webkit-appearance: none; appearance: none; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+// ─── HELPERS ────────────────────────────────────────────────────────────────
+function isKanji(ch) {
+  return /[\u4e00-\u9faf\u3400-\u4dbf]/.test(ch);
+}
+function wordToChars(w) { return [...w]; }
+function shuffle(arr) { return [...arr].sort(() => Math.random() - 0.5); }
+
+// ─── COLORES ────────────────────────────────────────────────────────────────
+const C = {
+  bg:          "#f7fdfb",
+  bgAlt:       "#edf7f3",
+  bgCard:      "#ffffff",
+  bgDeep:      "#e4f5ef",
+  text:        "#1a2e28",
+  textMuted:   "#5a7a72",
+  textDim:     "#9bbdb5",
+  mint:        "#B3EEE3",
+  mintDark:    "#7dd4c4",
+  mintDeep:    "#4fbfac",
+  pink:        "#FA7DB3",
+  pinkLight:   "rgba(250,125,179,0.15)",
+  pinkDark:    "#e8609a",
+  correct:     "#4fbfac",
+  correctBg:   "rgba(79,191,172,0.12)",
+  wrong:       "#FA7DB3",
+  wrongBg:     "rgba(250,125,179,0.15)",
+  border:      "#c8e8e0",
+  borderLight: "#dff2ed",
+  white:       "#ffffff",
+  shadow:      "0 2px 12px rgba(79,191,172,0.12)",
+  shadowCard:  "0 1px 4px rgba(0,0,0,0.06)",
+};
+
+// ─── VOCABULARIO POR DEFECTO ─────────────────────────────────────────────────
+const DEFAULT_DB = `久\t永久\tえいきゅう\tpermanente, para siempre
+久\t久しぶり\tひさしぶり\tdespués de mucho tiempo
+争\tきょう争\tきょうそう\tcompetencia
+争\t言い争い\tいいあらそい\tdiscusión verbal`;
+
+function parseDB(text) {
+  const lines = text.trim().split("\n").filter(l => l.trim());
+  const byKanji = {};
+  const words = [];
+  for (const line of lines) {
+    const parts = line.split("\t");
+    if (parts.length < 4) continue;
+    const [kanjiClave, kanjiWord, furigana, es] = parts.map(p => p.trim());
+    if (!kanjiClave || !kanjiWord || !furigana || !es) continue;
+    const chars = wordToChars(kanjiWord);
+    const word = { kanjiClave, kanji: kanjiWord, furigana, es, chars };
+    words.push(word);
+    if (!byKanji[kanjiClave]) byKanji[kanjiClave] = [];
+    byKanji[kanjiClave].push(word);
+  }
+  return { words, byKanji, kanjiKeys: Object.keys(byKanji) };
+}
+
+function buildKanjiPool(words) {
+  return [...new Set(words.flatMap(w => w.chars.filter(isKanji)))];
+}
+
+let CURRENT_DB = parseDB(DEFAULT_DB);
+let ALL_KANJI_POOL = buildKanjiPool(CURRENT_DB.words);
+
+function getKanjiChars(word) { return word.chars.filter(isKanji); }
+
+function getDistractors(correctChars, count = 7) {
+  const pool = ALL_KANJI_POOL.filter(k => !correctChars.includes(k));
+  return shuffle(pool).slice(0, Math.min(count, pool.length));
+}
+
+// ─── COMPONENTES COMPARTIDOS ─────────────────────────────────────────────────
+
+function ProgressBar({ current, total }) {
+  const pct = Math.round((current / total) * 100);
+  return (
+    <div style={{ height: 5, background: C.bgDeep, borderRadius: 3, overflow: "hidden" }}>
+      <div style={{
+        height: "100%", width: `${pct}%`,
+        background: `linear-gradient(90deg, ${C.mintDeep}, ${C.pink})`,
+        borderRadius: 3, transition: "width 0.4s ease",
+      }} />
+    </div>
+  );
+}
+
+// Barra de navegación superior compartida para ejercicios
+function ExerciseTopBar({ stepCurrent, stepTotal, roundCurrent, roundTotal, onClose, onFinish, devMode, onDevSkip }) {
+  return (
+    <div style={{
+      padding: "12px 16px 10px",
+      display: "flex", alignItems: "center", gap: 8,
+      background: C.white, borderBottom: `1px solid ${C.borderLight}`,
+      position: "sticky", top: 0, zIndex: 10,
+    }}>
+      <button onClick={onClose} style={{
+        width: 34, height: 34, borderRadius: "50%",
+        background: C.bgDeep, border: `1px solid ${C.border}`,
+        color: C.textMuted, fontSize: 16, cursor: "pointer",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        flexShrink: 0,
+      }}>✕</button>
+      <div style={{ flex: 1 }}>
+        <ProgressBar current={stepCurrent} total={stepTotal} />
+        <div style={{ fontSize: 10, color: C.textDim, marginTop: 3 }}>Ronda {roundCurrent}/{roundTotal}</div>
+      </div>
+      {devMode && (
+        <button onClick={onDevSkip} style={{
+          padding: "5px 10px", borderRadius: 8,
+          background: C.pinkLight, border: `1px solid ${C.pink}`,
+          color: C.pinkDark, fontSize: 11, cursor: "pointer",
+          fontFamily: "'DM Sans', sans-serif", flexShrink: 0,
+        }}>skip →</button>
+      )}
+      <button onClick={onFinish} style={{
+        padding: "5px 10px", borderRadius: 8,
+        background: "transparent", border: `1px solid ${C.border}`,
+        color: C.textMuted, fontSize: 11, cursor: "pointer",
+        fontFamily: "'DM Sans', sans-serif", flexShrink: 0,
+      }}>Terminar</button>
+    </div>
+  );
+}
+
+// Barra superior para pantallas de config/fin
+function PageTopBar({ onHome }) {
+  return (
+    <div style={{
+      padding: "12px 16px",
+      display: "flex", alignItems: "center", justifyContent: "space-between",
+      background: C.white, borderBottom: `1px solid ${C.borderLight}`,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <span className="kanji-font" style={{ fontSize: 20, color: C.mintDeep }}>漢</span>
+        <span style={{ fontSize: 15, fontWeight: 600, color: C.text }}>Kanji Study</span>
+      </div>
+      <div style={{ display: "flex", gap: 8 }}>
+        {onHome && (
+          <button onClick={onHome} style={{
+            padding: "6px 12px", borderRadius: 8,
+            background: C.bgDeep, border: `1px solid ${C.border}`,
+            color: C.textMuted, fontSize: 12, cursor: "pointer",
+            fontFamily: "'DM Sans', sans-serif",
+          }}>Inicio</button>
+        )}
+        <a href="https://kekitopan13.github.io/estudio-jp/" target="_blank" rel="noopener noreferrer" style={{
+          padding: "6px 12px", borderRadius: 8,
+          background: C.mint, border: "none",
+          color: C.text, fontSize: 12, cursor: "pointer",
+          fontFamily: "'DM Sans', sans-serif", fontWeight: 500,
+          textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4,
+        }}>Menú ↗</a>
+      </div>
+    </div>
+  );
+}
+
+function TypeLabel({ label, color }) {
+  return (
+    <div style={{
+      fontSize: 10, letterSpacing: "0.14em", fontWeight: 700,
+      color: color || C.textMuted, textTransform: "uppercase",
+    }}>{label}</div>
+  );
+}
+
+function KanjiDisplay({ word, showFurigana = true, size = 88 }) {
+  return (
+    <div style={{ textAlign: "center" }}>
+      <div className="kanji-font" style={{
+        fontSize: size, color: C.text,
+        lineHeight: 1.1, letterSpacing: "0.04em",
+      }}>{word.kanji}</div>
+      {showFurigana && (
+        <div className="jp-font" style={{
+          fontSize: 20, color: C.textMuted, marginTop: 8,
+          letterSpacing: "0.2em",
+        }}>{word.furigana}</div>
+      )}
+    </div>
+  );
+}
+
+function PrimaryBtn({ onClick, children, disabled }) {
+  return (
+    <button onClick={onClick} disabled={disabled} style={{
+      width: "100%", padding: "17px",
+      background: disabled ? C.bgDeep : `linear-gradient(135deg, ${C.mintDeep}, ${C.mintDark})`,
+      border: "none", borderRadius: 14,
+      color: disabled ? C.textDim : C.white,
+      fontSize: 17, fontWeight: 600,
+      cursor: disabled ? "not-allowed" : "pointer",
+      fontFamily: "'DM Sans', sans-serif",
+      boxShadow: disabled ? "none" : C.shadow,
+      transition: "transform 0.1s",
+    }}
+    onPointerDown={e => { if (!disabled) e.currentTarget.style.transform = "scale(0.97)"; }}
+    onPointerUp={e => e.currentTarget.style.transform = "scale(1)"}
+    onPointerLeave={e => e.currentTarget.style.transform = "scale(1)"}
+    >{children}</button>
+  );
+}
+
+// ─── EJERCICIO 1: EXPOSICIÓN ─────────────────────────────────────────────────
+function ExposicionEx({ word, onNext }) {
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "24px 24px 28px", gap: 20 }}>
+      <TypeLabel label="Memoriza esta palabra" color={C.textDim} />
+
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", gap: 24 }}>
+        <KanjiDisplay word={word} showFurigana={true} size={88} />
+
+        <div style={{
+          background: C.bgCard, borderRadius: 14, padding: "18px 20px",
+          border: `1px solid ${C.borderLight}`, boxShadow: C.shadowCard,
+        }}>
+          <div style={{ fontSize: 11, color: C.textDim, marginBottom: 5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em" }}>Significado</div>
+          <div style={{ fontSize: 18, color: C.text, lineHeight: 1.5 }}>{word.es}</div>
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "center", gap: 8, flexWrap: "wrap" }}>
+          {word.chars.filter(isKanji).map((ch, i) => (
+            <div key={i} className="kanji-font" style={{
+              width: 48, height: 48, display: "flex", alignItems: "center", justifyContent: "center",
+              background: C.bgDeep, border: `1px solid ${C.border}`,
+              borderRadius: 10, fontSize: 24, color: C.mintDeep,
+            }}>{ch}</div>
+          ))}
+        </div>
+      </div>
+
+      <PrimaryBtn onClick={onNext}>OK</PrimaryBtn>
+    </div>
+  );
+}
+
+// ─── EJERCICIO 2: CONSTRUCCIÓN ───────────────────────────────────────────────
+function ConstruccionEx({ word, onNext }) {
+  const correctKanjis = getKanjiChars(word);
+  const [slots, setSlots] = useState(correctKanjis.map(() => null));
+  const [pool, setPool] = useState(() => shuffle([...correctKanjis, ...getDistractors(correctKanjis, 9 - correctKanjis.length)]));
+  const [errors, setErrors] = useState(new Set());
+  const [done, setDone] = useState(false);
+
+  const kanjiPositionsInWord = word.chars.reduce((acc, ch, i) => {
+    if (isKanji(ch)) acc.push(i);
+    return acc;
+  }, []);
+
+  function handleSelect(k, poolIdx) {
+    if (errors.has(poolIdx)) return;
+    const nextEmpty = slots.findIndex(s => s === null);
+    if (nextEmpty === -1) return;
+    const expected = correctKanjis[nextEmpty];
+    if (k === expected) {
+      const newSlots = [...slots];
+      newSlots[nextEmpty] = k;
+      setSlots(newSlots);
+      setPool(prev => prev.map((p, i) => i === poolIdx ? null : p));
+      setErrors(new Set());
+      if (newSlots.every(s => s !== null)) setTimeout(() => setDone(true), 350);
+    } else {
+      setErrors(prev => new Set([...prev, poolIdx]));
+    }
+  }
+
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "20px 20px 24px", gap: 16 }}>
+      <TypeLabel label="Selecciona los kanjis" color={C.textDim} />
+
+      <div style={{ textAlign: "center" }}>
+        <div style={{ fontSize: 14, color: C.textMuted, marginBottom: 8 }}>{word.es}</div>
+        <div className="jp-font" style={{ fontSize: 22, color: C.text, letterSpacing: "0.18em", marginBottom: 14 }}>
+          {word.furigana}
+        </div>
+        <div style={{ display: "flex", justifyContent: "center", gap: 6, flexWrap: "wrap" }}>
+          {word.chars.map((ch, i) => {
+            const kanjiIdx = kanjiPositionsInWord.indexOf(i);
+            if (isKanji(ch)) {
+              const filled = slots[kanjiIdx];
+              return (
+                <div key={i} className="kanji-font" style={{
+                  width: 54, height: 54,
+                  border: `2px dashed ${filled ? C.mintDeep : C.border}`,
+                  borderRadius: 11,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 28, color: filled ? C.mintDeep : "transparent",
+                  background: filled ? C.correctBg : "transparent",
+                  transition: "all 0.2s",
+                }}>{filled || ch}</div>
+              );
+            } else {
+              return (
+                <div key={i} className="jp-font" style={{
+                  width: 34, height: 54,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 24, color: C.textMuted,
+                }}>{ch}</div>
+              );
+            }
+          })}
+        </div>
+      </div>
+
+      <div style={{ flex: 1, display: "flex", alignItems: "center" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, width: "100%" }}>
+          {pool.map((k, i) => {
+            if (k === null) return <div key={i} style={{ height: 68 }} />;
+            const isErr = errors.has(i);
+            return (
+              <button key={i} onClick={() => handleSelect(k, i)} className="kanji-font" style={{
+                height: 68, fontSize: 34,
+                background: isErr ? C.wrongBg : C.bgCard,
+                border: `1.5px solid ${isErr ? C.wrong : C.border}`,
+                borderRadius: 12, color: isErr ? C.pinkDark : C.text,
+                cursor: "pointer", transition: "all 0.15s",
+                fontFamily: "'Noto Serif JP', serif",
+                boxShadow: C.shadowCard,
+              }}>{k}</button>
+            );
+          })}
+        </div>
+      </div>
+
+      {done && <PrimaryBtn onClick={onNext}>Continuar →</PrimaryBtn>}
+    </div>
+  );
+}
+
+// ─── EJERCICIO 3: LECTURA ────────────────────────────────────────────────────
+function LecturaEx({ word, allWords, onNext }) {
+  const correct = word.furigana;
+  const distractors = allWords.filter(w => w.furigana !== correct).sort(() => Math.random() - 0.5).slice(0, 1).map(w => w.furigana);
+  const [options] = useState(() => shuffle([correct, ...distractors]));
+  const [chosen, setChosen] = useState(null);
+  const [wrong, setWrong] = useState(new Set());
+
+  function handlePick(opt) {
+    if (chosen) return;
+    if (opt === correct) { setChosen(opt); setTimeout(onNext, 650); }
+    else setWrong(prev => new Set([...prev, opt]));
+  }
+
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "20px 20px 28px", gap: 16 }}>
+      <TypeLabel label="¿Cómo se lee?" color={C.textDim} />
+      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <KanjiDisplay word={word} showFurigana={false} size={90} />
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {options.map((opt, i) => {
+          const isWrong = wrong.has(opt);
+          const isCorrect = chosen === opt;
+          return (
+            <button key={i} onClick={() => handlePick(opt)} className="jp-font" style={{
+              padding: "18px 20px", borderRadius: 13, fontSize: 22,
+              background: isCorrect ? C.correctBg : isWrong ? C.wrongBg : C.bgCard,
+              border: `1.5px solid ${isCorrect ? C.mintDeep : isWrong ? C.pink : C.border}`,
+              color: isCorrect ? C.mintDeep : isWrong ? C.pinkDark : C.text,
+              cursor: "pointer", transition: "all 0.15s",
+              letterSpacing: "0.15em", textAlign: "center",
+              fontFamily: "'Noto Sans JP', sans-serif",
+              boxShadow: C.shadowCard,
+            }}>{opt}</button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── EJERCICIO 4: COMPRENSIÓN ────────────────────────────────────────────────
+function ComprehensionEx({ word, allWords, onNext }) {
+  const correct = word.es;
+  const distractors = allWords.filter(w => w.es !== correct).sort(() => Math.random() - 0.5).slice(0, 1).map(w => w.es);
+  const [options] = useState(() => shuffle([correct, ...distractors]));
+  const [chosen, setChosen] = useState(null);
+  const [wrong, setWrong] = useState(new Set());
+
+  function handlePick(opt) {
+    if (chosen) return;
+    if (opt === correct) { setChosen(opt); setTimeout(onNext, 650); }
+    else setWrong(prev => new Set([...prev, opt]));
+  }
+
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "20px 20px 28px", gap: 16 }}>
+      <TypeLabel label="¿Qué significa?" color={C.textDim} />
+      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <KanjiDisplay word={word} showFurigana={true} size={84} />
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {options.map((opt, i) => {
+          const isWrong = wrong.has(opt);
+          const isCorrect = chosen === opt;
+          return (
+            <button key={i} onClick={() => handlePick(opt)} style={{
+              padding: "17px 20px", borderRadius: 13, fontSize: 15,
+              background: isCorrect ? C.correctBg : isWrong ? C.wrongBg : C.bgCard,
+              border: `1.5px solid ${isCorrect ? C.mintDeep : isWrong ? C.pink : C.border}`,
+              color: isCorrect ? C.mintDeep : isWrong ? C.pinkDark : C.text,
+              cursor: "pointer", transition: "all 0.15s",
+              textAlign: "left", lineHeight: 1.5,
+              fontFamily: "'DM Sans', sans-serif",
+              boxShadow: C.shadowCard,
+            }}>{opt}</button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── PANTALLA ENTRE RONDAS ───────────────────────────────────────────────────
+function RoundTransitionScreen({ roundDone, roundTotal, wordsInRound, onContinue, onHome }) {
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflowY: "auto" }}>
+      <PageTopBar onHome={onHome} />
+      <div style={{ flex: 1, padding: "28px 24px 24px", display: "flex", flexDirection: "column", gap: 20 }}>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 12, color: C.textMuted, letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: 600, marginBottom: 12 }}>
+            Ronda {roundDone} completada
+          </div>
+          <div style={{ display: "flex", gap: 6, justifyContent: "center", marginBottom: 4 }}>
+            {Array.from({ length: roundTotal }).map((_, i) => (
+              <div key={i} style={{
+                width: i < roundDone ? 28 : 8, height: 6, borderRadius: 3,
+                background: i < roundDone ? C.mintDeep : C.border,
+                transition: "all 0.4s ease",
+              }} />
+            ))}
+          </div>
+        </div>
+
+        <div style={{ background: C.bgCard, borderRadius: 14, overflow: "hidden", border: `1px solid ${C.borderLight}`, boxShadow: C.shadowCard }}>
+          <div style={{ padding: "10px 16px", borderBottom: `1px solid ${C.borderLight}`, background: C.bgAlt }}>
+            <div style={{ fontSize: 10, color: C.textMuted, letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600 }}>Palabras de esta ronda</div>
+          </div>
+          {wordsInRound.map((w, i) => (
+            <div key={i} style={{
+              display: "flex", alignItems: "center", gap: 10, padding: "11px 16px",
+              borderBottom: i < wordsInRound.length - 1 ? `1px solid ${C.borderLight}` : "none",
+            }}>
+              <span className="kanji-font" style={{ fontSize: 20, color: C.text, minWidth: 54 }}>{w.kanji}</span>
+              <span className="jp-font" style={{ fontSize: 12, color: C.textMuted, minWidth: 72 }}>{w.furigana}</span>
+              <span style={{ fontSize: 12, color: C.textDim, lineHeight: 1.4 }}>{w.es}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ padding: "0 24px 32px", flexShrink: 0 }}>
+        <PrimaryBtn onClick={onContinue}>
+          {roundDone < roundTotal ? `Ronda ${roundDone + 1} →` : "Ver resultados →"}
+        </PrimaryBtn>
+      </div>
+    </div>
+  );
+}
+
+// ─── PANTALLA FINAL ──────────────────────────────────────────────────────────
+function FinScreen({ allSessionWords, onNewSession }) {
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <PageTopBar onHome={onNewSession} />
+      <div style={{ flex: 1, overflowY: "auto", padding: "28px 24px 16px", display: "flex", flexDirection: "column", gap: 20 }}>
+        <div style={{ textAlign: "center" }}>
+          <div className="kanji-font" style={{ fontSize: 44, color: C.mintDeep, marginBottom: 6 }}>完了</div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: C.text, marginBottom: 4 }}>¡Sesión completada!</div>
+          <div style={{ fontSize: 13, color: C.textMuted }}>Practicaste {allSessionWords.length} palabras en total</div>
+        </div>
+
+        <div style={{ background: C.bgCard, borderRadius: 14, overflow: "hidden", border: `1px solid ${C.borderLight}`, boxShadow: C.shadowCard }}>
+          <div style={{ padding: "10px 16px", borderBottom: `1px solid ${C.borderLight}`, background: C.bgAlt }}>
+            <div style={{ fontSize: 10, color: C.textMuted, letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600 }}>Vocabulario practicado</div>
+          </div>
+          {allSessionWords.map((w, i) => (
+            <div key={i} style={{
+              display: "flex", alignItems: "center", gap: 10, padding: "12px 16px",
+              borderBottom: i < allSessionWords.length - 1 ? `1px solid ${C.borderLight}` : "none",
+            }}>
+              <span className="kanji-font" style={{ fontSize: 20, color: C.text, minWidth: 54 }}>{w.kanji}</span>
+              <span className="jp-font" style={{ fontSize: 12, color: C.textMuted, minWidth: 72 }}>{w.furigana}</span>
+              <span style={{ fontSize: 12, color: C.textDim, lineHeight: 1.4 }}>{w.es}</span>
+            </div>
+          ))}
+        </div>
+
+        <PrimaryBtn onClick={onNewSession}>Nueva sesión</PrimaryBtn>
+      </div>
+    </div>
+  );
+}
+
+// ─── PANTALLA DE CONFIG ──────────────────────────────────────────────────────
+function ConfigScreen({ onStart, devMode, onToggleDevMode }) {
+  const [dbText, setDbText] = useState(DEFAULT_DB);
+  const [parsed, setParsed] = useState(() => parseDB(DEFAULT_DB));
+  const [kanjiDose, setKanjiDose] = useState(2);
+  const [parseError, setParseError] = useState(null);
+  const [showDB, setShowDB] = useState(false);
+
+  function handleDBChange(val) {
+    setDbText(val);
+    try {
+      const p = parseDB(val);
+      if (p.kanjiKeys.length === 0) { setParseError("No se encontraron entradas válidas. Revisá el formato."); return; }
+      setParsed(p);
+      setParseError(null);
+      setKanjiDose(d => Math.min(d, p.kanjiKeys.length));
+    } catch(e) { setParseError("Error al parsear el texto."); }
+  }
+
+  function clearDB() { handleDBChange(""); }
+
+  const maxKanjis = parsed.kanjiKeys.length;
+  const doseOptions = [...new Set([1, 2, 3, 4, 5, Math.ceil(maxKanjis/2), maxKanjis].filter(n => n >= 1 && n <= maxKanjis))].sort((a,b)=>a-b).slice(0,6);
+
+  function handleStart() {
+    if (parseError || parsed.kanjiKeys.length === 0) return;
+    onStart(parsed, kanjiDose);
+  }
+
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <PageTopBar />
+
+      <div style={{ flex: 1, overflowY: "auto", padding: "20px 20px 16px", display: "flex", flexDirection: "column", gap: 20 }}>
+
+        {/* Base de datos */}
+        <div style={{ background: C.bgCard, borderRadius: 14, border: `1px solid ${C.borderLight}`, boxShadow: C.shadowCard, overflow: "hidden" }}>
+          <div style={{ padding: "12px 16px", background: C.bgAlt, borderBottom: `1px solid ${C.borderLight}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: C.text }}>Base de datos</div>
+              {!parseError && parsed.kanjiKeys.length > 0 && (
+                <div style={{ fontSize: 11, color: C.textMuted, marginTop: 1 }}>{parsed.kanjiKeys.length} kanjis · {parsed.words.length} palabras</div>
+              )}
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={clearDB} style={{
+                background: "none", border: `1px solid ${C.pink}`, borderRadius: 7,
+                color: C.pinkDark, fontSize: 11, cursor: "pointer",
+                padding: "3px 10px", fontFamily: "'DM Sans', sans-serif",
+              }}>Borrar todo</button>
+              <button onClick={() => setShowDB(v => !v)} style={{
+                background: "none", border: `1px solid ${C.border}`, borderRadius: 7,
+                color: C.mintDeep, fontSize: 11, cursor: "pointer",
+                padding: "3px 10px", fontFamily: "'DM Sans', sans-serif",
+              }}>{showDB ? "Cerrar ↑" : "Editar ↓"}</button>
+            </div>
+          </div>
+
+          {showDB && (
+            <div style={{ padding: "12px 16px" }}>
+              <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 8, lineHeight: 1.5 }}>
+                Formato: <span style={{ color: C.mintDeep, fontFamily: "monospace", fontSize: 10 }}>kanji_clave [tab] palabra [tab] furigana [tab] significado</span>
+              </div>
+              <textarea
+                value={dbText}
+                onChange={e => handleDBChange(e.target.value)}
+                spellCheck={false}
+                style={{
+                  width: "100%", minHeight: 160,
+                  background: C.bgDeep,
+                  border: `1.5px solid ${parseError ? C.pink : C.border}`,
+                  borderRadius: 10, padding: "12px 14px",
+                  color: C.text, fontSize: 12,
+                  fontFamily: "'Noto Sans JP', monospace",
+                  lineHeight: 1.8, resize: "vertical", outline: "none",
+                }}
+              />
+              {parseError && <div style={{ fontSize: 11, color: C.pinkDark, marginTop: 4 }}>{parseError}</div>}
+            </div>
+          )}
+
+          {!showDB && !parseError && parsed.kanjiKeys.length > 0 && (
+            <div style={{ padding: "12px 16px", display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {parsed.kanjiKeys.map((k, i) => (
+                <div key={i} style={{
+                  display: "flex", alignItems: "center", gap: 5,
+                  background: C.bgDeep, borderRadius: 8, padding: "5px 10px",
+                  border: `1px solid ${C.border}`,
+                }}>
+                  <span className="kanji-font" style={{ fontSize: 18, color: C.text }}>{k}</span>
+                  <span style={{ fontSize: 10, color: C.textDim }}>×{parsed.byKanji[k].length}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Selector de dosis */}
+        {!parseError && parsed.kanjiKeys.length > 0 && (
+          <div style={{ background: C.bgCard, borderRadius: 14, border: `1px solid ${C.borderLight}`, boxShadow: C.shadowCard, overflow: "hidden" }}>
+            <div style={{ padding: "12px 16px", background: C.bgAlt, borderBottom: `1px solid ${C.borderLight}` }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: C.text }}>Kanjis por ronda</div>
+              <div style={{ fontSize: 11, color: C.textMuted, marginTop: 1 }}>
+                {kanjiDose} kanjis · {Math.ceil(parsed.kanjiKeys.length / kanjiDose)} rondas en total
+              </div>
+            </div>
+            <div style={{ padding: "12px 16px" }}>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {doseOptions.map(d => (
+                  <button key={d} onClick={() => setKanjiDose(d)} style={{
+                    minWidth: 48, padding: "10px 8px",
+                    background: kanjiDose === d ? C.correctBg : C.bgDeep,
+                    border: `1.5px solid ${kanjiDose === d ? C.mintDeep : C.border}`,
+                    borderRadius: 10, color: kanjiDose === d ? C.mintDeep : C.text,
+                    fontSize: 17, fontWeight: 600, cursor: "pointer",
+                    fontFamily: "'DM Sans', sans-serif", flex: 1,
+                  }}>{d}</button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modo revisión */}
+        <button onClick={onToggleDevMode} style={{
+          padding: "11px 16px", borderRadius: 12, cursor: "pointer",
+          background: devMode ? C.pinkLight : C.bgCard,
+          border: `1.5px solid ${devMode ? C.pink : C.border}`,
+          color: devMode ? C.pinkDark : C.textMuted,
+          fontSize: 12, fontFamily: "'DM Sans', sans-serif",
+          display: "flex", alignItems: "center", gap: 8,
+          boxShadow: C.shadowCard,
+        }}>
+          <span>{devMode ? "⚡" : "○"}</span>
+          Modo revisión {devMode ? "activado" : "desactivado"}
+          <span style={{ color: C.textDim, fontSize: 10, marginLeft: "auto" }}>skip rápido</span>
+        </button>
+
+        <PrimaryBtn onClick={handleStart} disabled={!!parseError || parsed.kanjiKeys.length === 0}>
+          Empezar →
+        </PrimaryBtn>
+      </div>
+    </div>
+  );
+}
+
+// ─── GENERADOR DE SECUENCIA ──────────────────────────────────────────────────
+function buildSequence(words) {
+  const steps = [];
+  const GROUP = 2;
+  for (let g = 0; g < words.length; g += GROUP) {
+    const group = words.slice(g, g + GROUP);
+    group.forEach(w => steps.push({ type: "exposicion", word: w }));
+    group.forEach(w => steps.push({ type: "construccion", word: w }));
+    group.forEach(w => steps.push({ type: "lectura", word: w }));
+    group.forEach(w => steps.push({ type: "comprension", word: w }));
+  }
+  return steps;
+}
+
+const TYPE_LABELS = { exposicion: "Memoriza", construccion: "Construye", lectura: "Lectura", comprension: "Comprensión" };
+const TYPE_COLORS = { exposicion: C.textDim, construccion: "#7a9eff", lectura: C.pinkDark, comprension: C.mintDeep };
+
+// ─── APP ROOT ────────────────────────────────────────────────────────────────
+function App() {
+  const [phase, setPhase] = useState("config");
+  const [allWords, setAllWords] = useState(CURRENT_DB.words);
+  const [devMode, setDevMode] = useState(false);
+  const [rounds, setRounds] = useState([]);
+  const [roundIdx, setRoundIdx] = useState(0);
+  const [sequence, setSequence] = useState([]);
+  const [stepIdx, setStepIdx] = useState(0);
+  const [allSessionWords, setAllSessionWords] = useState([]);
+
+  function startSession(parsed, kanjiDose) {
+    CURRENT_DB = parsed;
+    ALL_KANJI_POOL = buildKanjiPool(parsed.words);
+    setAllWords(parsed.words);
+    const shuffledKeys = shuffle(parsed.kanjiKeys);
+    const allRounds = [];
+    for (let i = 0; i < shuffledKeys.length; i += kanjiDose) {
+      const slice = shuffledKeys.slice(i, i + kanjiDose);
+      allRounds.push(slice.flatMap(k => parsed.byKanji[k]));
+    }
+    setRounds(allRounds);
+    setRoundIdx(0);
+    setAllSessionWords([]);
+    setSequence(buildSequence(allRounds[0]));
+    setStepIdx(0);
+    setPhase("session");
+  }
+
+  function nextStep() {
+    if (stepIdx + 1 < sequence.length) { setStepIdx(i => i + 1); return; }
+    setAllSessionWords(prev => [...prev, ...rounds[roundIdx]]);
+    setPhase("transition");
+  }
+
+  function continueAfterTransition() {
+    const next = roundIdx + 1;
+    if (next < rounds.length) {
+      setRoundIdx(next);
+      setSequence(buildSequence(rounds[next]));
+      setStepIdx(0);
+      setPhase("session");
+    } else {
+      setPhase("fin");
+    }
+  }
+
+  function handleFinish() {
+    const roundWords = rounds[roundIdx] || [];
+    setAllSessionWords(prev => {
+      const already = new Set(prev.map(w => w.kanji));
+      return [...prev, ...roundWords.filter(w => !already.has(w.kanji))];
+    });
+    setPhase("fin");
+  }
+
+  function goHome() { setPhase("config"); }
+
+  if (phase === "config") return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
+      <ConfigScreen onStart={startSession} devMode={devMode} onToggleDevMode={() => setDevMode(v => !v)} />
+    </div>
+  );
+
+  if (phase === "transition") return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
+      <RoundTransitionScreen
+        roundDone={roundIdx + 1} roundTotal={rounds.length}
+        wordsInRound={rounds[roundIdx]} onContinue={continueAfterTransition} onHome={goHome}
+      />
+    </div>
+  );
+
+  if (phase === "fin") return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
+      <FinScreen allSessionWords={allSessionWords} onNewSession={goHome} />
+    </div>
+  );
+
+  const step = sequence[stepIdx];
+  const word = step.word;
+
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
+      <ExerciseTopBar
+        stepCurrent={stepIdx + 1} stepTotal={sequence.length}
+        roundCurrent={roundIdx + 1} roundTotal={rounds.length}
+        onClose={goHome} onFinish={handleFinish}
+        devMode={devMode} onDevSkip={nextStep}
+      />
+      <div style={{ padding: "16px 20px 6px" }}>
+        <TypeLabel label={TYPE_LABELS[step.type]} color={TYPE_COLORS[step.type]} />
+      </div>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+        {step.type === "exposicion" && <ExposicionEx key={`${roundIdx}-${stepIdx}`} word={word} onNext={nextStep} />}
+        {step.type === "construccion" && <ConstruccionEx key={`${roundIdx}-${stepIdx}`} word={word} onNext={nextStep} />}
+        {step.type === "lectura" && <LecturaEx key={`${roundIdx}-${stepIdx}`} word={word} allWords={allWords} onNext={nextStep} />}
+        {step.type === "comprension" && <ComprehensionEx key={`${roundIdx}-${stepIdx}`} word={word} allWords={allWords} onNext={nextStep} />}
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
