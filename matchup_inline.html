@@ -207,6 +207,7 @@ input, textarea, select {
 
 <script>
 var pairs=[];
+var activePairs=null; // null = usar pairs; si es array, es el pool activo del ejercicio
 var rounds=[],currentRound=0,errors=[],roundChecked=false;
 var selectedChipIdx=null,placements={},currentPairs=[],currentChipOrder=[];
 
@@ -265,28 +266,42 @@ function shuffle(arr){
 }
 
 function getDose(){
+  var src=activePairs||pairs;
   var v=parseInt(document.getElementById('doseSelect').value);
-  return v>=pairs.length?pairs.length:v;
+  return v>=src.length?src.length:v;
 }
 
-function buildRounds(size){
-  var pool=shuffle(pairs.map(function(_,i){return i;}));
+function buildRounds(size,sourcePairs){
+  var src=sourcePairs||activePairs||pairs;
+  var pool=shuffle(src.map(function(_,i){return i;}));
   var r=[];
   for(var i=0;i<pool.length;i+=size)r.push(pool.slice(i,i+size));
   return r;
 }
 
-function startQuiz(){
-  rounds=buildRounds(getDose());
+function startQuiz(customPairs){
+  activePairs=customPairs||null;
+  rounds=buildRounds(getDose(),activePairs||pairs);
   currentRound=0;errors=[];placements={};selectedChipIdx=null;roundChecked=false;
   show('screen-quiz');
   renderRound();
 }
 
+function startErrorQuiz(){
+  var seen={};
+  var errorPairs=[];
+  errors.forEach(function(e){
+    var key=e.a+'\t'+e.b;
+    if(!seen[key]){seen[key]=true;errorPairs.push({a:e.a,b:e.b});}
+  });
+  startQuiz(errorPairs);
+}
+
 function renderRound(){
   placements={};selectedChipIdx=null;roundChecked=false;
   var idxs=rounds[currentRound];
-  currentPairs=idxs.map(function(i){return pairs[i];});
+  var src=activePairs||pairs;
+  currentPairs=idxs.map(function(i){return src[i];});
   currentChipOrder=shuffle(currentPairs.map(function(_,i){return i;}));
 
   var pct=Math.round((currentRound/rounds.length)*100);
@@ -425,15 +440,14 @@ function checkRound(){
 function nextRound(){currentRound++;renderRound();}
 
 function showSummary(){
+  var src=activePairs||pairs;
   var ec=errors.length;
-  var total=currentPairs.length*(rounds.length);
-  var correct=pairs.length-ec;
 
   // Build a lookup of errors for quick access
   var errMap={};
   errors.forEach(function(e){ errMap[e.a+'\t'+e.b]=e.answered; });
 
-  var tableRows=pairs.map(function(p){
+  var tableRows=src.map(function(p){
     var key=p.a+'\t'+p.b;
     var wrong=errMap.hasOwnProperty(key);
     return '<tr>'+
@@ -447,7 +461,7 @@ function showSummary(){
   }).join('');
 
   document.getElementById('summary-box').innerHTML=
-    '<h3 style="font-size:1.1rem; margin-bottom:15px; color:#333;">'+(ec===0?'¡Sin errores! Perfecto 🎉':ec+' error(es) de '+pairs.length+' pares')+'</h3>'+
+    '<h3 style="font-size:1.1rem; margin-bottom:15px; color:#333;">'+(ec===0?'¡Sin errores! Perfecto 🎉':ec+' error(es) de '+src.length+' pares')+'</h3>'+
     '<table style="width:100%; border-collapse:collapse; font-size:14px;">'+
       '<thead><tr style="border-bottom:2px solid #eee;">'+
         '<th style="padding:8px 12px; text-align:left; color:#888; font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Concepto A</th>'+
@@ -456,6 +470,28 @@ function showSummary(){
       '</tr></thead>'+
       '<tbody>'+tableRows+'</tbody>'+
     '</table>';
+
+  // Botón "Practicar solo errores" (solo si hay errores)
+  var btnErr=document.getElementById('btn-practice-errors');
+  if(ec>0){
+    if(!btnErr){
+      btnErr=document.createElement('button');
+      btnErr.id='btn-practice-errors';
+      btnErr.className='start-btn';
+      btnErr.style.marginTop='0';
+      btnErr.style.background='#A32D2D';
+      btnErr.textContent='Practicar solo errores ('+ec+')';
+      btnErr.addEventListener('click',startErrorQuiz);
+      var actionsDiv=document.querySelector('#screen-summary > div[style*="flex-direction:column"]');
+      actionsDiv.insertBefore(btnErr,actionsDiv.firstChild);
+    } else {
+      btnErr.textContent='Practicar solo errores ('+ec+')';
+      btnErr.style.display='';
+    }
+  } else {
+    if(btnErr)btnErr.style.display='none';
+  }
+
   show('screen-summary');
 }
 
@@ -490,9 +526,9 @@ document.getElementById('btn-bulk-add').addEventListener('click',function(){
 
 
 document.getElementById('btn-volver-inicio').addEventListener('click',function(){show('screen-editor');renderEditor();});
-document.getElementById('start-btn').addEventListener('click',startQuiz);
+document.getElementById('start-btn').addEventListener('click',function(){startQuiz();});
 document.getElementById('btn-go-editor').addEventListener('click',function(){show('screen-editor');renderEditor();});
-document.getElementById('btn-restart').addEventListener('click',startQuiz);
+document.getElementById('btn-restart').addEventListener('click',function(){activePairs=null;startQuiz();});
 document.getElementById('btn-summary-edit').addEventListener('click',function(){show('screen-editor');renderEditor();});
 
 renderEditor();
