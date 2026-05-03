@@ -120,6 +120,12 @@
   .td-a { font-size: 1.1rem; font-weight: 700; letter-spacing: 1px; }
   .td-c { color: #555; }
   .tag-phase { background: #ede0f7; color: #7a4fa0; border-radius: 99px; padding: 2px 9px; font-size: 0.73rem; white-space: nowrap; }
+
+  .results-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+  .btn-repeat-errors { background: #dc2626; color: #fff; border: none; border-radius: 8px; padding: 12px 28px; font-size: 1rem; cursor: pointer; transition: background 0.2s; width: 100%; }
+  .btn-repeat-errors:hover { background: #b91c1c; }
+  .btn-repeat-group { background: #fff; color: #7a4fa0; border: 1.5px solid #b07ddb; border-radius: 8px; padding: 12px 28px; font-size: 1rem; cursor: pointer; transition: all 0.2s; width: 100%; }
+  .btn-repeat-group:hover { background: #ede0f7; }
 </style>
 </head>
 <body>
@@ -301,7 +307,11 @@
   <div class="results-title">📊 Resultados finales</div>
   <div class="results-stats" id="results-stats"></div>
   <div id="mistakes-list"></div>
-  <button class="btn restart-btn" onclick="goToSetup()">Volver a empezar</button>
+  <div class="results-actions">
+    <button class="btn-repeat-errors" id="btn-repeat-errors" onclick="repeatErrors()" style="display:none">🔁 Repetir errores</button>
+    <button class="btn-repeat-group" id="btn-repeat-group" onclick="repeatLastGroup()">🔁 Repetir este grupo</button>
+    <button class="btn restart-btn" onclick="goToSetup()">Volver a empezar</button>
+  </div>
 </div>
 
 <script>
@@ -327,6 +337,7 @@ let totalQ = 0;
 let doneQ = 0;
 let writeAttempts = 0;
 let vocabExDone = false;
+let lastGroupIdx = 0; // tracks the last group shown, for "repeat group"
 
 // ─── SETUP SELECTORS ─────────────────────────────────────────────────────────
 
@@ -508,8 +519,10 @@ function showQuestion() {
       // Done with this group (either mc-only, or write phase done)
       groupIdx++;
       if (groupIdx >= allGroups.length) {
+        lastGroupIdx = groupIdx - 1;
         showResults();
       } else {
+        lastGroupIdx = groupIdx - 1;
         showTransition(
           `Grupo ${groupIdx} completado ✓`,
           `Pasando al grupo ${groupIdx + 1} de ${allGroups.length} (${allGroups[groupIdx].length} entradas).`,
@@ -744,7 +757,34 @@ function startNextSubPhase() {
 function showResults() {
   hide('card'); hide('progress-bar-wrap'); hide('phase-transition');
   show('results');
-  document.getElementById('results-stats').textContent = `Errores cometidos: ${mistakes.length} en total`;
+
+  // ── Stats: total, errors, accuracy ──────────────────────────────────────────
+  const totalAnswered = totalQ + (practiceType === 'mc+write' ? totalQ : 0);
+  // totalQ is per-subphase; use doneQ accumulation instead via a simpler approach:
+  // We track total questions answered as the sum across all subphases.
+  // The cleanest source is: mistakes.length = errors. Accuracy from doneQ isn't
+  // reliable across groups, so we derive totals from allGroups and practiceType.
+  const itemsPerGroup = allGroups.reduce((s, g) => {
+    const dir = exerciseDir;
+    const multiplier = dir === 'both' ? 2 : 1;
+    return s + g.length * multiplier;
+  }, 0);
+  const writeMultiplier = practiceType === 'mc+write'
+    ? allGroups.reduce((s, g) => {
+        const dir = writeDir;
+        return s + g.length * (dir === 'both' ? 2 : 1);
+      }, 0)
+    : 0;
+  const totalQuestions = itemsPerGroup + writeMultiplier;
+  const errorCount = mistakes.length;
+  const accuracy = totalQuestions > 0 ? Math.round((totalQuestions - errorCount) / totalQuestions * 100) : 100;
+  document.getElementById('results-stats').textContent =
+    `Errores: ${errorCount} de ${totalQuestions} · Precisión: ${accuracy}%`;
+
+  // ── Repeat-errors button: only show if there are errors ──────────────────────
+  document.getElementById('btn-repeat-errors').style.display = errorCount > 0 ? 'block' : 'none';
+
+  // ── Mistakes table ───────────────────────────────────────────────────────────
   const list = document.getElementById('mistakes-list');
   if (mistakes.length === 0) {
     list.innerHTML = '<div class="no-mistakes">🎉 ¡Sin errores! ¡Perfecto!</div>'; return;
@@ -767,6 +807,34 @@ function showResults() {
   });
   html += '</tbody></table>';
   list.innerHTML = html;
+}
+
+// ─── REPEAT FUNCTIONS ─────────────────────────────────────────────────────────
+
+function repeatErrors() {
+  if (mistakes.length === 0) return;
+  // Deduplicate: one entry per unique word (by a+b)
+  const seen = new Set();
+  const errorWords = [];
+  mistakes.forEach(m => {
+    const key = m.a + '|' + m.b;
+    if (!seen.has(key)) { seen.add(key); errorWords.push({ a: m.a, b: m.b, c: m.c || undefined }); }
+  });
+  vocab = shuffle(errorWords);
+  allGroups = [];
+  for (let i = 0; i < vocab.length; i += GROUP_SIZE) allGroups.push(vocab.slice(i, i + GROUP_SIZE));
+  groupIdx = 0; lastGroupIdx = 0; subPhase = 'mc'; mistakes = [];
+  hide('results'); show('progress-bar-wrap'); show('card');
+  loadSubPhase();
+}
+
+function repeatLastGroup() {
+  const group = allGroups[lastGroupIdx] || allGroups[allGroups.length - 1];
+  vocab = group; // keep same vocab reference for distractor pool
+  allGroups = [group];
+  groupIdx = 0; lastGroupIdx = 0; subPhase = 'mc'; mistakes = [];
+  hide('results'); show('progress-bar-wrap'); show('card');
+  loadSubPhase();
 }
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
