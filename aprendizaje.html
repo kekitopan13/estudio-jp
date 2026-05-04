@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Kanji Study</title>
+<title>Learning Phase</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&family=Noto+Sans+JP:wght@300;400;500&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap" rel="stylesheet">
@@ -75,6 +75,10 @@ const C = {
   yellow:      "#fffbe6",
   yellowBorder:"#f0d060",
   yellowText:  "#8a7020",
+  challenge:   "#fff3e0",
+  challengeBorder: "#ffb74d",
+  challengeText: "#e65100",
+  challengeDeep: "#f57c00",
 };
 
 // ─── VOCABULARIO POR DEFECTO ─────────────────────────────────────────────────
@@ -231,12 +235,17 @@ function ProgressBar({ current, total }) {
   );
 }
 
-function ExerciseTopBar({ stepCurrent, stepTotal, roundCurrent, roundTotal, onClose, onFinish, devMode, onDevSkip }) {
+function ExerciseTopBar({ stepCurrent, stepTotal, roundCurrent, roundTotal, onClose, onFinish, devMode, onDevSkip, isChallenge }) {
+  const barBg = isChallenge
+    ? `linear-gradient(90deg, ${C.challengeDeep}, ${C.pink})`
+    : `linear-gradient(90deg, ${C.mintDeep}, ${C.pink})`;
+  const headerBg = isChallenge ? C.challenge : C.white;
+  const headerBorder = isChallenge ? C.challengeBorder : C.borderLight;
   return (
     <div style={{
       padding: "12px 16px 10px",
       display: "flex", alignItems: "center", gap: 8,
-      background: C.white, borderBottom: `1px solid ${C.borderLight}`,
+      background: headerBg, borderBottom: `1px solid ${headerBorder}`,
       position: "sticky", top: 0, zIndex: 10,
     }}>
       <button onClick={onClose} style={{
@@ -247,8 +256,12 @@ function ExerciseTopBar({ stepCurrent, stepTotal, roundCurrent, roundTotal, onCl
         flexShrink: 0,
       }}>✕</button>
       <div style={{ flex: 1 }}>
-        <ProgressBar current={stepCurrent} total={stepTotal} />
-        <div style={{ fontSize: 10, color: C.textDim, marginTop: 3 }}>Ronda {roundCurrent}/{roundTotal}</div>
+        <div style={{ height: 5, background: C.bgDeep, borderRadius: 3, overflow: "hidden" }}>
+          <div style={{ height: "100%", width: `${Math.round((stepCurrent/stepTotal)*100)}%`, background: barBg, borderRadius: 3, transition: "width 0.4s ease" }} />
+        </div>
+        <div style={{ fontSize: 10, color: isChallenge ? C.challengeText : C.textDim, marginTop: 3, fontWeight: isChallenge ? 700 : 400 }}>
+          {isChallenge ? "🔥 Ronda Challenging" : `Ronda ${roundCurrent}/${roundTotal}`}
+        </div>
       </div>
       {devMode && (
         <button onClick={onDevSkip} style={{
@@ -276,8 +289,8 @@ function PageTopBar({ onHome }) {
       background: C.white, borderBottom: `1px solid ${C.borderLight}`,
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <span className="kanji-font" style={{ fontSize: 20, color: C.mintDeep }}>漢</span>
-        <span style={{ fontSize: 15, fontWeight: 600, color: C.text }}>Kanji Study</span>
+        <span style={{ fontSize: 18 }}>📖</span>
+        <span style={{ fontSize: 15, fontWeight: 600, color: C.text }}>Learning Phase</span>
       </div>
       <div style={{ display: "flex", gap: 8 }}>
         {onHome && (
@@ -609,7 +622,7 @@ function ComprehensionEx({ word, allWords, onNext, recordAttempt, roundIdx }) {
 }
 
 // ─── PANTALLA ENTRE RONDAS ───────────────────────────────────────────────────
-function RoundTransitionScreen({ roundDone, roundTotal, wordsInRound, onContinue, onHome }) {
+function RoundTransitionScreen({ roundDone, roundTotal, wordsInRound, onContinue, onHome, isChallengeNext }) {
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflowY: "auto" }}>
       <PageTopBar onHome={onHome} />
@@ -646,9 +659,15 @@ function RoundTransitionScreen({ roundDone, roundTotal, wordsInRound, onContinue
         </div>
       </div>
 
-      <div style={{ padding: "0 24px 32px", flexShrink: 0 }}>
+      <div style={{ padding: "0 24px 32px", flexShrink: 0, display: "flex", flexDirection: "column", gap: 10 }}>
+        {isChallengeNext && (
+          <div style={{ background: C.challenge, borderRadius: 12, padding: "10px 16px", border: `1px solid ${C.challengeBorder}`, textAlign: "center" }}>
+            <div style={{ fontSize: 12, color: C.challengeText, fontWeight: 600 }}>🔥 Viene la ronda Challenging</div>
+            <div style={{ fontSize: 11, color: C.challengeText, opacity: 0.8, marginTop: 2 }}>Las mismas palabras con 4 opciones y orden aleatorio</div>
+          </div>
+        )}
         <PrimaryBtn onClick={onContinue}>
-          {roundDone < roundTotal ? `Ronda ${roundDone + 1} →` : "Ver resultados →"}
+          {isChallengeNext ? "Ir a Challenging →" : "Continuar →"}
         </PrimaryBtn>
       </div>
     </div>
@@ -656,16 +675,14 @@ function RoundTransitionScreen({ roundDone, roundTotal, wordsInRound, onContinue
 }
 
 // ─── PANTALLA FINAL ──────────────────────────────────────────────────────────
-function FinScreen({ allSessionWords, sessionAttempts, onNewSession }) {
-  const familiarityResults = calculateFamiliarity(sessionAttempts);
-  const areaSummary = calcAreaSummary(sessionAttempts);
-  const kanjiCount = familiarityResults.length;
+function FinScreen({ allSessionWords, sessionAttempts, challengingAttempts, starredWords, onNewSession }) {
+  // Estado final basado SOLO en challenging
+  const challengingResults = calculateChallengingResults(challengingAttempts, allSessionWords);
   const palabraCount = allSessionWords.length;
+  const sinDatos = challengingAttempts.length === 0;
 
-  const paraRepasar = familiarityResults.filter(r => r.porcentaje < 0.65);
-  const estables = familiarityResults.filter(r => r.porcentaje >= 0.65);
-
-  const sinDatos = sessionAttempts.length === 0;
+  const paraRepasar = challengingResults.filter(r => r.porcentaje < 0.65);
+  const starred = allSessionWords.filter(w => starredWords.has(w.kanji));
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
@@ -674,118 +691,89 @@ function FinScreen({ allSessionWords, sessionAttempts, onNewSession }) {
 
         {/* Header */}
         <div style={{ textAlign: "center" }}>
-          <div className="kanji-font" style={{ fontSize: 44, color: C.mintDeep, marginBottom: 6 }}>完了</div>
+          <div style={{ fontSize: 40, marginBottom: 6 }}>完了</div>
           <div style={{ fontSize: 22, fontWeight: 700, color: C.text, marginBottom: 4 }}>¡Sesión completada!</div>
           <div style={{ fontSize: 13, color: C.textMuted }}>
-            Practicaste {palabraCount} {palabraCount === 1 ? "palabra" : "palabras"} y {kanjiCount} {kanjiCount === 1 ? "kanji" : "kanjis"}
+            Practicaste {palabraCount} {palabraCount === 1 ? "palabra" : "palabras"}
           </div>
         </div>
 
-        {/* Resumen de áreas */}
-        {!sinDatos && areaSummary && (
-          <div style={{ background: C.bgCard, borderRadius: 14, overflow: "hidden", border: `1px solid ${C.borderLight}`, boxShadow: C.shadowCard }}>
-            <div style={{ padding: "10px 16px", borderBottom: `1px solid ${C.borderLight}`, background: C.bgAlt }}>
-              <div style={{ fontSize: 10, color: C.textMuted, letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600 }}>Esta sesión</div>
+        {/* Estado final por palabra (basado en challenging) */}
+        {!sinDatos && challengingResults.length > 0 && (
+          <div style={{ background: C.bgCard, borderRadius: 14, overflow: "hidden", border: `1px solid ${C.challengeBorder}`, boxShadow: C.shadowCard }}>
+            <div style={{ padding: "10px 16px", borderBottom: `1px solid ${C.challengeBorder}`, background: C.challenge }}>
+              <div style={{ fontSize: 10, color: C.challengeText, letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600 }}>🔥 Resultado Challenging</div>
             </div>
-            <div style={{ padding: "14px 16px", display: "flex", gap: 10 }}>
-              <div style={{ flex: 1, background: C.correctBg, borderRadius: 10, padding: "12px 14px", border: `1px solid ${C.border}` }}>
-                <div style={{ fontSize: 10, color: C.textMuted, fontWeight: 600, marginBottom: 3, textTransform: "uppercase", letterSpacing: "0.08em" }}>Área más fluida</div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: C.mintDeep }}>{AREA_LABELS[areaSummary.fuerte.tipo]}</div>
-                <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>{Math.round(areaSummary.fuerte.pct * 100)}%</div>
-              </div>
-              <div style={{ flex: 1, background: C.yellow, borderRadius: 10, padding: "12px 14px", border: `1px solid ${C.yellowBorder}` }}>
-                <div style={{ fontSize: 10, color: C.yellowText, fontWeight: 600, marginBottom: 3, textTransform: "uppercase", letterSpacing: "0.08em" }}>Para reforzar</div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: C.yellowText }}>{AREA_LABELS[areaSummary.reforzar.tipo]}</div>
-                <div style={{ fontSize: 11, color: C.yellowText, marginTop: 2, opacity: 0.8 }}>{Math.round(areaSummary.reforzar.pct * 100)}%</div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {!sinDatos && !areaSummary && (
-          <div style={{ background: C.bgCard, borderRadius: 14, padding: "14px 16px", border: `1px solid ${C.borderLight}`, boxShadow: C.shadowCard }}>
-            <div style={{ fontSize: 13, color: C.textMuted, textAlign: "center" }}>Todavía no hay suficientes datos para comparar áreas.</div>
-          </div>
-        )}
-
-        {/* Familiaridad por kanji */}
-        {!sinDatos && familiarityResults.length > 0 && (
-          <div style={{ background: C.bgCard, borderRadius: 14, overflow: "hidden", border: `1px solid ${C.borderLight}`, boxShadow: C.shadowCard }}>
-            <div style={{ padding: "10px 16px", borderBottom: `1px solid ${C.borderLight}`, background: C.bgAlt }}>
-              <div style={{ fontSize: 10, color: C.textMuted, letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600 }}>Familiaridad por kanji</div>
-            </div>
-            {familiarityResults.map((r, i) => {
+            {challengingResults.map((r, i) => {
               const color = familiaridadColor(r.porcentaje);
               const bg = familiaridadBg(r.porcentaje);
-              const areasDisponibles = Object.entries(r.areas).filter(([, v]) => v !== null);
               return (
                 <div key={i} style={{
-                  padding: "14px 16px",
-                  borderBottom: i < familiarityResults.length - 1 ? `1px solid ${C.borderLight}` : "none",
+                  display: "flex", alignItems: "center", gap: 12, padding: "12px 16px",
+                  borderBottom: i < challengingResults.length - 1 ? `1px solid ${C.borderLight}` : "none",
                 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
-                    <span className="kanji-font" style={{ fontSize: 36, color: C.text, lineHeight: 1 }}>{r.kanji}</span>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
-                        <span style={{
-                          fontSize: 12, fontWeight: 600, color,
-                          background: bg, borderRadius: 6,
-                          padding: "2px 8px", display: "inline-block",
-                        }}>{r.estado}</span>
-                        <span style={{ fontSize: 11, color: C.textDim }}>{Math.round(r.porcentaje * 100)}%</span>
-                      </div>
-                      <div style={{ fontSize: 11, color: C.textDim }}>
-                        {r.palabras.join("、")}
-                      </div>
+                  <span className="kanji-font" style={{ fontSize: 26, color: C.text, minWidth: 52 }}>{r.word.kanji}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, color, background: bg, borderRadius: 6, padding: "2px 8px" }}>{r.estado}</span>
+                      {starredWords.has(r.word.kanji) && <span style={{ fontSize: 14 }}>⭐</span>}
+                      <span style={{ fontSize: 10, color: C.textDim }}>{Math.round(r.porcentaje * 100)}%</span>
                     </div>
+                    <div style={{ fontSize: 11, color: C.textMuted }}>{r.word.furigana} · {r.word.es}</div>
                   </div>
-                  {areasDisponibles.length > 0 && (
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                      {areasDisponibles.map(([tipo, pct]) => (
-                        <div key={tipo} style={{
-                          fontSize: 11, color: C.textMuted,
-                          background: C.bgDeep, borderRadius: 6,
-                          padding: "3px 8px",
-                          border: `1px solid ${C.borderLight}`,
-                        }}>
-                          {AREA_LABELS[tipo]} <span style={{ fontWeight: 600, color: familiaridadColor(pct) }}>{Math.round(pct * 100)}%</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
               );
             })}
           </div>
         )}
 
-        {/* Kanjis para seguir practicando */}
+        {sinDatos && (
+          <div style={{ background: C.bgCard, borderRadius: 14, padding: "14px 16px", border: `1px solid ${C.borderLight}`, boxShadow: C.shadowCard }}>
+            <div style={{ fontSize: 13, color: C.textMuted, textAlign: "center" }}>No se completó la ronda challenging.</div>
+          </div>
+        )}
+
+        {/* Para seguir practicando */}
         {paraRepasar.length > 0 && (
           <div style={{ background: C.yellow, borderRadius: 14, overflow: "hidden", border: `1px solid ${C.yellowBorder}`, boxShadow: C.shadowCard }}>
             <div style={{ padding: "10px 16px", borderBottom: `1px solid ${C.yellowBorder}`, background: "rgba(240,208,96,0.2)" }}>
               <div style={{ fontSize: 10, color: C.yellowText, letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600 }}>Para seguir practicando</div>
             </div>
-            <div style={{ padding: "12px 16px" }}>
-              <div style={{ fontSize: 12, color: C.yellowText, marginBottom: 10, lineHeight: 1.5 }}>
-                Estos kanjis todavía se sienten menos estables. Conviene verlos otra vez con apoyo.
-              </div>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                {paraRepasar.map((r, i) => (
-                  <div key={i} style={{
-                    display: "flex", alignItems: "center", gap: 6,
-                    background: C.white, borderRadius: 8, padding: "6px 12px",
-                    border: `1px solid ${C.yellowBorder}`,
-                  }}>
-                    <span className="kanji-font" style={{ fontSize: 22, color: C.text }}>{r.kanji}</span>
-                    <span style={{ fontSize: 11, color: C.yellowText, fontWeight: 600 }}>{r.estado}</span>
-                  </div>
-                ))}
-              </div>
+            <div style={{ padding: "12px 16px", display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {paraRepasar.map((r, i) => (
+                <div key={i} style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  background: C.white, borderRadius: 8, padding: "6px 12px",
+                  border: `1px solid ${C.yellowBorder}`,
+                }}>
+                  <span className="kanji-font" style={{ fontSize: 20, color: C.text }}>{r.word.kanji}</span>
+                  <span style={{ fontSize: 11, color: C.yellowText, fontWeight: 600 }}>{r.estado}</span>
+                </div>
+              ))}
             </div>
           </div>
         )}
 
-        {/* Lista completa de vocabulario */}
+        {/* Palabras marcadas con estrella */}
+        {starred.length > 0 && (
+          <div style={{ background: C.bgCard, borderRadius: 14, overflow: "hidden", border: `1px solid ${C.yellowBorder}`, boxShadow: C.shadowCard }}>
+            <div style={{ padding: "10px 16px", borderBottom: `1px solid ${C.yellowBorder}`, background: C.yellow }}>
+              <div style={{ fontSize: 10, color: C.yellowText, letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600 }}>⭐ Palabras marcadas</div>
+            </div>
+            {starred.map((w, i) => (
+              <div key={i} style={{
+                display: "flex", alignItems: "center", gap: 10, padding: "11px 16px",
+                borderBottom: i < starred.length - 1 ? `1px solid ${C.borderLight}` : "none",
+              }}>
+                <span className="kanji-font" style={{ fontSize: 20, color: C.text, minWidth: 54 }}>{w.kanji}</span>
+                <span className="jp-font" style={{ fontSize: 12, color: C.textMuted, minWidth: 72 }}>{w.furigana}</span>
+                <span style={{ fontSize: 12, color: C.textDim, lineHeight: 1.4 }}>{w.es}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Lista completa */}
         <div style={{ background: C.bgCard, borderRadius: 14, overflow: "hidden", border: `1px solid ${C.borderLight}`, boxShadow: C.shadowCard }}>
           <div style={{ padding: "10px 16px", borderBottom: `1px solid ${C.borderLight}`, background: C.bgAlt }}>
             <div style={{ fontSize: 10, color: C.textMuted, letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600 }}>Vocabulario practicado</div>
@@ -795,6 +783,7 @@ function FinScreen({ allSessionWords, sessionAttempts, onNewSession }) {
               display: "flex", alignItems: "center", gap: 10, padding: "12px 16px",
               borderBottom: i < allSessionWords.length - 1 ? `1px solid ${C.borderLight}` : "none",
             }}>
+              {starredWords.has(w.kanji) && <span style={{ fontSize: 14, flexShrink: 0 }}>⭐</span>}
               <span className="kanji-font" style={{ fontSize: 20, color: C.text, minWidth: 54 }}>{w.kanji}</span>
               <span className="jp-font" style={{ fontSize: 12, color: C.textMuted, minWidth: 72 }}>{w.furigana}</span>
               <span style={{ fontSize: 12, color: C.textDim, lineHeight: 1.4 }}>{w.es}</span>
@@ -830,7 +819,8 @@ function ConfigScreen({ onStart, devMode, onToggleDevMode }) {
   function clearDB() { handleDBChange(""); }
 
   const totalWords = parsed.words.length;
-  const doseOptions = [2, 3, 4, 5].filter(n => n <= totalWords);
+  const minDose = totalWords <= 10 ? Math.ceil(totalWords / 2) : 2;
+  const doseOptions = [2, 3, 4, 5, 6].filter(n => n >= minDose && n <= totalWords);
   if (doseOptions.length === 0 && totalWords > 0) doseOptions.push(totalWords);
 
   function handleStart() {
@@ -955,6 +945,166 @@ function ConfigScreen({ onStart, devMode, onToggleDevMode }) {
   );
 }
 
+// ─── RONDA CHALLENGING ──────────────────────────────────────────────────────
+
+// Estado final basado SOLO en los intentos de la ronda challenging
+function calculateChallengingResults(challengingAttempts, allSessionWords) {
+  const byWord = {};
+  for (const a of challengingAttempts) {
+    if (!byWord[a.palabra]) byWord[a.palabra] = [];
+    byWord[a.palabra].push(a);
+  }
+  return allSessionWords.map(w => {
+    const ats = byWord[w.kanji] || [];
+    if (ats.length === 0) return { word: w, porcentaje: 0, estado: "Sin datos" };
+    let ganado = 0, posible = 0;
+    for (const a of ats) {
+      const peso = EXERCISE_WEIGHTS[a.ejercicio] || 1;
+      ganado += peso * errorMultiplier(a.errores, a.saltado);
+      posible += peso;
+    }
+    const pct = posible > 0 ? ganado / posible : 0;
+    return { word: w, porcentaje: pct, estado: familiaridadLabel(pct) };
+  });
+}
+
+// Secuencia para ronda challenging: lectura + comprensión, 4 opciones, orden aleatorio
+function buildChallengingSequence(words) {
+  const steps = [];
+  words.forEach(w => {
+    steps.push({ type: "challenging_lectura", word: w, isChallenge: true });
+    steps.push({ type: "challenging_comprension", word: w, isChallenge: true });
+  });
+  return shuffle(steps);
+}
+
+// ─── EJERCICIO CHALLENGING: LECTURA 4 OPCIONES ───────────────────────────────
+function ChallengingLecturaEx({ word, allWords, onNext, recordAttempt, roundIdx }) {
+  const correct = word.furigana;
+  const distractors = shuffle(allWords.filter(w => w.furigana !== correct)).slice(0, 3).map(w => w.furigana);
+  // Si no hay suficientes distractores, completar con placeholders vacíos
+  while (distractors.length < 3) distractors.push("ー");
+  const [options] = useState(() => shuffle([correct, ...distractors]));
+  const [chosen, setChosen] = useState(null);
+  const [wrong, setWrong] = useState(new Set());
+  const [errorCount, setErrorCount] = useState(0);
+  const reported = useRef(false);
+
+  function handlePick(opt) {
+    if (chosen) return;
+    if (opt === correct) {
+      setChosen(opt);
+      if (!reported.current) {
+        reported.current = true;
+        recordAttempt({
+          kanjiClave: word.kanjiClave,
+          palabra: word.kanji,
+          furigana: word.furigana,
+          significado: word.es,
+          ejercicio: "lectura",
+          correcto: true,
+          errores: errorCount,
+          primerIntentoCorrecto: errorCount === 0,
+          saltado: false,
+          ronda: roundIdx + 1,
+          isChallenge: true,
+        });
+      }
+      setTimeout(onNext, 650);
+    } else {
+      setWrong(prev => new Set([...prev, opt]));
+      setErrorCount(prev => prev + 1);
+    }
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", padding: "20px 20px 28px", gap: 24 }}>
+      <KanjiDisplay word={word} showFurigana={false} size={88} />
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {options.map((opt, i) => {
+          const isWrong = wrong.has(opt);
+          const isCorrect = chosen === opt;
+          return (
+            <button key={i} onClick={() => handlePick(opt)} className="jp-font" style={{
+              padding: "15px 20px", borderRadius: 13, fontSize: 20,
+              background: isCorrect ? C.correctBg : isWrong ? C.wrongBg : C.bgCard,
+              border: `1.5px solid ${isCorrect ? C.mintDeep : isWrong ? C.pink : C.challengeBorder}`,
+              color: isCorrect ? C.mintDeep : isWrong ? C.pinkDark : C.text,
+              cursor: "pointer", transition: "all 0.15s",
+              letterSpacing: "0.15em", textAlign: "center",
+              fontFamily: "'Noto Sans JP', sans-serif",
+              boxShadow: C.shadowCard,
+            }}>{opt}</button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── EJERCICIO CHALLENGING: COMPRENSIÓN 4 OPCIONES ──────────────────────────
+function ChallengingComprehensionEx({ word, allWords, onNext, recordAttempt, roundIdx }) {
+  const correct = word.es;
+  const distractors = shuffle(allWords.filter(w => w.es !== correct)).slice(0, 3).map(w => w.es);
+  while (distractors.length < 3) distractors.push("—");
+  const [options] = useState(() => shuffle([correct, ...distractors]));
+  const [chosen, setChosen] = useState(null);
+  const [wrong, setWrong] = useState(new Set());
+  const [errorCount, setErrorCount] = useState(0);
+  const reported = useRef(false);
+
+  function handlePick(opt) {
+    if (chosen) return;
+    if (opt === correct) {
+      setChosen(opt);
+      if (!reported.current) {
+        reported.current = true;
+        recordAttempt({
+          kanjiClave: word.kanjiClave,
+          palabra: word.kanji,
+          furigana: word.furigana,
+          significado: word.es,
+          ejercicio: "comprension",
+          correcto: true,
+          errores: errorCount,
+          primerIntentoCorrecto: errorCount === 0,
+          saltado: false,
+          ronda: roundIdx + 1,
+          isChallenge: true,
+        });
+      }
+      setTimeout(onNext, 650);
+    } else {
+      setWrong(prev => new Set([...prev, opt]));
+      setErrorCount(prev => prev + 1);
+    }
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", padding: "20px 20px 28px", gap: 24 }}>
+      <KanjiDisplay word={word} showFurigana={true} size={84} />
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {options.map((opt, i) => {
+          const isWrong = wrong.has(opt);
+          const isCorrect = chosen === opt;
+          return (
+            <button key={i} onClick={() => handlePick(opt)} style={{
+              padding: "14px 20px", borderRadius: 13, fontSize: 14,
+              background: isCorrect ? C.correctBg : isWrong ? C.wrongBg : C.bgCard,
+              border: `1.5px solid ${isCorrect ? C.mintDeep : isWrong ? C.pink : C.challengeBorder}`,
+              color: isCorrect ? C.mintDeep : isWrong ? C.pinkDark : C.text,
+              cursor: "pointer", transition: "all 0.15s",
+              textAlign: "left", lineHeight: 1.5,
+              fontFamily: "'DM Sans', sans-serif",
+              boxShadow: C.shadowCard,
+            }}>{opt}</button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ─── GENERADOR DE SECUENCIA ──────────────────────────────────────────────────
 function buildSequence(words) {
   const steps = [];
@@ -975,15 +1125,33 @@ function App() {
   const [phase, setPhase] = useState("config");
   const [allWords, setAllWords] = useState(CURRENT_DB.words);
   const [devMode, setDevMode] = useState(false);
+  // rounds: array de grupos normales; challengingRounds: array de grupos challenging (1 por grupo normal)
   const [rounds, setRounds] = useState([]);
   const [roundIdx, setRoundIdx] = useState(0);
+  const [challengingRounds, setChallengingRounds] = useState([]);
+  const [challengingIdx, setChallengingIdx] = useState(0); // qué challenging toca ahora
+  const [isChallenge, setIsChallenge] = useState(false);
   const [sequence, setSequence] = useState([]);
   const [stepIdx, setStepIdx] = useState(0);
   const [allSessionWords, setAllSessionWords] = useState([]);
   const [sessionAttempts, setSessionAttempts] = useState([]);
+  const [challengingAttempts, setChallengingAttempts] = useState([]);
+  const [starredWords, setStarredWords] = useState(new Set());
 
   function recordAttempt(attempt) {
-    setSessionAttempts(prev => [...prev, attempt]);
+    if (attempt.isChallenge) {
+      setChallengingAttempts(prev => [...prev, attempt]);
+    } else {
+      setSessionAttempts(prev => [...prev, attempt]);
+    }
+  }
+
+  function toggleStar(kanji) {
+    setStarredWords(prev => {
+      const next = new Set(prev);
+      if (next.has(kanji)) next.delete(kanji); else next.add(kanji);
+      return next;
+    });
   }
 
   function startSession(parsed, wordDose) {
@@ -991,39 +1159,65 @@ function App() {
     ALL_KANJI_POOL = buildKanjiPool(parsed.words);
     setAllWords(parsed.words);
     const shuffledWords = shuffle(parsed.words);
-    const allRounds = [];
+    const groups = [];
     for (let i = 0; i < shuffledWords.length; i += wordDose) {
-      allRounds.push(shuffledWords.slice(i, i + wordDose));
+      groups.push(shuffledWords.slice(i, i + wordDose));
     }
-    setRounds(allRounds);
+    // Una ronda challenging por cada grupo
+    const chalRounds = groups.map(g => g);
+    setRounds(groups);
+    setChallengingRounds(chalRounds);
     setRoundIdx(0);
+    setChallengingIdx(0);
+    setIsChallenge(false);
     setAllSessionWords([]);
     setSessionAttempts([]);
-    setSequence(buildSequence(allRounds[0]));
+    setChallengingAttempts([]);
+    setStarredWords(new Set());
+    setSequence(buildSequence(groups[0]));
     setStepIdx(0);
     setPhase("session");
   }
 
   function nextStep() {
     if (stepIdx + 1 < sequence.length) { setStepIdx(i => i + 1); return; }
-    setAllSessionWords(prev => [...prev, ...rounds[roundIdx]]);
-    setPhase("transition");
-  }
-
-  function continueAfterTransition() {
-    const next = roundIdx + 1;
-    if (next < rounds.length) {
-      setRoundIdx(next);
-      setSequence(buildSequence(rounds[next]));
-      setStepIdx(0);
-      setPhase("session");
+    // Fin de secuencia actual
+    if (isChallenge) {
+      // Terminó una ronda challenging
+      const nextChal = challengingIdx + 1;
+      setAllSessionWords(prev => {
+        const already = new Set(prev.map(w => w.kanji));
+        return [...prev, ...challengingRounds[challengingIdx].filter(w => !already.has(w.kanji))];
+      });
+      if (nextChal < challengingRounds.length) {
+        // Hay más rondas normales
+        setChallengingIdx(nextChal);
+        setIsChallenge(false);
+        setRoundIdx(nextChal);
+        setSequence(buildSequence(rounds[nextChal]));
+        setStepIdx(0);
+        setPhase("session");
+      } else {
+        setPhase("fin");
+      }
     } else {
-      setPhase("fin");
+      // Terminó ronda normal: ir a transición
+      setPhase("transition");
     }
   }
 
+  function continueAfterTransition() {
+    // Después de ver la transición: lanzar ronda challenging del grupo actual
+    setIsChallenge(true);
+    setSequence(buildChallengingSequence(challengingRounds[challengingIdx]));
+    setStepIdx(0);
+    setPhase("session");
+  }
+
   function handleFinish() {
-    const roundWords = rounds[roundIdx] || [];
+    const roundWords = isChallenge
+      ? (challengingRounds[challengingIdx] || [])
+      : (rounds[roundIdx] || []);
     setAllSessionWords(prev => {
       const already = new Set(prev.map(w => w.kanji));
       return [...prev, ...roundWords.filter(w => !already.has(w.kanji))];
@@ -1044,6 +1238,7 @@ function App() {
       <RoundTransitionScreen
         roundDone={roundIdx + 1} roundTotal={rounds.length}
         wordsInRound={rounds[roundIdx]} onContinue={continueAfterTransition} onHome={goHome}
+        isChallengeNext={true}
       />
     </div>
   );
@@ -1053,6 +1248,8 @@ function App() {
       <FinScreen
         allSessionWords={allSessionWords}
         sessionAttempts={sessionAttempts}
+        challengingAttempts={challengingAttempts}
+        starredWords={starredWords}
         onNewSession={goHome}
       />
     </div>
@@ -1060,23 +1257,36 @@ function App() {
 
   const step = sequence[stepIdx];
   const word = step.word;
+  const isCurrentChallenge = step.isChallenge || false;
 
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: isCurrentChallenge ? C.challenge : C.bg }}>
       <ExerciseTopBar
         stepCurrent={stepIdx + 1} stepTotal={sequence.length}
         roundCurrent={roundIdx + 1} roundTotal={rounds.length}
         onClose={goHome} onFinish={handleFinish}
         devMode={devMode} onDevSkip={nextStep}
+        isChallenge={isCurrentChallenge}
       />
-      <div style={{ padding: "16px 20px 6px" }}>
-        <TypeLabel label={TYPE_LABELS[step.type]} color={TYPE_COLORS[step.type]} />
+      <div style={{ padding: "14px 20px 4px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <TypeLabel label={isCurrentChallenge ? (step.type === "challenging_lectura" ? "🔥 Lectura" : "🔥 Comprensión") : TYPE_LABELS[step.type]} color={isCurrentChallenge ? C.challengeDeep : TYPE_COLORS[step.type]} />
+        <button onClick={() => toggleStar(word.kanji)} style={{
+          background: "none", border: "none", cursor: "pointer",
+          fontSize: 22, lineHeight: 1, padding: "2px 4px",
+          opacity: starredWords.has(word.kanji) ? 1 : 0.3,
+          transition: "opacity 0.15s, transform 0.1s",
+        }}
+        onPointerDown={e => e.currentTarget.style.transform = "scale(1.3)"}
+        onPointerUp={e => e.currentTarget.style.transform = "scale(1)"}
+        >⭐</button>
       </div>
       <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
         {step.type === "exposicion" && <ExposicionEx key={`${roundIdx}-${stepIdx}`} word={word} onNext={nextStep} />}
         {step.type === "construccion" && <ConstruccionEx key={`${roundIdx}-${stepIdx}`} word={word} onNext={nextStep} recordAttempt={recordAttempt} roundIdx={roundIdx} />}
         {step.type === "lectura" && <LecturaEx key={`${roundIdx}-${stepIdx}`} word={word} allWords={allWords} onNext={nextStep} recordAttempt={recordAttempt} roundIdx={roundIdx} />}
         {step.type === "comprension" && <ComprehensionEx key={`${roundIdx}-${stepIdx}`} word={word} allWords={allWords} onNext={nextStep} recordAttempt={recordAttempt} roundIdx={roundIdx} />}
+        {step.type === "challenging_lectura" && <ChallengingLecturaEx key={`ch-${stepIdx}`} word={word} allWords={allWords} onNext={nextStep} recordAttempt={recordAttempt} roundIdx={roundIdx} />}
+        {step.type === "challenging_comprension" && <ChallengingComprehensionEx key={`ch-${stepIdx}`} word={word} allWords={allWords} onNext={nextStep} recordAttempt={recordAttempt} roundIdx={roundIdx} />}
       </div>
     </div>
   );
