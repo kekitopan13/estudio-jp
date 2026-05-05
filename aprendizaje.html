@@ -271,12 +271,6 @@ function ExerciseTopBar({ stepCurrent, stepTotal, roundCurrent, roundTotal, onCl
           fontFamily: "'DM Sans', sans-serif", flexShrink: 0,
         }}>skip →</button>
       )}
-      <button onClick={onFinish} style={{
-        padding: "5px 10px", borderRadius: 8,
-        background: "transparent", border: `1px solid ${C.border}`,
-        color: C.textMuted, fontSize: 11, cursor: "pointer",
-        fontFamily: "'DM Sans', sans-serif", flexShrink: 0,
-      }}>Terminar</button>
     </div>
   );
 }
@@ -622,7 +616,7 @@ function ComprehensionEx({ word, allWords, onNext, recordAttempt, roundIdx }) {
 }
 
 // ─── PANTALLA ENTRE RONDAS ───────────────────────────────────────────────────
-function RoundTransitionScreen({ roundDone, roundTotal, wordsInRound, onContinue, onHome, isChallengeNext }) {
+function RoundTransitionScreen({ roundDone, roundTotal, wordsInRound, onContinue, onHome, isChallengeNext, starredWords = new Set() }) {
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflowY: "auto" }}>
       <PageTopBar onHome={onHome} />
@@ -651,6 +645,7 @@ function RoundTransitionScreen({ roundDone, roundTotal, wordsInRound, onContinue
               display: "flex", alignItems: "center", gap: 10, padding: "11px 16px",
               borderBottom: i < wordsInRound.length - 1 ? `1px solid ${C.borderLight}` : "none",
             }}>
+              {starredWords.has(w.kanji) && <span style={{ fontSize: 14, flexShrink: 0 }}>⭐</span>}
               <span className="kanji-font" style={{ fontSize: 20, color: C.text, minWidth: 54 }}>{w.kanji}</span>
               <span className="jp-font" style={{ fontSize: 12, color: C.textMuted, minWidth: 72 }}>{w.furigana}</span>
               <span style={{ fontSize: 12, color: C.textDim, lineHeight: 1.4 }}>{w.es}</span>
@@ -659,15 +654,26 @@ function RoundTransitionScreen({ roundDone, roundTotal, wordsInRound, onContinue
         </div>
       </div>
 
-      <div style={{ padding: "0 24px 32px", flexShrink: 0, display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ padding: "0 24px 32px", flexShrink: 0, display: "flex", flexDirection: "column", gap: 14 }}>
         {isChallengeNext && (
-          <div style={{ background: C.challenge, borderRadius: 12, padding: "10px 16px", border: `1px solid ${C.challengeBorder}`, textAlign: "center" }}>
-            <div style={{ fontSize: 12, color: C.challengeText, fontWeight: 600 }}>🔥 Viene la ronda Challenging</div>
-            <div style={{ fontSize: 11, color: C.challengeText, opacity: 0.8, marginTop: 2 }}>Las mismas palabras con 4 opciones y orden aleatorio</div>
+          <div style={{
+            background: C.challenge,
+            borderRadius: 14,
+            padding: "18px 20px",
+            border: `2px solid ${C.challengeBorder}`,
+            textAlign: "center",
+          }}>
+            <div style={{ fontSize: 22, marginBottom: 6 }}>🔥</div>
+            <div style={{ fontSize: 16, color: C.challengeText, fontWeight: 700, marginBottom: 4 }}>
+              Ronda Challenging
+            </div>
+            <div style={{ fontSize: 13, color: C.challengeText, opacity: 0.85, lineHeight: 1.5 }}>
+              Mismas palabras · 4 opciones · escritura · orden aleatorio
+            </div>
           </div>
         )}
         <PrimaryBtn onClick={onContinue}>
-          {isChallengeNext ? "Ir a Challenging →" : "Continuar →"}
+          {isChallengeNext ? "Empezar challenge 🔥" : "Continuar →"}
         </PrimaryBtn>
       </div>
     </div>
@@ -820,8 +826,7 @@ function ConfigScreen({ onStart, devMode, onToggleDevMode }) {
 
   const totalWords = parsed.words.length;
   const minDose = totalWords <= 10 ? Math.ceil(totalWords / 2) : 2;
-  const doseOptions = [2, 3, 4, 5, 6].filter(n => n >= minDose && n <= totalWords);
-  if (doseOptions.length === 0 && totalWords > 0) doseOptions.push(totalWords);
+  // doseOptions ya no se necesita para los botones; el dropdown genera sus opciones inline
 
   function handleStart() {
     if (parseError || parsed.words.length === 0) return;
@@ -906,18 +911,30 @@ function ConfigScreen({ onStart, devMode, onToggleDevMode }) {
               </div>
             </div>
             <div style={{ padding: "12px 16px" }}>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                {doseOptions.map(d => (
-                  <button key={d} onClick={() => setWordDose(d)} style={{
-                    minWidth: 48, padding: "10px 8px",
-                    background: wordDose === d ? C.correctBg : C.bgDeep,
-                    border: `1.5px solid ${wordDose === d ? C.mintDeep : C.border}`,
-                    borderRadius: 10, color: wordDose === d ? C.mintDeep : C.text,
-                    fontSize: 17, fontWeight: 600, cursor: "pointer",
-                    fontFamily: "'DM Sans', sans-serif", flex: 1,
-                  }}>{d}</button>
-                ))}
-              </div>
+              <select
+                value={wordDose}
+                onChange={e => setWordDose(Number(e.target.value))}
+                style={{
+                  width: "100%", padding: "11px 14px",
+                  background: C.bgDeep,
+                  border: `1.5px solid ${C.border}`,
+                  borderRadius: 10, color: C.text,
+                  fontSize: 15, fontWeight: 600, cursor: "pointer",
+                  fontFamily: "'DM Sans', sans-serif",
+                  appearance: "none", WebkitAppearance: "none",
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%235a7a72' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E")`,
+                  backgroundRepeat: "no-repeat",
+                  backgroundPosition: "right 14px center",
+                  paddingRight: 38,
+                  outline: "none",
+                }}
+              >
+                {Array.from({ length: Math.min(20, totalWords) }, (_, i) => i + 1)
+                  .filter(n => n >= minDose)
+                  .map(n => (
+                    <option key={n} value={n}>{n} {n === 1 ? "palabra" : "palabras"}</option>
+                  ))}
+              </select>
             </div>
           </div>
         )}
@@ -947,6 +964,14 @@ function ConfigScreen({ onStart, devMode, onToggleDevMode }) {
 
 // ─── RONDA CHALLENGING ──────────────────────────────────────────────────────
 
+// Edita esta constante para activar/desactivar tipos de ejercicio en el challenging
+const CHALLENGE_CONFIG = {
+  lectura:     true,   // elegir furigana (4 opciones)
+  comprension: true,   // elegir significado (4 opciones)
+  escritura:   true,   // escribir furigana exacto
+  construccion: true,  // armar kanjis (solo palabras con kanji)
+};
+
 // Estado final basado SOLO en los intentos de la ronda challenging
 function calculateChallengingResults(challengingAttempts, allSessionWords) {
   const byWord = {};
@@ -968,12 +993,18 @@ function calculateChallengingResults(challengingAttempts, allSessionWords) {
   });
 }
 
-// Secuencia para ronda challenging: lectura + comprensión, 4 opciones, orden aleatorio
-function buildChallengingSequence(words) {
+// Secuencia modular para ronda challenging (controlada por CHALLENGE_CONFIG)
+function buildChallengingSequence(words, config = CHALLENGE_CONFIG) {
   const steps = [];
   words.forEach(w => {
-    steps.push({ type: "challenging_lectura", word: w, isChallenge: true });
-    steps.push({ type: "challenging_comprension", word: w, isChallenge: true });
+    if (config.lectura)
+      steps.push({ type: "challenging_lectura", word: w, isChallenge: true });
+    if (config.comprension)
+      steps.push({ type: "challenging_comprension", word: w, isChallenge: true });
+    if (config.escritura)
+      steps.push({ type: "challenging_escritura", word: w, isChallenge: true });
+    if (config.construccion && getKanjiChars(w).length > 0)
+      steps.push({ type: "challenging_construccion", word: w, isChallenge: true });
   });
   return shuffle(steps);
 }
@@ -1105,6 +1136,114 @@ function ChallengingComprehensionEx({ word, allWords, onNext, recordAttempt, rou
   );
 }
 
+// ─── EJERCICIO CHALLENGING: ESCRITURA ───────────────────────────────────────
+function ChallengingWriteEx({ word, onNext, recordAttempt, roundIdx }) {
+  const [input, setInput] = useState("");
+  const [status, setStatus] = useState("idle"); // "idle" | "correct" | "wrong"
+  const [errorCount, setErrorCount] = useState(0);
+  const [showAnswer, setShowAnswer] = useState(false);
+  const reported = useRef(false);
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    setTimeout(() => inputRef.current?.focus(), 100);
+  }, []);
+
+  function handleSubmit() {
+    if (status === "correct") { onNext(); return; }
+    const trimmed = input.trim();
+    if (trimmed === word.furigana) {
+      setStatus("correct");
+      if (!reported.current) {
+        reported.current = true;
+        recordAttempt({
+          kanjiClave: word.kanjiClave,
+          palabra: word.kanji,
+          furigana: word.furigana,
+          significado: word.es,
+          ejercicio: "escritura",
+          correcto: true,
+          errores: errorCount,
+          primerIntentoCorrecto: errorCount === 0,
+          saltado: false,
+          ronda: roundIdx + 1,
+          isChallenge: true,
+        });
+      }
+    } else {
+      const newErrors = errorCount + 1;
+      setErrorCount(newErrors);
+      setStatus("wrong");
+      if (newErrors >= 2) setShowAnswer(true);
+      setTimeout(() => { setStatus("idle"); setInput(""); }, 600);
+    }
+  }
+
+  function handleKey(e) {
+    if (e.key === "Enter") handleSubmit();
+  }
+
+  const borderColor = status === "correct" ? C.mintDeep : status === "wrong" ? C.pink : C.challengeBorder;
+  const bg = status === "correct" ? C.correctBg : status === "wrong" ? C.wrongBg : C.bgCard;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", padding: "20px 20px 28px", gap: 24 }}>
+      <KanjiDisplay word={word} showFurigana={false} size={88} />
+      {errorCount === 1 && status !== "correct" && (
+        <div style={{ textAlign: "center", fontSize: 12, color: C.textMuted }}>
+          Pista: <span className="jp-font" style={{ color: C.challengeDeep, fontWeight: 600, letterSpacing: "0.1em" }}>
+            {word.furigana[0]}{"・".repeat(word.furigana.length - 1)}
+          </span>
+        </div>
+      )}
+      {showAnswer && status !== "correct" && (
+        <div style={{ textAlign: "center", fontSize: 18, color: C.challengeDeep, fontWeight: 600, letterSpacing: "0.15em" }}
+          className="jp-font">{word.furigana}</div>
+      )}
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <input
+          ref={inputRef}
+          value={input}
+          onChange={e => { setInput(e.target.value); if (status === "wrong") setStatus("idle"); }}
+          onKeyDown={handleKey}
+          disabled={status === "correct"}
+          placeholder="Escribe el furigana..."
+          className="jp-font"
+          style={{
+            padding: "16px 18px", borderRadius: 13, fontSize: 22,
+            background: bg,
+            border: `1.5px solid ${borderColor}`,
+            color: status === "correct" ? C.mintDeep : status === "wrong" ? C.pinkDark : C.text,
+            outline: "none", width: "100%",
+            fontFamily: "'Noto Sans JP', sans-serif",
+            letterSpacing: "0.15em", textAlign: "center",
+            transition: "all 0.15s",
+          }}
+        />
+        {status === "correct" && (
+          <div style={{ textAlign: "center", fontSize: 12, color: C.mintDeep, fontWeight: 600 }}>✓ Correcto</div>
+        )}
+        <button
+          onClick={handleSubmit}
+          style={{
+            padding: "15px", borderRadius: 13,
+            background: status === "correct"
+              ? `linear-gradient(135deg, ${C.mintDeep}, ${C.mintDark})`
+              : C.challenge,
+            border: `1.5px solid ${status === "correct" ? C.mintDeep : C.challengeBorder}`,
+            color: status === "correct" ? C.white : C.challengeText,
+            fontSize: 15, fontWeight: 600, cursor: "pointer",
+            fontFamily: "'DM Sans', sans-serif",
+            transition: "all 0.15s",
+          }}
+        >
+          {status === "correct" ? "Continuar →" : "Verificar"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── GENERADOR DE SECUENCIA ──────────────────────────────────────────────────
 function buildSequence(words) {
   const steps = [];
@@ -1119,6 +1258,33 @@ function buildSequence(words) {
 
 const TYPE_LABELS = { exposicion: "Memoriza", construccion: "Construye", lectura: "Lectura", comprension: "Comprensión" };
 const TYPE_COLORS = { exposicion: C.textDim, construccion: "#7a9eff", lectura: C.pinkDark, comprension: C.mintDeep };
+
+// ─── PERSISTENCIA DE SESIÓN ─────────────────────────────────────────────────
+const STORAGE_KEY = "learning_phase_progress";
+
+function saveProgress(state) {
+  try {
+    const data = {
+      ...state,
+      starredWords: [...state.starredWords], // Set → array
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch(e) { /* falla silenciosamente */ }
+}
+
+function loadProgress() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    data.starredWords = new Set(data.starredWords || []);
+    return data;
+  } catch(e) { return null; }
+}
+
+function clearProgress() {
+  try { localStorage.removeItem(STORAGE_KEY); } catch(e) {}
+}
 
 // ─── APP ROOT ────────────────────────────────────────────────────────────────
 function App() {
@@ -1138,11 +1304,53 @@ function App() {
   const [challengingAttempts, setChallengingAttempts] = useState([]);
   const [starredWords, setStarredWords] = useState(new Set());
 
+  // Cargar sesión guardada automáticamente al iniciar
+  useEffect(() => {
+    const saved = loadProgress();
+    if (!saved || saved.phase === "config" || saved.phase === "fin") return;
+    // Restaurar estado completo
+    CURRENT_DB = { words: saved.allWords, byKanji: {}, kanjiKeys: [] };
+    ALL_KANJI_POOL = buildKanjiPool(saved.allWords);
+    setAllWords(saved.allWords);
+    setRounds(saved.rounds);
+    setRoundIdx(saved.roundIdx);
+    setChallengingRounds(saved.challengingRounds);
+    setChallengingIdx(saved.challengingIdx);
+    setIsChallenge(saved.isChallenge);
+    setSequence(saved.sequence);
+    setStepIdx(saved.stepIdx);
+    setAllSessionWords(saved.allSessionWords);
+    setSessionAttempts(saved.sessionAttempts);
+    setChallengingAttempts(saved.challengingAttempts);
+    setStarredWords(saved.starredWords);
+    setPhase(saved.phase);
+  }, []);
+
+  // Helper interno para guardar: recibe el estado actualizado como parámetro
+  function _save(patch) {
+    saveProgress({
+      phase, allWords, rounds, roundIdx,
+      challengingRounds, challengingIdx, isChallenge,
+      sequence, stepIdx, allSessionWords,
+      sessionAttempts, challengingAttempts,
+      starredWords,
+      ...patch, // overrides con valores que acaban de cambiar
+    });
+  }
+
   function recordAttempt(attempt) {
     if (attempt.isChallenge) {
-      setChallengingAttempts(prev => [...prev, attempt]);
+      setChallengingAttempts(prev => {
+        const next = [...prev, attempt];
+        _save({ challengingAttempts: next });
+        return next;
+      });
     } else {
-      setSessionAttempts(prev => [...prev, attempt]);
+      setSessionAttempts(prev => {
+        const next = [...prev, attempt];
+        _save({ sessionAttempts: next });
+        return next;
+      });
     }
   }
 
@@ -1150,6 +1358,7 @@ function App() {
     setStarredWords(prev => {
       const next = new Set(prev);
       if (next.has(kanji)) next.delete(kanji); else next.add(kanji);
+      _save({ starredWords: next });
       return next;
     });
   }
@@ -1174,13 +1383,27 @@ function App() {
     setSessionAttempts([]);
     setChallengingAttempts([]);
     setStarredWords(new Set());
-    setSequence(buildSequence(groups[0]));
+    const seq = buildSequence(groups[0]);
+    setSequence(seq);
     setStepIdx(0);
     setPhase("session");
+    saveProgress({
+      phase: "session", allWords: parsed.words,
+      rounds: groups, roundIdx: 0,
+      challengingRounds: chalRounds, challengingIdx: 0,
+      isChallenge: false, sequence: seq, stepIdx: 0,
+      allSessionWords: [], sessionAttempts: [],
+      challengingAttempts: [], starredWords: new Set(),
+    });
   }
 
   function nextStep() {
-    if (stepIdx + 1 < sequence.length) { setStepIdx(i => i + 1); return; }
+    if (stepIdx + 1 < sequence.length) {
+      const nextIdx = stepIdx + 1;
+      setStepIdx(nextIdx);
+      _save({ stepIdx: nextIdx });
+      return;
+    }
     // Fin de secuencia actual
     if (isChallenge) {
       // Terminó una ronda challenging
@@ -1190,29 +1413,23 @@ function App() {
         return [...prev, ...challengingRounds[challengingIdx].filter(w => !already.has(w.kanji))];
       });
       if (nextChal < challengingRounds.length) {
-        // Hay más rondas normales
+        // Pantalla de pausa antes de la siguiente ronda
         setChallengingIdx(nextChal);
-        setIsChallenge(false);
         setRoundIdx(nextChal);
-        setSequence(buildSequence(rounds[nextChal]));
-        setStepIdx(0);
-        setPhase("session");
+        _save({ challengingIdx: nextChal, roundIdx: nextChal, phase: "post_challenge" });
+        setPhase("post_challenge");
       } else {
+        clearProgress();
         setPhase("fin");
       }
     } else {
-      // Terminó ronda normal: ir a transición
-      setPhase("transition");
+      // Terminó ronda normal: mostrar transición antes del challenge
+      _save({ phase: "post_round" });
+      setPhase("post_round");
     }
   }
 
-  function continueAfterTransition() {
-    // Después de ver la transición: lanzar ronda challenging del grupo actual
-    setIsChallenge(true);
-    setSequence(buildChallengingSequence(challengingRounds[challengingIdx]));
-    setStepIdx(0);
-    setPhase("session");
-  }
+
 
   function handleFinish() {
     const roundWords = isChallenge
@@ -1222,10 +1439,11 @@ function App() {
       const already = new Set(prev.map(w => w.kanji));
       return [...prev, ...roundWords.filter(w => !already.has(w.kanji))];
     });
+    clearProgress();
     setPhase("fin");
   }
 
-  function goHome() { setPhase("config"); }
+  function goHome() { clearProgress(); setPhase("config"); }
 
   if (phase === "config") return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
@@ -1233,15 +1451,90 @@ function App() {
     </div>
   );
 
-  if (phase === "transition") return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
-      <RoundTransitionScreen
-        roundDone={roundIdx + 1} roundTotal={rounds.length}
-        wordsInRound={rounds[roundIdx]} onContinue={continueAfterTransition} onHome={goHome}
-        isChallengeNext={true}
-      />
-    </div>
-  );
+  if (phase === "post_round") {
+    return (
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
+        <RoundTransitionScreen
+          roundDone={roundIdx + 1}
+          roundTotal={rounds.length}
+          wordsInRound={rounds[roundIdx]}
+          isChallengeNext={true}
+          starredWords={starredWords}
+          onHome={goHome}
+          onContinue={() => {
+            const chalSeq = buildChallengingSequence(challengingRounds[challengingIdx]);
+            setIsChallenge(true);
+            setSequence(chalSeq);
+            setStepIdx(0);
+            setPhase("session");
+            _save({ isChallenge: true, sequence: chalSeq, stepIdx: 0, phase: "session" });
+          }}
+        />
+      </div>
+    );
+  }
+
+  if (phase === "post_challenge") {
+    // Palabras que ACABAN de terminar el challenge (ronda anterior, índice roundIdx - 1)
+    const justFinishedWords = rounds[roundIdx - 1] || [];
+    const nextRoundExists = roundIdx < rounds.length;
+    return (
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
+        <PageTopBar onHome={goHome} />
+        <div style={{ flex: 1, overflowY: "auto", padding: "28px 24px 24px", display: "flex", flexDirection: "column", gap: 20 }}>
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 32, marginBottom: 8 }}>✓</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: C.text, marginBottom: 4 }}>
+              Challenge completado
+            </div>
+            <div style={{ fontSize: 13, color: C.textMuted }}>
+              Ronda {roundIdx} de {rounds.length}
+            </div>
+          </div>
+          <div style={{ background: C.bgCard, borderRadius: 14, overflow: "hidden", border: `1px solid ${C.borderLight}`, boxShadow: C.shadowCard }}>
+            <div style={{ padding: "10px 16px", borderBottom: `1px solid ${C.borderLight}`, background: C.bgAlt }}>
+              <div style={{ fontSize: 10, color: C.textMuted, letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600 }}>Palabras practicadas</div>
+            </div>
+            {justFinishedWords.map((w, i) => (
+              <div key={i} style={{
+                display: "flex", alignItems: "center", gap: 10, padding: "11px 16px",
+                borderBottom: i < justFinishedWords.length - 1 ? `1px solid ${C.borderLight}` : "none",
+              }}>
+                {starredWords.has(w.kanji) && <span style={{ fontSize: 14, flexShrink: 0 }}>⭐</span>}
+                <span className="kanji-font" style={{ fontSize: 20, color: C.text, minWidth: 54 }}>{w.kanji}</span>
+                <span className="jp-font" style={{ fontSize: 12, color: C.textMuted, minWidth: 72 }}>{w.furigana}</span>
+                <span style={{ fontSize: 12, color: C.textDim, lineHeight: 1.4 }}>{w.es}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div style={{ padding: "0 24px 32px", flexShrink: 0, display: "flex", flexDirection: "column", gap: 12 }}>
+          {nextRoundExists && (
+            <div style={{
+              background: C.bgDeep, borderRadius: 12, padding: "12px 16px",
+              border: `1px solid ${C.border}`, textAlign: "center",
+            }}>
+              <div style={{ fontSize: 13, color: C.textMuted, fontWeight: 600 }}>
+                Siguiente: ronda {roundIdx + 1} de {rounds.length}
+              </div>
+            </div>
+          )}
+          <PrimaryBtn onClick={() => {
+            const nextSeq = buildSequence(rounds[roundIdx]);
+            setIsChallenge(false);
+            setSequence(nextSeq);
+            setStepIdx(0);
+            setPhase("session");
+            _save({ isChallenge: false, sequence: nextSeq, stepIdx: 0, phase: "session" });
+          }}>
+            Continuar →
+          </PrimaryBtn>
+        </div>
+      </div>
+    );
+  }
+
+
 
   if (phase === "fin") return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
@@ -1268,11 +1561,16 @@ function App() {
         devMode={devMode} onDevSkip={nextStep}
         isChallenge={isCurrentChallenge}
       />
-      <div style={{ padding: "14px 20px 4px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <TypeLabel label={isCurrentChallenge ? (step.type === "challenging_lectura" ? "🔥 Lectura" : "🔥 Comprensión") : TYPE_LABELS[step.type]} color={isCurrentChallenge ? C.challengeDeep : TYPE_COLORS[step.type]} />
+      <div style={{ padding: "12px 20px 0px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <TypeLabel label={isCurrentChallenge ? ({
+          "challenging_lectura": "🔥 Lectura",
+          "challenging_comprension": "🔥 Comprensión",
+          "challenging_escritura": "🔥 Escritura",
+          "challenging_construccion": "🔥 Construye",
+        }[step.type] || "🔥 Challenging") : TYPE_LABELS[step.type]} color={isCurrentChallenge ? C.challengeDeep : TYPE_COLORS[step.type]} />
         <button onClick={() => toggleStar(word.kanji)} style={{
           background: "none", border: "none", cursor: "pointer",
-          fontSize: 22, lineHeight: 1, padding: "2px 4px",
+          fontSize: 22, lineHeight: 1, padding: "4px 6px",
           opacity: starredWords.has(word.kanji) ? 1 : 0.3,
           transition: "opacity 0.15s, transform 0.1s",
         }}
@@ -1287,6 +1585,20 @@ function App() {
         {step.type === "comprension" && <ComprehensionEx key={`${roundIdx}-${stepIdx}`} word={word} allWords={allWords} onNext={nextStep} recordAttempt={recordAttempt} roundIdx={roundIdx} />}
         {step.type === "challenging_lectura" && <ChallengingLecturaEx key={`ch-${stepIdx}`} word={word} allWords={allWords} onNext={nextStep} recordAttempt={recordAttempt} roundIdx={roundIdx} />}
         {step.type === "challenging_comprension" && <ChallengingComprehensionEx key={`ch-${stepIdx}`} word={word} allWords={allWords} onNext={nextStep} recordAttempt={recordAttempt} roundIdx={roundIdx} />}
+        {step.type === "challenging_escritura" && <ChallengingWriteEx key={`ch-${stepIdx}`} word={word} onNext={nextStep} recordAttempt={recordAttempt} roundIdx={roundIdx} />}
+        {step.type === "challenging_construccion" && <ConstruccionEx key={`ch-${stepIdx}`} word={word} onNext={nextStep} recordAttempt={recordAttempt} roundIdx={roundIdx} />}
+      </div>
+      <div style={{ padding: "10px 20px 20px", flexShrink: 0 }}>
+        <button onClick={handleFinish} style={{
+          width: "100%", padding: "12px",
+          background: "transparent",
+          border: `1px solid ${isCurrentChallenge ? C.challengeBorder : C.border}`,
+          borderRadius: 12,
+          color: isCurrentChallenge ? C.challengeText : C.textMuted,
+          fontSize: 13, cursor: "pointer",
+          fontFamily: "'DM Sans', sans-serif",
+          letterSpacing: "0.03em",
+        }}>Terminar sesión</button>
       </div>
     </div>
   );
