@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Kanjis Confusos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --color-primary: #e27c90;
+  --color-correct: #3B6D11;
+  --color-wrong: #A32D2D;
+  --bg-main: #ffeef2;
+  --radius: 12px;
+}
+
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: #1a1a18;
+  background: var(--bg-main);
+  line-height: 1.4;
+  overflow-x: hidden;
+}
+
+.nav-back {
+  display: inline-block;
+  padding: 10px 15px;
+  text-decoration: none;
+  color: var(--color-primary);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.screen{display:none;padding:15px;max-width:600px;margin:0 auto;}
+.screen.active{display:block}
+
+.editor-header{margin-bottom:15px;display:flex;justify-content:space-between;align-items:center;}
+.editor-header h2{font-size:1.2rem;color:#333;}
+
+input,textarea,select{
+  font-size:16px!important;
+  padding:12px!important;
+  border:1px solid #ccc;
+  border-radius:var(--radius);
+  width:100%;
+}
+
+/* ---- CHIPS (kanjis arriba) ---- */
+.chips-wrap{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px}
+.chip{
+  padding:14px 22px;
+  border:2px solid #ddd;
+  border-radius:25px;
+  background:#fff;
+  font-size:30px;
+  font-weight:700;
+  font-family:'Noto Serif JP', serif;
+  box-shadow:0 2px 4px rgba(0,0,0,0.05);
+  cursor:pointer;
+  user-select:none;
+  transition:all 0.15s;
+  min-width:66px;
+  text-align:center;
+}
+.chip.selected{border-color:var(--color-primary);background:#fdeef2;color:#e27c90;transform:scale(1.08);}
+.chip.used{display:none;}
+.chip.correct{border-color:var(--color-correct);background:#eaf3de;color:var(--color-correct);display:inline-block;cursor:default;}
+.chip.wrong-chip{border-color:var(--color-wrong);background:#fcebeb;color:var(--color-wrong);}
+
+/* ---- TARGETS (conceptos abajo) ---- */
+.targets-wrap{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+.target{
+  background:#fff;
+  border:2px solid #eee;
+  border-radius:var(--radius);
+  padding:12px;
+  margin-bottom:0;
+  min-height:65px;
+  transition:all 0.2s;
+  cursor:pointer;
+  user-select:none;
+}
+.target.correct{border-color:var(--color-correct);background:#f0fdf4;cursor:default;}
+.target.wrong{border-color:var(--color-wrong);background:#fef2f2;}
+.t-concept{font-size:0.95rem;color:#555;margin-bottom:4px;}
+.t-placed{font-size:1.6rem;font-weight:700;font-family:'Noto Serif JP', serif;color:var(--color-primary);min-height:26px;}
+
+/* ---- BOTONES ---- */
+.start-btn,.primary{
+  background:var(--color-primary);
+  color:white;
+  padding:16px;
+  border-radius:var(--radius);
+  border:none;
+  font-size:1.1rem;
+  font-weight:600;
+  width:100%;
+  margin-top:10px;
+  box-shadow:0 4px 6px rgba(226,124,144,0.2);
+  cursor:pointer;
+}
+.start-btn:disabled{background:#aaa;box-shadow:none;}
+
+.quiz-actions{display:flex;flex-direction:column;gap:8px;margin-top:20px;}
+.quiz-actions button{
+  width:100%;padding:16px;border-radius:var(--radius);
+  font-size:1rem;font-weight:600;cursor:pointer;
+  border:1px solid #e27c90;background:#e27c90;color:#fff;
+}
+
+/* ---- PROGRESS ---- */
+.progress-bar{height:6px;background:#ddd;border-radius:3px;margin-bottom:8px;}
+.progress-fill{height:100%;background:#e27c90;border-radius:3px;transition:width 0.3s;}
+.progress-txt{font-size:12px;color:#888;margin-bottom:20px;}
+
+/* ---- GRUPO BADGE ---- */
+.group-badge{
+  display:inline-block;
+  background:#fdeef2;
+  border:1px solid #f5c2ce;
+  border-radius:20px;
+  padding:4px 14px;
+  font-size:0.75rem;
+  color:#e27c90;
+  font-weight:600;
+  margin-bottom:14px;
+  letter-spacing:0.5px;
+}
+
+/* ---- RONDA DIFÍCIL ---- */
+.hard-question{
+  background:#fff;
+  border-radius:var(--radius);
+  padding:20px;
+  margin-bottom:14px;
+  box-shadow:0 2px 8px rgba(0,0,0,0.04);
+}
+.hard-question .qtext{
+  font-size:1rem;
+  font-weight:600;
+  color:#333;
+  margin-bottom:16px;
+}
+.hard-options{display:flex;gap:10px;flex-wrap:wrap;}
+.hard-opt{
+  padding:14px 22px;
+  border:2px solid #ddd;
+  border-radius:25px;
+  background:#fff;
+  font-size:30px;
+  font-weight:700;
+  font-family:'Noto Serif JP', serif;
+  cursor:pointer;
+  transition:all 0.15s;
+  min-width:66px;
+  text-align:center;
+}
+.hard-opt:hover:not([disabled]){border-color:var(--color-primary);background:#fdeef2;}
+.hard-opt.opt-correct{border-color:var(--color-correct);background:#eaf3de;color:var(--color-correct);}
+.hard-opt.opt-wrong{border-color:var(--color-wrong);background:#fcebeb;color:var(--color-wrong);}
+.hard-opt[disabled]{cursor:default;}
+.hard-feedback{font-size:0.85rem;margin-top:10px;min-height:18px;font-weight:500;}
+.hard-feedback.ok{color:var(--color-correct);}
+.hard-feedback.ko{color:var(--color-wrong);}
+
+/* ---- RESULTADOS ---- */
+.group-stat{
+  background:#fff;
+  border-radius:var(--radius);
+  padding:14px 16px;
+  margin-bottom:10px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  box-shadow:0 1px 4px rgba(0,0,0,0.04);
+}
+.group-stat .gs-name{font-size:1.1rem;color:#333;letter-spacing:1px;}
+.group-stat .gs-pct{font-size:0.95rem;font-weight:700;}
+
+/* ---- BULK / EDITOR ---- */
+.bulk-toggle{color:#e27c90;padding:15px 0;display:block;font-weight:500;cursor:pointer;}
+.bulk-area{display:none;margin-bottom:20px;}
+.bulk-area.open{display:block;}
+.bulk-hint{font-size:12px;color:#888;margin-bottom:6px;line-height:1.6}
+.bulk-btns{display:flex;gap:8px;margin-top:8px;}
+
+.err-item{padding:8px 0;border-bottom:1px solid #eee;font-size:14px;line-height:1.6}
+.err-item:last-child{border-bottom:none}
+
+/* ---- CONFIGURACIÓN SELECTOR ---- */
+.config-block{background:white;padding:15px;border-radius:var(--radius);margin-bottom:16px;box-shadow:0 2px 4px rgba(0,0,0,0.02);}
+.config-block label{font-size:0.9rem;color:#666;display:block;margin-bottom:5px;}
+
+/* ---- ITEM LIST EN EDITOR ---- */
+.item-list{display:flex;flex-direction:column;gap:6px;margin-bottom:16px;max-height:45vh;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.item-row{display:flex;gap:6px;align-items:center;background:white;padding:8px;border-radius:var(--radius);}
+.item-row input{border:none;background:#f9f9f9;padding:8px!important;font-size:14px!important;}
+.item-row input.inp-kanji{max-width:70px;font-size:20px!important;text-align:center;font-weight:700;}
+.item-row input.inp-group{max-width:50px;text-align:center;}
+.del-btn{width:36px;height:36px;color:#ccc;font-size:22px;border:none;background:none;flex-shrink:0;cursor:pointer;}
+
+.item-count{font-size:12px;color:#888;margin-bottom:8px;}
+</style>
+</head>
+<body>
+
+<a href="index.html" class="nav-back" style="color:#e27c90;">← メニュー</a>
+
+<!-- ===================== EDITOR ===================== -->
+<div id="screen-editor" class="screen active">
+  <h1 style="font-size:28px;font-weight:700;color:#333;margin-bottom:8px;">Kanjis Confusos</h1>
+  <p style="font-size:0.82rem;color:#888;margin-bottom:16px;line-height:1.6;">
+    Carga kanjis agrupados por familia visual. El ejercicio presenta cada grupo completo como una ronda de matchup.<br><br>
+    Formato: <code>kanji;grupo;concepto</code><br>
+    Ejemplo: <code>待;2;esperar</code>
+  </p>
+
+  <div class="editor-header">
+    <h2>Kanjis cargados</h2>
+  </div>
+  <div class="item-count" id="item-count">0 kanjis · 0 grupos</div>
+  <div class="item-list" id="item-list"></div>
+
+  <!-- Agregar individual -->
+  <div class="config-block">
+    <div style="display:flex;gap:6px;margin-bottom:10px;">
+      <input id="new-kanji" placeholder="漢" autocomplete="off" class="inp-kanji" style="max-width:70px;font-size:20px!important;text-align:center;font-weight:700;">
+      <input id="new-group" placeholder="Grupo" autocomplete="off" style="max-width:70px;" type="number" min="1">
+      <input id="new-concept" placeholder="concepto" autocomplete="off">
+    </div>
+    <button class="start-btn" id="btn-add-one" style="margin-top:0;">+ Agregar kanji individual</button>
+  </div>
+
+  <!-- Agregar en masa -->
+  <div class="bulk-toggle" id="bulk-toggle">▸ Agregar en masa (punto y coma)</div>
+  <div class="bulk-area" id="bulk-area">
+    <div class="bulk-hint">Un kanji por línea: <code>kanji;grupo;concepto</code><br>Ejemplo:<br><code>未;1;no todavía<br>末;1;final<br>待;2;esperar</code></div>
+    <textarea id="bulk-input" rows="7" placeholder="未;1;no todavía&#10;末;1;final&#10;朱;1;rojo bermellón&#10;待;2;esperar&#10;持;2;sostener&#10;特;2;especial"></textarea>
+    <div class="bulk-btns">
+      <button class="primary" id="btn-bulk-add" style="margin-top:0;">Agregar a la lista</button>
+    </div>
+    <div id="bulk-msg" style="font-size:12px;margin-top:6px;min-height:16px;"></div>
+  </div>
+
+  <!-- Configuración -->
+  <div class="config-block" style="margin-top:8px;">
+    <label>Ronda difícil cada cuántos grupos:</label>
+    <select id="challengeSelect">
+      <option value="0">Sin ronda difícil</option>
+      <option value="1">Después de cada grupo</option>
+      <option value="2">Cada 2 grupos</option>
+      <option value="3" selected>Cada 3 grupos</option>
+      <option value="4">Cada 4 grupos</option>
+      <option value="5">Cada 5 grupos</option>
+      <option value="999">Solo al final</option>
+    </select>
+  </div>
+
+  <button class="start-btn" id="start-btn" disabled>¡Empezar a practicar! →</button>
+</div>
+
+<!-- ===================== QUIZ (MATCHING) ===================== -->
+<div id="screen-quiz" class="screen">
+  <h1 style="font-size:28px;font-weight:700;color:#333;margin-bottom:8px;">Kanjis Confusos</h1>
+  <p style="font-size:0.82rem;color:#888;margin-bottom:14px;line-height:1.5;">
+    Toca un kanji y luego su significado para emparejarlos.
+  </p>
+
+  <div class="editor-header">
+    <h2>Match up</h2>
+    <button id="btn-go-editor" style="border:none;background:none;color:#e27c90;font-size:1rem;cursor:pointer;">✎ Editar</button>
+  </div>
+
+  <div class="progress-bar"><div id="prog-bar" class="progress-fill" style="width:0%"></div></div>
+  <div id="prog-txt" class="progress-txt"></div>
+
+  <div id="group-badge" class="group-badge"></div>
+
+  <p style="font-size:0.75rem;font-weight:600;color:#888;margin-bottom:10px;letter-spacing:0.5px;">Toca estos kanjis:</p>
+  <div class="chips-wrap" id="chips-wrap"></div>
+
+  <p style="font-size:0.75rem;font-weight:600;color:#888;margin-bottom:10px;letter-spacing:0.5px;">Y únelos con su significado:</p>
+  <div class="targets-wrap" id="targets-wrap"></div>
+
+  <div class="quiz-actions" id="quiz-actions"></div>
+  <div id="msg" style="text-align:center;font-weight:500;font-size:14px;color:#666;margin-top:8px;"></div>
+
+  <button id="btn-volver-inicio" style="width:100%;margin-top:14px;padding:12px;border-radius:var(--radius);border:1px solid #ddd;background:white;color:#888;font-size:0.9rem;font-weight:500;cursor:pointer;">↩ Volver al inicio</button>
+</div>
+
+<!-- ===================== RONDA DIFÍCIL ===================== -->
+<div id="screen-hard" class="screen">
+  <h1 style="font-size:28px;font-weight:700;color:#333;margin-bottom:8px;">Ronda difícil</h1>
+  <p style="font-size:0.82rem;color:#888;margin-bottom:16px;line-height:1.5;">
+    ¿Cuál es cuál? Distingue bajo presión.
+  </p>
+
+  <div class="progress-bar"><div id="hard-prog-bar" class="progress-fill" style="width:0%"></div></div>
+  <div id="hard-prog-txt" class="progress-txt"></div>
+
+  <div id="hard-questions-wrap"></div>
+  <div class="quiz-actions" id="hard-actions"></div>
+</div>
+
+<!-- ===================== RESUMEN ===================== -->
+<div id="screen-summary" class="screen">
+  <h1 style="font-size:28px;font-weight:700;color:#333;margin-bottom:16px;">Resultados</h1>
+
+  <div id="summary-overall" style="background:white;padding:16px;border-radius:var(--radius);margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,0.05);"></div>
+
+  <div class="editor-header"><h2>Por grupo</h2></div>
+  <div id="summary-groups" style="margin-bottom:20px;"></div>
+
+  <div class="editor-header" style="margin-top:4px;"><h2>Confusiones frecuentes</h2></div>
+  <div id="summary-confusions" style="background:white;padding:16px;border-radius:var(--radius);margin-bottom:20px;box-shadow:0 2px 8px rgba(0,0,0,0.05);"></div>
+
+  <div style="display:flex;flex-direction:column;gap:10px;">
+    <button class="start-btn" id="btn-restart" style="margin-top:0;">Repetir ejercicio</button>
+    <button id="btn-practice-errors" class="start-btn" style="margin-top:0;background:#A32D2D;display:none;">Practicar grupos con errores</button>
+    <button class="start-btn" id="btn-summary-edit" style="margin-top:0;background:white;color:var(--color-primary);border:2px solid var(--color-primary);">Cambiar kanjis</button>
+  </div>
+</div>
+
+<script>
+// ==================== ESTADO GLOBAL ====================
+var items = [];        // [{kanji, group, concept}]
+var groups = [];       // [{id, items:[...]}] — construido al iniciar
+var sessionOrder = []; // índices de grupos en orden aleatorio para esta sesión
+var currentGroupIdx = 0; // posición en sessionOrder
+var groupErrors = {};  // {groupId: {total, wrong, confusions:[{kanji, answeredKanji}]}}
+var challengeEvery = 3;
+
+// Estado de ronda matching
+var currentItems = [], currentChipOrder = [], placements = {}, selectedChipIdx = null, roundChecked = false;
+
+// Estado ronda difícil
+var hardQuestions = [], hardAnswered = 0, hardErrors = 0;
+
+// ==================== UTILS ====================
+function show(id){
+  document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+}
+
+function shuffle(arr){
+  var a=arr.slice();
+  for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;}
+  return a;
+}
+
+function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;');}
+
+// ==================== EDITOR ====================
+function renderEditor(){
+  var list = document.getElementById('item-list');
+  list.innerHTML = items.map(function(it,i){
+    return '<div class="item-row">'+
+      '<input class="inp-kanji" value="'+esc(it.kanji)+'" data-idx="'+i+'" data-field="kanji" style="max-width:60px;font-size:20px!important;text-align:center;font-weight:700;border:none;background:#f9f9f9;padding:8px!important;">'+
+      '<input class="inp-group" value="'+esc(String(it.group))+'" data-idx="'+i+'" data-field="group" style="max-width:50px;text-align:center;border:none;background:#f9f9f9;padding:8px!important;font-size:14px!important;" type="number" min="1">'+
+      '<input value="'+esc(it.concept)+'" data-idx="'+i+'" data-field="concept" style="border:none;background:#f9f9f9;padding:8px!important;font-size:14px!important;">'+
+      '<button class="del-btn" data-del="'+i+'">×</button>'+
+    '</div>';
+  }).join('');
+
+  list.querySelectorAll('input').forEach(function(inp){
+    inp.addEventListener('change',function(){
+      var val = inp.value.trim();
+      if(inp.dataset.field==='group') val = parseInt(val)||1;
+      items[+inp.dataset.idx][inp.dataset.field] = val;
+      updateCount();
+    });
+  });
+  list.querySelectorAll('[data-del]').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      items.splice(+btn.dataset.del,1);
+      renderEditor();
+    });
+  });
+  updateCount();
+}
+
+function updateCount(){
+  var gids = {};
+  items.forEach(function(it){ gids[it.group]=true; });
+  var gc = Object.keys(gids).length;
+  document.getElementById('item-count').textContent = items.length+' kanji'+(items.length!==1?'s':'')+' · '+gc+' grupo'+(gc!==1?'s':'');
+  document.getElementById('start-btn').disabled = items.length < 2 || gc < 1;
+}
+
+function parseBulk(){
+  var raw = document.getElementById('bulk-input').value.trim();
+  if(!raw) return null;
+  var result = [];
+  raw.split('\n').forEach(function(line){
+    var parts = line.split(';').map(function(s){return s.trim();});
+    if(parts.length >= 3 && parts[0] && parts[1] && parts[2]){
+      var g = parseInt(parts[1]);
+      if(!isNaN(g)) result.push({kanji:parts[0], group:g, concept:parts[2]});
+    }
+  });
+  return result;
+}
+
+// ==================== CONSTRUCCIÓN DE GRUPOS ====================
+function buildGroups(sourceItems){
+  var map = {};
+  sourceItems.forEach(function(it){
+    if(!map[it.group]) map[it.group] = [];
+    map[it.group].push(it);
+  });
+  var gs = [];
+  Object.keys(map).sort(function(a,b){return +a-+b;}).forEach(function(id){
+    gs.push({id:+id, items:map[id]});
+  });
+  return gs;
+}
+
+// ==================== INICIO DEL QUIZ ====================
+function startQuiz(customGroups){
+  challengeEvery = parseInt(document.getElementById('challengeSelect').value);
+  groups = customGroups || buildGroups(items);
+  sessionOrder = shuffle(groups.map(function(_,i){return i;}));
+  currentGroupIdx = 0;
+  groupErrors = {};
+  groups.forEach(function(g){
+    groupErrors[g.id] = {total:g.items.length, wrong:0, confusions:[]};
+  });
+  show('screen-quiz');
+  renderMatchRound();
+}
+
+// ==================== RONDA MATCHING ====================
+function renderMatchRound(){
+  placements={};selectedChipIdx=null;roundChecked=false;
+  var gIdx = sessionOrder[currentGroupIdx];
+  var group = groups[gIdx];
+  currentItems = group.items.slice(); // copia
+
+  // Progress
+  var pct = Math.round((currentGroupIdx/sessionOrder.length)*100);
+  document.getElementById('prog-bar').style.width = pct+'%';
+  document.getElementById('prog-txt').textContent = 'Grupo '+(currentGroupIdx+1)+' de '+sessionOrder.length;
+  document.getElementById('group-badge').textContent = 'Familia #'+group.id+' · '+group.items.length+' kanjis';
+  document.getElementById('msg').textContent = '';
+
+  // Chips (kanjis, orden aleatorio)
+  currentChipOrder = shuffle(currentItems.map(function(_,i){return i;}));
+  var cw = document.getElementById('chips-wrap');
+  cw.innerHTML = currentChipOrder.map(function(pi,cp){
+    return '<div class="chip" id="chip-'+cp+'">'+currentItems[pi].kanji+'</div>';
+  }).join('');
+  cw.querySelectorAll('.chip').forEach(function(el){
+    el.addEventListener('click',function(){selectChip(+el.id.replace('chip-',''));});
+  });
+
+  // Targets (conceptos, en orden original)
+  var tw = document.getElementById('targets-wrap');
+  tw.innerHTML = currentItems.map(function(it,ti){
+    return '<div class="target" id="target-'+ti+'">'+
+      '<div class="t-concept">'+it.concept+'</div>'+
+      '<div class="t-placed" id="placed-'+ti+'"></div>'+
+    '</div>';
+  }).join('');
+  tw.querySelectorAll('.target').forEach(function(el){
+    el.addEventListener('click',function(){placeChip(+el.id.replace('target-',''));});
+  });
+
+  renderMatchActions();
+}
+
+function renderMatchActions(){
+  var qa = document.getElementById('quiz-actions');
+  qa.innerHTML = '';
+  var b1 = document.createElement('button');
+  b1.className='primary'; b1.textContent='Revisar respuestas';
+  b1.addEventListener('click',checkMatchRound);
+  var b2 = document.createElement('button');
+  b2.textContent='No sé los que faltan';
+  b2.addEventListener('click',skipUnplaced);
+  qa.appendChild(b1); qa.appendChild(b2);
+}
+
+function selectChip(cp){
+  if(roundChecked)return;
+  var el = document.getElementById('chip-'+cp);
+  if(!el||el.classList.contains('used'))return;
+  var was = selectedChipIdx===cp;
+  document.querySelectorAll('.chip').forEach(function(c){c.classList.remove('selected');});
+  if(was){selectedChipIdx=null;return;}
+  el.classList.add('selected'); selectedChipIdx=cp;
+}
+
+function placeChip(ti){
+  if(roundChecked)return;
+  if(selectedChipIdx===null){
+    if(placements[ti]!==undefined){
+      var cp=placements[ti];
+      document.getElementById('placed-'+ti).textContent='';
+      document.getElementById('chip-'+cp).classList.remove('used');
+      delete placements[ti];
+    }
+    return;
+  }
+  var prevT=null;
+  Object.keys(placements).forEach(function(k){if(placements[k]===selectedChipIdx)prevT=k;});
+  if(prevT!==null){document.getElementById('placed-'+prevT).textContent='';delete placements[prevT];}
+  var displaced=placements[ti];
+  if(displaced!==undefined)document.getElementById('chip-'+displaced).classList.remove('used');
+  placements[ti]=selectedChipIdx;
+  document.getElementById('placed-'+ti).textContent=currentItems[currentChipOrder[selectedChipIdx]].kanji;
+  document.getElementById('chip-'+selectedChipIdx).classList.add('used');
+  selectedChipIdx=null;
+  document.querySelectorAll('.chip').forEach(function(c){c.classList.remove('selected');});
+}
+
+function skipUnplaced(){
+  if(roundChecked)return;
+  currentItems.forEach(function(_,ti){if(placements[ti]===undefined)placements[ti]=-1;});
+  checkMatchRound();
+}
+
+function checkMatchRound(){
+  if(roundChecked)return;
+  var allSet=currentItems.every(function(_,ti){return placements[ti]!==undefined;});
+  if(!allSet){document.getElementById('msg').textContent='Coloca todos los kanjis o presiona "No sé los que faltan".';return;}
+  roundChecked=true;
+
+  var gIdx = sessionOrder[currentGroupIdx];
+  var group = groups[gIdx];
+  var wrongs=0;
+
+  currentItems.forEach(function(it,ti){
+    var cp=placements[ti], skipped=cp===-1;
+    var pi=skipped?-1:currentChipOrder[cp];
+    var ok=!skipped&&pi===ti;
+    var tgt=document.getElementById('target-'+ti);
+    var chp=skipped?null:document.getElementById('chip-'+cp);
+
+    if(ok){
+      tgt.classList.add('correct');
+      if(chp)chp.classList.add('correct');
+    } else {
+      wrongs++;
+      tgt.classList.add('wrong');
+      if(chp)chp.classList.add('wrong-chip');
+      // Registrar error
+      groupErrors[group.id].wrong++;
+      groupErrors[group.id].confusions.push({
+        kanji: it.kanji,
+        answeredKanji: skipped?'(sin respuesta)':(currentItems[pi]?currentItems[pi].kanji:'?')
+      });
+      var pl=document.getElementById('placed-'+ti);
+      pl.innerHTML=skipped
+        ?'<span style="color:var(--color-wrong);font-size:13px;display:block;margin-bottom:2px;">sin respuesta</span><span style="color:var(--color-correct);font-size:16px;">✓ '+it.kanji+'</span>'
+        :'<span style="color:var(--color-wrong);text-decoration:line-through;font-size:13px;display:block;margin-bottom:2px;">'+currentItems[pi].kanji+'</span><span style="color:var(--color-correct);font-size:16px;">✓ '+it.kanji+'</span>';
+    }
+  });
+
+  document.getElementById('msg').textContent = wrongs===0?'¡Todo correcto!':wrongs===1?'1 error.':wrongs+' errores.';
+
+  var qa = document.getElementById('quiz-actions');
+  qa.innerHTML='';
+
+  // Botón continuar (siempre presente después de revisar)
+  var btnNext=document.createElement('button');
+  btnNext.className='primary';
+  btnNext.textContent=getNextLabel();
+  btnNext.addEventListener('click',advanceAfterGroup);
+  qa.appendChild(btnNext);
+
+  if(wrongs>0){
+    // Repetir es opcional: aparece como segunda opción
+    var btnRepeat=document.createElement('button');
+    btnRepeat.textContent='↩ Repetir este grupo';
+    btnRepeat.addEventListener('click',function(){
+      // Limpiar errores de este grupo para no duplicar al repetir
+      groupErrors[group.id].wrong=0;
+      groupErrors[group.id].confusions=[];
+      renderMatchRound();
+    });
+    qa.appendChild(btnRepeat);
+  }
+}
+
+function getNextLabel(){
+  var nextIdx = currentGroupIdx+1;
+  var isLastGroup = nextIdx >= sessionOrder.length;
+  // ¿Se activa ronda difícil después de este grupo?
+  if(shouldTriggerHard(currentGroupIdx+1)){
+    return isLastGroup?'Ronda difícil final →':'Ronda difícil →';
+  }
+  return isLastGroup?'Ver resultados →':'Siguiente grupo →';
+}
+
+function shouldTriggerHard(groupsCompleted){
+  if(challengeEvery===0) return false;
+  if(challengeEvery===999) return groupsCompleted === sessionOrder.length;
+  return groupsCompleted % challengeEvery === 0;
+}
+
+function advanceAfterGroup(){
+  var groupsCompleted = currentGroupIdx+1;
+  currentGroupIdx++;
+  var isLast = currentGroupIdx >= sessionOrder.length;
+
+  if(shouldTriggerHard(groupsCompleted)){
+    // Construir ronda difícil con los grupos recién practicados
+    var startIdx = groupsCompleted - (challengeEvery===999?groupsCompleted:Math.min(challengeEvery,groupsCompleted));
+    var hardGroupIdxs = sessionOrder.slice(startIdx, groupsCompleted);
+    var hardGroupItems = [];
+    hardGroupIdxs.forEach(function(gi){
+      groups[gi].items.forEach(function(it){ hardGroupItems.push(it); });
+    });
+    startHardRound(hardGroupItems, isLast);
+  } else if(isLast){
+    showSummary();
+  } else {
+    renderMatchRound();
+  }
+}
+
+// ==================== RONDA DIFÍCIL ====================
+function startHardRound(poolItems, isFinalRound){
+  // Una pregunta por kanji: ¿Cuál significa X? — opciones son el grupo del kanji
+  hardQuestions = [];
+  poolItems.forEach(function(it){
+    // Distractores: otros kanjis del mismo grupo
+    var gId = it.group;
+    var sameGroup = items.filter(function(x){return x.group===gId && x.kanji!==it.kanji;});
+    // Si hay menos de 2 distractores, completar con items de otros grupos
+    var distractors = shuffle(sameGroup).slice(0,3);
+    while(distractors.length < 2){
+      var extra = items.filter(function(x){
+        return x.kanji!==it.kanji && !distractors.some(function(d){return d.kanji===x.kanji;});
+      });
+      if(!extra.length) break;
+      distractors.push(extra[Math.floor(Math.random()*extra.length)]);
+    }
+    var opts = shuffle([it].concat(distractors.slice(0,3)));
+    hardQuestions.push({target:it, options:opts, answered:false, correct:false});
+  });
+  hardQuestions = shuffle(hardQuestions);
+
+  hardAnswered=0; hardErrors=0;
+  var isLast = isFinalRound;
+
+  renderHardRound(isLast);
+}
+
+function renderHardRound(isFinalRound){
+  show('screen-hard');
+  document.getElementById('hard-prog-bar').style.width='0%';
+  document.getElementById('hard-prog-txt').textContent='0 de '+hardQuestions.length+' respondidas';
+
+  var wrap = document.getElementById('hard-questions-wrap');
+  wrap.innerHTML = hardQuestions.map(function(q,qi){
+    var optsHtml = q.options.map(function(opt){
+      return '<button class="hard-opt" data-qi="'+qi+'" data-kanji="'+esc(opt.kanji)+'">'+opt.kanji+'</button>';
+    }).join('');
+    return '<div class="hard-question" id="hq-'+qi+'">'+
+      '<div class="qtext">¿Cuál significa <strong>«'+q.target.concept+'»</strong>?</div>'+
+      '<div class="hard-options">'+optsHtml+'</div>'+
+      '<div class="hard-feedback" id="hfb-'+qi+'"></div>'+
+    '</div>';
+  }).join('');
+
+  wrap.querySelectorAll('.hard-opt').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      answerHard(+btn.dataset.qi, btn.dataset.kanji);
+    });
+  });
+
+  var ha = document.getElementById('hard-actions');
+  ha.innerHTML = '';
+  var btn = document.createElement('button');
+  btn.className='primary';
+  btn.textContent = isFinalRound?'Ver resultados →':(currentGroupIdx>=sessionOrder.length?'Ver resultados →':'Continuar →');
+  btn.disabled=true;
+  btn.id='hard-continue-btn';
+  btn.addEventListener('click',function(){
+    if(isFinalRound || currentGroupIdx>=sessionOrder.length){
+      showSummary();
+    } else {
+      renderMatchRound();
+    }
+  });
+  ha.appendChild(btn);
+}
+
+function answerHard(qi, answeredKanji){
+  var q = hardQuestions[qi];
+  if(q.answered) return;
+  q.answered=true;
+  hardAnswered++;
+
+  var correct = answeredKanji===q.target.kanji;
+  q.correct=correct;
+  if(!correct) hardErrors++;
+
+  // UI feedback
+  var qEl = document.getElementById('hq-'+qi);
+  qEl.querySelectorAll('.hard-opt').forEach(function(btn){
+    btn.disabled=true;
+    if(btn.dataset.kanji===q.target.kanji) btn.classList.add('opt-correct');
+    else if(btn.dataset.kanji===answeredKanji && !correct) btn.classList.add('opt-wrong');
+  });
+
+  var fb = document.getElementById('hfb-'+qi);
+  if(correct){
+    fb.textContent='✓ Correcto';
+    fb.className='hard-feedback ok';
+  } else {
+    fb.textContent='✗ Era '+q.target.kanji+' ('+q.target.concept+')';
+    fb.className='hard-feedback ko';
+    // Registrar en confusiones
+    var gid = q.target.group;
+    if(!groupErrors[gid]) groupErrors[gid]={total:0,wrong:0,confusions:[]};
+    groupErrors[gid].confusions.push({kanji:q.target.kanji, answeredKanji:answeredKanji});
+  }
+
+  // Progreso
+  var pct=Math.round((hardAnswered/hardQuestions.length)*100);
+  document.getElementById('hard-prog-bar').style.width=pct+'%';
+  document.getElementById('hard-prog-txt').textContent=hardAnswered+' de '+hardQuestions.length+' respondidas';
+
+  if(hardAnswered===hardQuestions.length){
+    document.getElementById('hard-continue-btn').disabled=false;
+  }
+}
+
+// ==================== RESUMEN ====================
+function showSummary(){
+  // Overall
+  var totalGroups = groups.length;
+  var perfectGroups = 0;
+  var totalItems = items.length;
+  var totalWrong = 0;
+
+  groups.forEach(function(g){
+    var ge = groupErrors[g.id];
+    if(ge && ge.wrong===0) perfectGroups++;
+    if(ge) totalWrong += ge.wrong;
+  });
+
+  var overallEl = document.getElementById('summary-overall');
+  if(totalWrong===0){
+    overallEl.innerHTML='<p style="color:var(--color-correct);font-weight:600;font-size:1rem;">¡Sin errores en ningún grupo! 🎉</p>';
+  } else {
+    overallEl.innerHTML='<p style="font-size:1rem;color:#333;font-weight:600;">'+perfectGroups+' de '+totalGroups+' grupos perfectos</p>'+
+      '<p style="font-size:0.85rem;color:#888;margin-top:4px;">'+totalWrong+' error(es) en el matching</p>';
+  }
+
+  // Por grupo
+  var gsEl = document.getElementById('summary-groups');
+  gsEl.innerHTML = groups.map(function(g){
+    var ge = groupErrors[g.id]||{total:g.items.length,wrong:0};
+    var pct = ge.total>0?Math.round(((ge.total-ge.wrong)/ge.total)*100):100;
+    var color = pct===100?'var(--color-correct)':pct>=60?'#e27c90':'var(--color-wrong)';
+    var kanjis = g.items.map(function(it){return it.kanji;}).join(' ');
+    return '<div class="group-stat">'+
+      '<div>'+
+        '<div class="gs-name">'+kanjis+'</div>'+
+        '<div style="font-size:0.75rem;color:#aaa;margin-top:2px;">Grupo '+g.id+'</div>'+
+      '</div>'+
+      '<div class="gs-pct" style="color:'+color+'">'+pct+'%</div>'+
+    '</div>';
+  }).join('');
+
+  // Confusiones frecuentes
+  var confEl = document.getElementById('summary-confusions');
+  var allConf = [];
+  groups.forEach(function(g){
+    var ge = groupErrors[g.id];
+    if(ge && ge.confusions.length){
+      ge.confusions.forEach(function(c){
+        allConf.push({correct:c.kanji, answered:c.answeredKanji});
+      });
+    }
+  });
+  // Agrupar por par
+  var confMap={};
+  allConf.forEach(function(c){
+    var key=c.answered+'→'+c.correct;
+    if(!confMap[key]) confMap[key]={pair:c,count:0};
+    confMap[key].count++;
+  });
+  var confList = Object.keys(confMap).map(function(k){return confMap[k];}).sort(function(a,b){return b.count-a.count;});
+
+  if(!confList.length){
+    confEl.innerHTML='<p style="color:var(--color-correct);font-size:0.9rem;">Sin confusiones registradas.</p>';
+  } else {
+    confEl.innerHTML = confList.slice(0,8).map(function(c){
+      return '<div class="err-item">'+
+        '<span style="font-size:18px;font-weight:700;">'+c.pair.answered+'</span>'+
+        '<span style="color:#aaa;margin:0 8px;font-size:13px;">confundido con</span>'+
+        '<span style="font-size:18px;font-weight:700;">'+c.pair.correct+'</span>'+
+        (c.count>1?'<span style="color:#aaa;font-size:12px;margin-left:8px;">×'+c.count+'</span>':'')+
+      '</div>';
+    }).join('');
+  }
+
+  // Botón practicar errores
+  var errGroupIds = [];
+  groups.forEach(function(g){
+    if(groupErrors[g.id]&&groupErrors[g.id].wrong>0) errGroupIds.push(g.id);
+  });
+  var btnErr = document.getElementById('btn-practice-errors');
+  if(errGroupIds.length>0){
+    btnErr.style.display='';
+    btnErr.textContent='Practicar grupos con errores ('+errGroupIds.length+')';
+    btnErr.onclick=function(){
+      var errGroups = groups.filter(function(g){return errGroupIds.indexOf(g.id)>-1;});
+      startQuiz(errGroups);
+    };
+  } else {
+    btnErr.style.display='none';
+  }
+
+  show('screen-summary');
+}
+
+// ==================== WIRING ====================
+document.getElementById('btn-add-one').addEventListener('click',function(){
+  var k=document.getElementById('new-kanji').value.trim();
+  var g=parseInt(document.getElementById('new-group').value);
+  var c=document.getElementById('new-concept').value.trim();
+  if(!k||!g||!c)return;
+  items.push({kanji:k,group:g,concept:c});
+  document.getElementById('new-kanji').value='';
+  document.getElementById('new-group').value='';
+  document.getElementById('new-concept').value='';
+  renderEditor();
+  document.getElementById('item-list').scrollTop=99999;
+});
+
+document.getElementById('bulk-toggle').addEventListener('click',function(){
+  var area=document.getElementById('bulk-area');
+  var open=area.classList.toggle('open');
+  this.textContent=(open?'▾':'▸')+' Agregar en masa (punto y coma)';
+});
+
+document.getElementById('btn-bulk-add').addEventListener('click',function(){
+  var parsed=parseBulk();
+  var msg=document.getElementById('bulk-msg');
+  if(!parsed||!parsed.length){msg.style.color='var(--color-wrong)';msg.textContent='No se encontraron entradas válidas.';return;}
+  var added=0;
+  parsed.forEach(function(p){
+    if(!items.some(function(x){return x.kanji===p.kanji&&x.group===p.group;})){items.push(p);added++;}
+  });
+  msg.style.color='var(--color-correct)';msg.textContent=added+' kanji(s) agregado(s).';
+  document.getElementById('bulk-input').value='';
+  renderEditor();
+});
+
+document.getElementById('start-btn').addEventListener('click',function(){startQuiz();});
+document.getElementById('btn-go-editor').addEventListener('click',function(){show('screen-editor');renderEditor();});
+document.getElementById('btn-volver-inicio').addEventListener('click',function(){show('screen-editor');renderEditor();});
+document.getElementById('btn-restart').addEventListener('click',function(){startQuiz();});
+document.getElementById('btn-summary-edit').addEventListener('click',function(){show('screen-editor');renderEditor();});
+
+renderEditor();
+</script>
+</body>
+</html>
