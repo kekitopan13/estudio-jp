@@ -1,0 +1,1314 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Deep Vocab</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;700;900&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+  :root {
+    --bg: #f5f2ee;
+    --card: #ffffff;
+    --ink: #1a1612;
+    --ink-soft: #6b6460;
+    --ink-faint: #b8b2ac;
+    --accent: #c9704a;
+    --accent-light: #f5e8e2;
+    --accent-dark: #a8573a;
+    --green: #3a7a5a;
+    --green-light: #e4f0ea;
+    --red: #c94a4a;
+    --red-light: #f5e2e2;
+    --purple: #7a5aa0;
+    --purple-light: #ede8f5;
+    --border: #e0dad4;
+    --shadow: 0 2px 16px rgba(0,0,0,0.08);
+    --font-jp: 'Zen Kaku Gothic New', sans-serif;
+    --font-ui: 'DM Sans', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: var(--font-ui);
+    background: var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px 16px 48px;
+  }
+
+  /* ── TOP NAV ── */
+  .top-nav {
+    width: 100%;
+    max-width: 520px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 28px;
+  }
+  .app-logo {
+    font-family: var(--font-jp);
+    font-weight: 900;
+    font-size: 1.1rem;
+    color: var(--ink);
+    letter-spacing: 0.02em;
+  }
+  .app-logo span { color: var(--accent); }
+  .back-link {
+    font-size: 0.8rem;
+    color: var(--ink-soft);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .back-link:hover { color: var(--accent); }
+
+  /* ── SETUP ── */
+  #setup { width: 100%; max-width: 520px; }
+
+  .setup-intro {
+    margin-bottom: 24px;
+  }
+  .setup-intro h2 {
+    font-family: var(--font-jp);
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--ink);
+    margin-bottom: 4px;
+  }
+  .setup-intro p {
+    font-size: 0.82rem;
+    color: var(--ink-soft);
+    line-height: 1.5;
+  }
+
+  textarea {
+    width: 100%;
+    height: 180px;
+    background: var(--card);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    color: var(--ink);
+    padding: 14px 16px;
+    font-size: 0.88rem;
+    font-family: var(--font-ui);
+    resize: vertical;
+    line-height: 1.8;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  textarea:focus { border-color: var(--accent); }
+  textarea::placeholder { color: var(--ink-faint); }
+
+  .error-msg { color: var(--red); font-size: 0.82rem; margin-top: 6px; }
+
+  /* ── FIELD GROUP ── */
+  .field { margin-top: 20px; }
+  .field-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-soft);
+    margin-bottom: 8px;
+    display: block;
+  }
+
+  /* ── PILL TOGGLE ── */
+  .pill-group { display: flex; gap: 6px; flex-wrap: wrap; }
+  .pill {
+    background: var(--card);
+    border: 1.5px solid var(--border);
+    border-radius: 99px;
+    padding: 7px 16px;
+    font-size: 0.85rem;
+    font-family: var(--font-ui);
+    color: var(--ink-soft);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .pill:hover { border-color: var(--accent); color: var(--accent); }
+  .pill.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    font-weight: 500;
+  }
+
+  /* ── TOGGLE SWITCH ── */
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--card);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 13px 16px;
+  }
+  .toggle-row-label {
+    font-size: 0.88rem;
+    color: var(--ink);
+  }
+  .toggle-row-sub {
+    font-size: 0.75rem;
+    color: var(--ink-soft);
+    margin-top: 1px;
+  }
+  .switch {
+    position: relative;
+    width: 44px;
+    height: 24px;
+    flex-shrink: 0;
+  }
+  .switch input { display: none; }
+  .switch-track {
+    position: absolute;
+    inset: 0;
+    background: var(--border);
+    border-radius: 99px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .switch input:checked + .switch-track { background: var(--accent); }
+  .switch-track::after {
+    content: '';
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    background: white;
+    border-radius: 50%;
+    top: 3px;
+    left: 3px;
+    transition: transform 0.2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+  .switch input:checked + .switch-track::after { transform: translateX(20px); }
+
+  /* ── START BTN ── */
+  .btn-start {
+    margin-top: 24px;
+    width: 100%;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: 15px;
+    font-size: 1rem;
+    font-family: var(--font-ui);
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+    letter-spacing: 0.02em;
+  }
+  .btn-start:hover { background: var(--accent-dark); }
+  .btn-start:active { transform: scale(0.99); }
+
+  /* ── PROGRESS ── */
+  #progress-bar-wrap {
+    width: 100%;
+    max-width: 520px;
+    margin-bottom: 16px;
+    display: none;
+  }
+  .progress-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  .phase-label { font-size: 0.75rem; color: var(--ink-soft); }
+  .progress-actions { display: flex; gap: 14px; }
+  .progress-actions button {
+    font-size: 0.75rem;
+    color: var(--ink-soft);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    font-family: var(--font-ui);
+  }
+  .progress-actions button:hover { color: var(--accent); }
+  .bar-bg { background: var(--border); border-radius: 99px; height: 4px; }
+  .bar-fill { height: 4px; border-radius: 99px; background: var(--accent); transition: width 0.3s ease; }
+
+  /* ── CARD ── */
+  #card {
+    width: 100%;
+    max-width: 520px;
+    background: var(--card);
+    border-radius: 20px;
+    padding: 24px 20px;
+    display: none;
+    box-shadow: var(--shadow);
+  }
+
+  .phase-badge {
+    display: inline-block;
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    background: var(--accent-light);
+    color: var(--accent);
+    border-radius: 99px;
+    padding: 3px 11px;
+    margin-bottom: 18px;
+  }
+
+  .q-label {
+    font-size: 0.75rem;
+    color: var(--ink-faint);
+    margin-bottom: 6px;
+  }
+  .q-text {
+    font-family: var(--font-jp);
+    font-size: clamp(1.8rem, 8vw, 2.6rem);
+    font-weight: 700;
+    color: var(--ink);
+    margin-bottom: 22px;
+    line-height: 1.2;
+    letter-spacing: 0.03em;
+  }
+  .q-text.is-latin {
+    font-family: var(--font-ui);
+    font-size: clamp(1.2rem, 5vw, 1.8rem);
+    font-weight: 600;
+  }
+
+  /* ── CHOICES ── */
+  .choices {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  @media (max-width: 380px) { .choices { grid-template-columns: 1fr; } }
+
+  .choice-btn {
+    background: var(--bg);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 10px;
+    font-size: 0.95rem;
+    font-family: var(--font-ui);
+    color: var(--ink);
+    cursor: pointer;
+    transition: all 0.12s;
+    text-align: center;
+    line-height: 1.35;
+  }
+  .choice-btn.is-jp { font-family: var(--font-jp); font-size: 1.1rem; }
+  .choice-btn:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-light); }
+  .choice-btn.correct { border-color: var(--green); background: var(--green-light); color: var(--green); font-weight: 500; }
+  .choice-btn.wrong { border-color: var(--red); background: var(--red-light); color: var(--red); }
+  .choice-btn:disabled { cursor: default; }
+
+  /* ── WRITE ── */
+  #write-wrap { display: none; }
+  .write-input {
+    width: 100%;
+    background: var(--bg);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+    font-size: 1.3rem;
+    font-family: var(--font-jp);
+    color: var(--ink);
+    text-align: center;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .write-input:focus { border-color: var(--accent); }
+  .write-input.correct { border-color: var(--green); background: var(--green-light); }
+  .write-input.wrong { border-color: var(--red); background: var(--red-light); }
+  .retry-prompt { margin-top: 8px; font-size: 0.82rem; color: var(--red); display: none; }
+  .btn-submit {
+    margin-top: 10px;
+    width: 100%;
+    background: var(--ink);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 13px;
+    font-size: 0.95rem;
+    font-family: var(--font-ui);
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .btn-submit:hover { background: #333; }
+
+  /* ── WRITE TOGGLE IN SESSION ── */
+  .session-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 14px;
+    padding: 10px 14px;
+    background: var(--bg);
+    border-radius: 10px;
+  }
+  .session-toggle-label {
+    font-size: 0.8rem;
+    color: var(--ink-soft);
+  }
+
+  /* ── FEEDBACK ── */
+  .feedback {
+    margin-top: 14px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    display: none;
+  }
+  .feedback.correct { background: var(--green-light); border: 1px solid #a0cdb5; }
+  .feedback.wrong { background: var(--red-light); border: 1px solid #dba0a0; }
+  .feedback-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 4px;
+  }
+  .feedback.correct .feedback-title { color: var(--green); }
+  .feedback.wrong .feedback-title { color: var(--red); }
+  .feedback-ans { font-size: 1rem; color: var(--ink-soft); }
+
+  /* ── SEMANTIC CHECK ── */
+  #semantic-check {
+    display: none;
+    margin-top: 16px;
+    padding: 14px;
+    background: var(--purple-light);
+    border: 1px solid #c4b0e0;
+    border-radius: 12px;
+  }
+  .semantic-q {
+    font-size: 0.85rem;
+    color: var(--purple);
+    font-weight: 500;
+    margin-bottom: 12px;
+  }
+  .semantic-btns { display: flex; gap: 8px; }
+  .sem-btn {
+    flex: 1;
+    border: 1.5px solid;
+    border-radius: 10px;
+    padding: 11px;
+    font-size: 0.9rem;
+    font-family: var(--font-ui);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+  }
+  .sem-btn-yes {
+    background: transparent;
+    border-color: var(--green);
+    color: var(--green);
+  }
+  .sem-btn-yes:hover { background: var(--green-light); }
+  .sem-btn-no {
+    background: transparent;
+    border-color: var(--red);
+    color: var(--red);
+  }
+  .sem-btn-no:hover { background: var(--red-light); }
+
+  .meaning-reveal {
+    margin-top: 10px;
+    display: none;
+  }
+  .meaning-reveal-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--purple);
+    margin-bottom: 4px;
+  }
+  .meaning-reveal-text {
+    font-size: 1rem;
+    color: var(--ink);
+    font-weight: 500;
+  }
+
+  /* ── NEXT ── */
+  .btn-next {
+    margin-top: 14px;
+    width: 100%;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: 14px;
+    font-size: 1rem;
+    font-family: var(--font-ui);
+    font-weight: 600;
+    cursor: pointer;
+    display: none;
+    transition: background 0.2s;
+  }
+  .btn-next:hover { background: var(--accent-dark); }
+
+  /* ── PHASE TRANSITION ── */
+  #phase-transition {
+    width: 100%;
+    max-width: 520px;
+    background: var(--card);
+    border-radius: 20px;
+    padding: 36px 24px;
+    display: none;
+    text-align: center;
+    box-shadow: var(--shadow);
+  }
+  #phase-transition h2 {
+    font-family: var(--font-jp);
+    font-size: 1.4rem;
+    color: var(--ink);
+    margin-bottom: 8px;
+  }
+  #phase-transition p {
+    font-size: 0.88rem;
+    color: var(--ink-soft);
+    margin-bottom: 22px;
+    line-height: 1.5;
+  }
+
+  /* ── RESULTS ── */
+  #results {
+    width: 100%;
+    max-width: 520px;
+    display: none;
+  }
+  .results-header {
+    margin-bottom: 20px;
+  }
+  .results-header h2 {
+    font-family: var(--font-jp);
+    font-size: 1.4rem;
+    color: var(--ink);
+    margin-bottom: 4px;
+  }
+  .results-stats { font-size: 0.85rem; color: var(--ink-soft); }
+
+  .no-mistakes {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 28px;
+    text-align: center;
+    color: var(--green);
+    font-size: 1rem;
+    font-weight: 500;
+    box-shadow: var(--shadow);
+  }
+
+  .results-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--card);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    font-size: 0.85rem;
+  }
+  .results-table thead tr { background: var(--accent-light); }
+  .results-table th {
+    padding: 10px 12px;
+    text-align: left;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+    font-weight: 700;
+  }
+  .results-table td { padding: 10px 12px; border-bottom: 1px solid var(--bg); vertical-align: middle; }
+  .results-table tbody tr:last-child td { border-bottom: none; }
+  .td-jp { font-family: var(--font-jp); font-size: 1.05rem; font-weight: 700; }
+  .td-ans { color: var(--ink-soft); }
+  .tag { background: var(--accent-light); color: var(--accent); border-radius: 99px; padding: 2px 9px; font-size: 0.7rem; white-space: nowrap; }
+
+  /* ── REINFORCEMENT PROMPT ── */
+  #reinforce-prompt {
+    display: none;
+    background: var(--card);
+    border-radius: 20px;
+    padding: 28px 22px;
+    text-align: center;
+    box-shadow: var(--shadow);
+    margin-top: 20px;
+  }
+  #reinforce-prompt p {
+    font-size: 0.92rem;
+    color: var(--ink);
+    line-height: 1.6;
+    margin-bottom: 18px;
+  }
+  #reinforce-prompt strong { color: var(--accent); }
+
+  /* ── ACTIONS ── */
+  .results-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 18px;
+  }
+  .btn-primary {
+    width: 100%;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: 14px;
+    font-size: 0.95rem;
+    font-family: var(--font-ui);
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .btn-primary:hover { background: var(--accent-dark); }
+  .btn-secondary {
+    width: 100%;
+    background: var(--card);
+    color: var(--ink);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 13px;
+    font-size: 0.95rem;
+    font-family: var(--font-ui);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-danger {
+    width: 100%;
+    background: var(--red-light);
+    color: var(--red);
+    border: 1.5px solid #dba0a0;
+    border-radius: 12px;
+    padding: 13px;
+    font-size: 0.95rem;
+    font-family: var(--font-ui);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-danger:hover { background: #f0d0d0; }
+
+  .divider { height: 1px; background: var(--border); margin: 6px 0; }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<div class="top-nav">
+  <div class="app-logo">Deep<span>Vocab</span></div>
+  <a href="https://kekitopan13.github.io/estudio-jp/" class="back-link">← menú</a>
+</div>
+
+<!-- ══════════════════ SETUP ══════════════════ -->
+<div id="setup">
+  <div class="setup-intro">
+    <h2>Nuevo estudio</h2>
+    <p>Formato: <strong>Palabra;Lectura;Significado</strong> — una entrada por línea.</p>
+  </div>
+
+  <textarea id="vocab-input" placeholder="並ぶ;ならぶ;hacer fila&#10;並べる;ならべる;ordenar en fila&#10;他人;たにん;otra persona"></textarea>
+  <div id="input-error" class="error-msg"></div>
+
+  <div class="field">
+    <label class="field-label">Dirección — alternativas</label>
+    <div class="pill-group">
+      <button class="pill active" id="dir-ps" onclick="selectDir('ps')">Palabra → Significado</button>
+      <button class="pill" id="dir-sp" onclick="selectDir('sp')">Significado → Palabra</button>
+      <button class="pill" id="dir-both" onclick="selectDir('both')">Ambas</button>
+    </div>
+  </div>
+
+  <div class="field">
+    <label class="field-label">Escritura (palabra → lectura)</label>
+    <div class="toggle-row">
+      <div>
+        <div class="toggle-row-label">Activar escritura</div>
+        <div class="toggle-row-sub">Escribir la lectura de cada palabra</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="write-toggle">
+        <div class="switch-track"></div>
+      </label>
+    </div>
+  </div>
+
+  <div class="field">
+    <label class="field-label">Tamaño del grupo</label>
+    <div class="pill-group">
+      <button class="pill active" data-size="5" onclick="selectSize(this)">5</button>
+      <button class="pill" data-size="10" onclick="selectSize(this)">10</button>
+      <button class="pill" data-size="15" onclick="selectSize(this)">15</button>
+      <button class="pill" data-size="20" onclick="selectSize(this)">20</button>
+    </div>
+  </div>
+
+  <button class="btn-start" onclick="startStudy()">Comenzar →</button>
+</div>
+
+<!-- ══════════════════ PROGRESS ══════════════════ -->
+<div id="progress-bar-wrap">
+  <div class="progress-top">
+    <div class="phase-label" id="phase-label"></div>
+    <div class="progress-actions">
+      <button onclick="goToSetup()">← Inicio</button>
+      <button onclick="finishEarly()">Terminar sesión</button>
+    </div>
+  </div>
+  <div class="bar-bg"><div class="bar-fill" id="bar-fill" style="width:0%"></div></div>
+</div>
+
+<!-- ══════════════════ CARD ══════════════════ -->
+<div id="card">
+  <div class="phase-badge" id="phase-badge"></div>
+  <div class="q-label" id="q-label"></div>
+  <div class="q-text" id="q-text"></div>
+
+  <div id="choices-wrap" class="choices"></div>
+
+  <div id="write-wrap">
+    <input type="text" class="write-input" id="write-input"
+      placeholder="Escribe la lectura..." autocomplete="off" autocorrect="off"
+      autocapitalize="off" spellcheck="false">
+    <p class="retry-prompt" id="retry-prompt">✗ Incorrecto. Intenta de nuevo:</p>
+    <button class="btn-submit" id="submit-write-btn" onclick="checkWrite()">Confirmar</button>
+  </div>
+
+  <div class="feedback" id="feedback">
+    <div class="feedback-title" id="feedback-title"></div>
+    <div class="feedback-ans" id="feedback-ans"></div>
+  </div>
+
+  <div id="semantic-check">
+    <div class="semantic-q">¿Recuerdas el significado?</div>
+    <div class="semantic-btns">
+      <button class="sem-btn sem-btn-yes" onclick="semanticAnswer(true)">✓ Sí</button>
+      <button class="sem-btn sem-btn-no" onclick="semanticAnswer(false)">✗ No</button>
+    </div>
+    <div class="meaning-reveal" id="meaning-reveal">
+      <div class="meaning-reveal-label">Significado</div>
+      <div class="meaning-reveal-text" id="meaning-reveal-text"></div>
+    </div>
+  </div>
+
+  <!-- Write toggle during session -->
+  <div class="session-toggle" id="session-toggle" style="display:none">
+    <span class="session-toggle-label">Escritura</span>
+    <label class="switch">
+      <input type="checkbox" id="session-write-toggle" onchange="toggleSessionWrite(this)">
+      <div class="switch-track"></div>
+    </label>
+  </div>
+
+  <button class="btn-next" id="next-btn" onclick="nextQuestion()">Siguiente →</button>
+</div>
+
+<!-- ══════════════════ PHASE TRANSITION ══════════════════ -->
+<div id="phase-transition">
+  <h2 id="pt-title"></h2>
+  <p id="pt-desc"></p>
+  <button class="btn-primary" onclick="startPhase()">Continuar →</button>
+</div>
+
+<!-- ══════════════════ RESULTS ══════════════════ -->
+<div id="results">
+  <div class="results-header">
+    <h2>Resultado</h2>
+    <div class="results-stats" id="results-stats"></div>
+  </div>
+  <div id="results-body"></div>
+
+  <div id="reinforce-prompt">
+    <p id="reinforce-text"></p>
+    <div style="display:flex;gap:8px;">
+      <button class="btn-primary" onclick="startReinforcement()">Hacer ronda de refuerzo</button>
+      <button class="btn-secondary" onclick="skipReinforcement()">Omitir</button>
+    </div>
+  </div>
+
+  <div class="results-actions" id="results-actions" style="display:none">
+    <button class="btn-danger" id="btn-repeat-errors" onclick="repeatErrors()" style="display:none">Repetir errores</button>
+    <button class="btn-secondary" onclick="repeatGroup()">Repetir este grupo</button>
+    <div class="divider"></div>
+    <button class="btn-primary" onclick="nextGroup()">Siguiente grupo →</button>
+    <button class="btn-secondary" onclick="goToSetup()">Volver al inicio</button>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════
+let vocab = [];          // [{palabra, lectura, significado}]
+let groupSize = 5;
+let direction = 'ps';    // 'ps' | 'sp' | 'both'
+let writeEnabled = false;
+
+// session
+let currentGroup = [];
+let groupOffset = 0;
+let queue = [];          // items in current round
+let currentItem = null;  // {word, type:'mc'|'write', dir:'ps'|'sp'}
+let currentCorrect = '';
+let answered = false;
+let phase = 'mc';        // 'mc' | 'write'
+let errors = [];         // [{word, correctAns, phase}]
+let weakMeaning = [];    // words where user said "No" to semantic
+let isReinforcement = false;
+let isRepeatErrors = false;
+
+// ══════════════════════════════════════════════
+// PERSISTENCE
+// ══════════════════════════════════════════════
+function savePrefs() {
+  try {
+    localStorage.setItem('dv_dir', direction);
+    localStorage.setItem('dv_write', writeEnabled ? '1' : '0');
+    localStorage.setItem('dv_size', String(groupSize));
+  } catch(e) {}
+}
+function loadPrefs() {
+  try {
+    const d = localStorage.getItem('dv_dir');
+    const w = localStorage.getItem('dv_write');
+    const s = localStorage.getItem('dv_size');
+    if (d) selectDir(d, true);
+    if (w) {
+      writeEnabled = w === '1';
+      document.getElementById('write-toggle').checked = writeEnabled;
+    }
+    if (s) {
+      const btn = document.querySelector(`[data-size="${s}"]`);
+      if (btn) selectSize(btn, true);
+    }
+  } catch(e) {}
+}
+
+// ══════════════════════════════════════════════
+// SETUP CONTROLS
+// ══════════════════════════════════════════════
+function selectDir(d, silent) {
+  direction = d;
+  ['ps','sp','both'].forEach(x => {
+    document.getElementById('dir-'+x).classList.toggle('active', x === d);
+  });
+  if (!silent) savePrefs();
+}
+
+function selectSize(btn, silent) {
+  document.querySelectorAll('[data-size]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  groupSize = parseInt(btn.dataset.size);
+  if (!silent) savePrefs();
+}
+
+document.getElementById('write-toggle').addEventListener('change', function() {
+  writeEnabled = this.checked;
+  savePrefs();
+});
+
+// ══════════════════════════════════════════════
+// PARSE
+// ══════════════════════════════════════════════
+function parseVocab(raw) {
+  return raw.trim().split('\n')
+    .map(l => l.trim()).filter(Boolean)
+    .map(l => {
+      const parts = l.split(';');
+      if (parts.length < 3) return null;
+      return { palabra: parts[0].trim(), lectura: parts[1].trim(), significado: parts[2].trim() };
+    }).filter(Boolean);
+}
+
+// ══════════════════════════════════════════════
+// START
+// ══════════════════════════════════════════════
+function startStudy() {
+  const raw = document.getElementById('vocab-input').value;
+  vocab = parseVocab(raw);
+  const err = document.getElementById('input-error');
+  if (vocab.length < 2) {
+    err.textContent = 'Necesitas al menos 2 entradas válidas (Palabra;Lectura;Significado).';
+    return;
+  }
+  err.textContent = '';
+  groupOffset = 0;
+  errors = [];
+  weakMeaning = [];
+  isReinforcement = false;
+  isRepeatErrors = false;
+  loadGroup();
+}
+
+function loadGroup() {
+  currentGroup = vocab.slice(groupOffset, groupOffset + groupSize);
+  startMCPhase();
+}
+
+// ══════════════════════════════════════════════
+// BUILD QUEUE
+// ══════════════════════════════════════════════
+function buildMCQueue(words) {
+  const q = [];
+  words.forEach(w => {
+    if (direction === 'both') {
+      q.push({word: w, type: 'mc', dir: 'ps'});
+      q.push({word: w, type: 'mc', dir: 'sp'});
+    } else {
+      q.push({word: w, type: 'mc', dir: direction});
+    }
+  });
+  return shuffle(q);
+}
+
+function buildWriteQueue(words) {
+  return shuffle(words.map(w => ({word: w, type: 'write', dir: 'pw'})));
+}
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// ══════════════════════════════════════════════
+// PHASES
+// ══════════════════════════════════════════════
+function startMCPhase() {
+  phase = 'mc';
+  queue = buildMCQueue(currentGroup);
+  errors = [];
+  weakMeaning = [];
+  show('card');
+  hide('setup');
+  hide('results');
+  hide('phase-transition');
+  updateSessionToggle();
+  nextQuestion();
+}
+
+function startWritePhase() {
+  phase = 'write';
+  queue = buildWriteQueue(currentGroup);
+  startPhase();
+}
+
+function startPhase() {
+  hide('phase-transition');
+  show('card');
+  nextQuestion();
+}
+
+function startReinforcement() {
+  isReinforcement = true;
+  weakMeaning = [...new Map(weakMeaning.map(w => [w.palabra, w])).values()];
+  if (weakMeaning.length < 2) {
+    // pad with random from group
+    const extra = shuffle(currentGroup.filter(w => !weakMeaning.find(x => x.palabra === w.palabra)));
+    weakMeaning.push(...extra.slice(0, 4 - weakMeaning.length));
+  }
+  phase = 'mc';
+  queue = buildMCQueue(weakMeaning);
+  hide('results');
+  show('card');
+  document.getElementById('phase-badge').textContent = '⟳ Refuerzo semántico';
+  updateProgress();
+  nextQuestion();
+}
+
+function skipReinforcement() {
+  hide('reinforce-prompt');
+  showResults();
+}
+
+// ══════════════════════════════════════════════
+// QUESTIONS
+// ══════════════════════════════════════════════
+function nextQuestion() {
+  if (queue.length === 0) {
+    handlePhaseEnd();
+    return;
+  }
+  currentItem = queue.shift();
+  answered = false;
+
+  const choicesWrap = document.getElementById('choices-wrap');
+  const writeWrap = document.getElementById('write-wrap');
+  const feedback = document.getElementById('feedback');
+  const semanticCheck = document.getElementById('semantic-check');
+  const nextBtn = document.getElementById('next-btn');
+  const meaningReveal = document.getElementById('meaning-reveal');
+
+  feedback.style.display = 'none';
+  semanticCheck.style.display = 'none';
+  meaningReveal.style.display = 'none';
+  nextBtn.style.display = 'none';
+  feedback.className = 'feedback';
+
+  updateProgress();
+
+  if (currentItem.type === 'mc') {
+    hide('write-wrap');
+    choicesWrap.style.display = 'grid';
+    renderMC();
+  } else {
+    choicesWrap.style.display = 'none';
+    show('write-wrap');
+    renderWrite();
+  }
+}
+
+function renderMC() {
+  const w = currentItem.word;
+  const dir = currentItem.dir;
+  const qtxt = document.getElementById('q-text');
+  const qlbl = document.getElementById('q-label');
+  const badge = document.getElementById('phase-badge');
+
+  if (dir === 'ps') {
+    qlbl.textContent = 'Escoge el significado:';
+    qtxt.textContent = w.palabra;
+    qtxt.className = 'q-text';
+    currentCorrect = w.significado;
+    badge.textContent = isReinforcement ? '⟳ Refuerzo' : '読 Palabra → Significado';
+  } else {
+    qlbl.textContent = 'Escoge la palabra:';
+    qtxt.textContent = w.significado;
+    qtxt.className = 'q-text is-latin';
+    currentCorrect = w.palabra;
+    badge.textContent = isReinforcement ? '⟳ Refuerzo' : '意 Significado → Palabra';
+  }
+
+  const pool = currentItem.dir === 'ps'
+    ? vocab.map(x => x.significado)
+    : vocab.map(x => x.palabra);
+  const distractors = pool.filter(s => s !== currentCorrect);
+  const choices = shuffle([currentCorrect, ...shuffle(distractors).slice(0, 3)]);
+
+  const wrap = document.getElementById('choices-wrap');
+  wrap.innerHTML = '';
+  choices.forEach(c => {
+    const btn = document.createElement('button');
+    btn.className = 'choice-btn' + (dir === 'sp' ? ' is-jp' : '');
+    btn.textContent = c;
+    btn.onclick = () => checkMC(btn, c);
+    wrap.appendChild(btn);
+  });
+}
+
+function renderWrite() {
+  const w = currentItem.word;
+  const badge = document.getElementById('phase-badge');
+  badge.textContent = '書 Escritura — lectura';
+  document.getElementById('q-label').textContent = 'Escribe la lectura:';
+  const qtxt = document.getElementById('q-text');
+  qtxt.textContent = w.palabra;
+  qtxt.className = 'q-text';
+  currentCorrect = w.lectura;
+
+  const input = document.getElementById('write-input');
+  input.value = '';
+  input.className = 'write-input';
+  document.getElementById('retry-prompt').style.display = 'none';
+  input.focus();
+}
+
+// ══════════════════════════════════════════════
+// CHECK
+// ══════════════════════════════════════════════
+function checkMC(btn, chosen) {
+  if (answered) return;
+  answered = true;
+
+  const allBtns = document.querySelectorAll('.choice-btn');
+  allBtns.forEach(b => { b.disabled = true; });
+
+  if (chosen === currentCorrect) {
+    btn.classList.add('correct');
+    showFeedback(true, '');
+    showSemanticCheck();
+  } else {
+    btn.classList.add('wrong');
+    allBtns.forEach(b => { if (b.textContent === currentCorrect) b.classList.add('correct'); });
+    recordError('mc');
+    showFeedback(false, currentCorrect);
+    showSemanticCheck();
+  }
+}
+
+function checkWrite() {
+  if (answered) return;
+  const input = document.getElementById('write-input');
+  const val = input.value.trim();
+  if (!val) return;
+
+  if (val === currentCorrect) {
+    answered = true;
+    input.className = 'write-input correct';
+    document.getElementById('submit-write-btn').style.display = 'none';
+    document.getElementById('retry-prompt').style.display = 'none';
+    showFeedback(true, '');
+    showNextBtn();
+  } else {
+    input.className = 'write-input wrong';
+    document.getElementById('retry-prompt').style.display = 'block';
+    setTimeout(() => {
+      input.value = '';
+      input.className = 'write-input';
+      input.focus();
+    }, 800);
+  }
+}
+
+document.getElementById('write-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') checkWrite();
+});
+
+// ══════════════════════════════════════════════
+// FEEDBACK
+// ══════════════════════════════════════════════
+function showFeedback(correct, correctAns) {
+  const fb = document.getElementById('feedback');
+  const title = document.getElementById('feedback-title');
+  const ans = document.getElementById('feedback-ans');
+  fb.className = 'feedback ' + (correct ? 'correct' : 'wrong');
+  title.textContent = correct ? '✓ Correcto' : '✗ Incorrecto';
+  ans.textContent = correct ? '' : correctAns;
+  fb.style.display = 'block';
+}
+
+// ══════════════════════════════════════════════
+// SEMANTIC CHECK
+// ══════════════════════════════════════════════
+function showSemanticCheck() {
+  document.getElementById('semantic-check').style.display = 'block';
+}
+
+function semanticAnswer(remembered) {
+  const w = currentItem.word;
+  const meaning = document.getElementById('meaning-reveal');
+  const txt = document.getElementById('meaning-reveal-text');
+
+  if (!remembered) {
+    weakMeaning.push(w);
+    txt.textContent = w.significado;
+    meaning.style.display = 'block';
+  }
+
+  // hide buttons
+  document.querySelectorAll('.sem-btn').forEach(b => b.disabled = true);
+  showNextBtn();
+}
+
+// ══════════════════════════════════════════════
+// NEXT
+// ══════════════════════════════════════════════
+function showNextBtn() {
+  document.getElementById('next-btn').style.display = 'block';
+}
+
+// ══════════════════════════════════════════════
+// ERRORS
+// ══════════════════════════════════════════════
+function recordError(type) {
+  errors.push({
+    word: currentItem.word,
+    correctAns: currentCorrect,
+    phase: type === 'mc' ? 'Alternativas' : 'Escritura'
+  });
+}
+
+// ══════════════════════════════════════════════
+// PHASE END
+// ══════════════════════════════════════════════
+function handlePhaseEnd() {
+  hide('card');
+
+  if (phase === 'mc' && writeEnabled && !isReinforcement && !isRepeatErrors) {
+    const pt = document.getElementById('phase-transition');
+    document.getElementById('pt-title').textContent = 'Fase de escritura';
+    document.getElementById('pt-desc').textContent =
+      `Alternativas completadas. Ahora escribe la lectura de las ${currentGroup.length} palabras.`;
+    show('phase-transition');
+    phase = 'write';
+    queue = buildWriteQueue(currentGroup);
+    return;
+  }
+
+  showResults();
+}
+
+// ══════════════════════════════════════════════
+// PROGRESS
+// ══════════════════════════════════════════════
+function updateProgress() {
+  const wrap = document.getElementById('progress-bar-wrap');
+  wrap.style.display = 'block';
+
+  const total = currentItem
+    ? (isReinforcement ? weakMeaning.length * (direction === 'both' ? 2 : 1)
+      : currentGroup.length * (direction === 'both' ? 2 : 1) * (writeEnabled && !isReinforcement && !isRepeatErrors ? 2 : 1))
+    : 1;
+
+  const done = total - queue.length - 1;
+  const pct = Math.max(0, Math.round((done / total) * 100));
+  document.getElementById('bar-fill').style.width = pct + '%';
+
+  const grpTotal = Math.ceil(vocab.length / groupSize);
+  const grpCurr = Math.floor(groupOffset / groupSize) + 1;
+  document.getElementById('phase-label').textContent =
+    `Grupo ${grpCurr} de ${grpTotal} · ${currentGroup.length} palabras`;
+}
+
+function updateSessionToggle() {
+  const tog = document.getElementById('session-toggle');
+  tog.style.display = 'flex';
+  document.getElementById('session-write-toggle').checked = writeEnabled;
+}
+
+function toggleSessionWrite(el) {
+  writeEnabled = el.checked;
+  savePrefs();
+}
+
+// ══════════════════════════════════════════════
+// RESULTS
+// ══════════════════════════════════════════════
+function showResults() {
+  hide('card');
+  hide('phase-transition');
+  show('results');
+  hide('reinforce-prompt');
+
+  const total = currentGroup.length * (direction === 'both' ? 2 : 1);
+  const errCount = errors.length;
+  const acc = Math.round(((total - errCount) / total) * 100);
+  document.getElementById('results-stats').textContent =
+    `${errCount} errores · ${acc}% precisión`;
+
+  const body = document.getElementById('results-body');
+  if (errors.length === 0) {
+    body.innerHTML = '<div class="no-mistakes">¡Sin errores! 🎉</div>';
+  } else {
+    const table = document.createElement('table');
+    table.className = 'results-table';
+    table.innerHTML = `<thead><tr><th>Palabra</th><th>Respuesta correcta</th><th>Fase</th></tr></thead>`;
+    const tb = document.createElement('tbody');
+    errors.forEach(e => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td class="td-jp">${e.word.palabra}</td><td class="td-ans">${e.correctAns}</td><td><span class="tag">${e.phase}</span></td>`;
+      tb.appendChild(tr);
+    });
+    table.appendChild(tb);
+    body.innerHTML = '';
+    body.appendChild(table);
+  }
+
+  // Reinforce prompt
+  const unique = [...new Map(weakMeaning.map(w => [w.palabra, w])).values()];
+  if (!isReinforcement && unique.length > 0) {
+    const rp = document.getElementById('reinforce-prompt');
+    document.getElementById('reinforce-text').innerHTML =
+      `Hubo <strong>${unique.length}</strong> ${unique.length === 1 ? 'palabra cuyo significado no recordabas' : 'palabras cuyo significado no recordabas'}.<br>¿Quieres hacer una ronda de refuerzo semántico?`;
+    rp.style.display = 'block';
+    document.getElementById('results-actions').style.display = 'none';
+  } else {
+    document.getElementById('reinforce-prompt').style.display = 'none';
+    showResultsActions();
+  }
+}
+
+function showResultsActions() {
+  const act = document.getElementById('results-actions');
+  act.style.display = 'flex';
+  const errBtn = document.getElementById('btn-repeat-errors');
+  errBtn.style.display = errors.length > 0 ? 'block' : 'none';
+}
+
+// ══════════════════════════════════════════════
+// REPEAT / NEXT
+// ══════════════════════════════════════════════
+function repeatErrors() {
+  if (errors.length === 0) return;
+  isRepeatErrors = true;
+  isReinforcement = false;
+  const errWords = [...new Map(errors.map(e => [e.word.palabra, e.word])).values()];
+  currentGroup = errWords;
+  errors = [];
+  weakMeaning = [];
+  hide('results');
+  startMCPhase();
+}
+
+function repeatGroup() {
+  isRepeatErrors = false;
+  isReinforcement = false;
+  errors = [];
+  weakMeaning = [];
+  hide('results');
+  currentGroup = vocab.slice(groupOffset, groupOffset + groupSize);
+  startMCPhase();
+}
+
+function nextGroup() {
+  isRepeatErrors = false;
+  isReinforcement = false;
+  groupOffset += groupSize;
+  if (groupOffset >= vocab.length) groupOffset = 0;
+  errors = [];
+  weakMeaning = [];
+  hide('results');
+  loadGroup();
+}
+
+function repeatErrors() {
+  if (errors.length === 0) return;
+  isRepeatErrors = true;
+  isReinforcement = false;
+  const errWords = [...new Map(errors.map(e => [e.word.palabra, e.word])).values()];
+  currentGroup = errWords;
+  errors = [];
+  weakMeaning = [];
+  hide('results');
+  startMCPhase();
+}
+
+// ══════════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════════
+function goToSetup() {
+  hide('card'); hide('results'); hide('phase-transition');
+  document.getElementById('progress-bar-wrap').style.display = 'none';
+  show('setup');
+}
+
+function finishEarly() {
+  showResults();
+}
+
+// ══════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════
+function show(id) { document.getElementById(id).style.display = 'block'; }
+function hide(id) { document.getElementById(id).style.display = 'none'; }
+
+// ══════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════
+loadPrefs();
+</script>
+</body>
+</html>
