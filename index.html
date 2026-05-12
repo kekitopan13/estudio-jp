@@ -1,159 +1,201 @@
 <!DOCTYPE html>
+
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mis Apps de Japonés</title>
 
-    <!-- Ícono para acceso directo en pantalla de inicio / favicon -->
-    <link rel="apple-touch-icon" sizes="180x180" href="icono.png">
-    <link rel="icon" type="image/png" href="icono.png">
+```
+<link rel="apple-touch-icon" sizes="180x180" href="icono.png">
+<link rel="icon" type="image/png" href="icono.png">
 
-    <!-- Nombre y color de la mini app cuando se guarda en el teléfono -->
-    <meta name="apple-mobile-web-app-title" content="Japonés">
-    <meta name="application-name" content="Japonés">
-    <meta name="theme-color" content="#f5f5f7">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Japonés">
+<meta name="application-name" content="Japonés">
+<meta name="theme-color" content="#f5f5f7">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 
-    <style>
-        * {
-            box-sizing: border-box;
-        }
+<style>
+    * {
+        box-sizing: border-box;
+    }
 
-        body {
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            background-color: #f5f5f7;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            padding: 24px 20px;
-            color: #1d1d1f;
-        }
+    body {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background-color: #f5f5f7;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-height: 100vh;
+        margin: 0;
+        padding: 24px 20px;
+        color: #1d1d1f;
+    }
 
-        h1 {
-            font-size: 1.5rem;
-            margin: 0 0 6px;
-            color: #5b21b6;
-            text-align: center;
-        }
+    h1 {
+        font-size: 1.5rem;
+        margin: 0 0 6px;
+        color: #5b21b6;
+        text-align: center;
+    }
 
-        .subtitle {
-            margin: 0 0 22px;
-            font-size: 0.9rem;
-            color: #666;
-            text-align: center;
-        }
+    .subtitle {
+        margin: 0 0 22px;
+        font-size: 0.9rem;
+        color: #666;
+        text-align: center;
+    }
 
-        .menu-container {
-            width: 100%;
-            max-width: 420px;
-            display: flex;
-            flex-direction: column;
-            gap: 14px;
-        }
+    .menu-container {
+        width: 100%;
+        max-width: 420px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+    }
 
-        .app-card {
-            background: white;
-            padding: 18px 20px;
-            border-radius: 15px;
-            text-decoration: none;
-            color: inherit;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            display: flex;
-            align-items: center;
-            transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
-            border: 1px solid rgba(91, 33, 182, 0.08);
-        }
+    .section-title {
+        font-size: 0.85rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        margin: 10px 4px -4px;
+    }
 
-        .app-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(0,0,0,0.08);
-        }
+    .active-section {
+        color: #5b21b6;
+    }
 
-        .app-card:active {
-            transform: scale(0.98);
-            background: #f0f0f0;
-        }
+    .old-section {
+        color: #999;
+    }
 
-        .icon {
-            font-size: 2rem;
-            margin-right: 15px;
-            flex-shrink: 0;
-        }
+    .app-card {
+        background: white;
+        padding: 18px 20px;
+        border-radius: 15px;
+        text-decoration: none;
+        color: inherit;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        display: flex;
+        align-items: center;
+        transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+        border: 1px solid rgba(91, 33, 182, 0.08);
+    }
 
-        .details b {
-            display: block;
-            font-size: 1.08rem;
-            margin-bottom: 4px;
-        }
+    .app-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+    }
 
-        .details span {
-            display: block;
-            font-size: 0.85rem;
-            color: #666;
-            line-height: 1.35;
-        }
-    </style>
+    .app-card:active {
+        transform: scale(0.98);
+        background: #f0f0f0;
+    }
+
+    .old-card {
+        opacity: 0.72;
+    }
+
+    .old-card:hover {
+        opacity: 1;
+    }
+
+    .icon {
+        font-size: 2rem;
+        margin-right: 15px;
+        flex-shrink: 0;
+    }
+
+    .details b {
+        display: block;
+        font-size: 1.08rem;
+        margin-bottom: 4px;
+    }
+
+    .details span {
+        display: block;
+        font-size: 0.85rem;
+        color: #666;
+        line-height: 1.35;
+    }
+</style>
+```
+
 </head>
 <body>
 
-    <h1>学習メニュー</h1>
-    <p class="subtitle">Ejercicios de japonés</p>
+```
+<h1>学習メニュー</h1>
+<p class="subtitle">Ejercicios de japonés</p>
 
-    <div class="menu-container">
-        <a href="https://kekitopan13.github.io/estudio-jp/falsi_quizlet.html" class="app-card">
-            <div class="icon">🃏</div>
-            <div class="details">
-                <b>Falsi Quizlet</b>
-                <span>Repasar vocabulario con tarjetas y alternativas.</span>
-            </div>
-        </a>
+<div class="menu-container">
 
-        <a href="https://kekitopan13.github.io/estudio-jp/matchup_inline.html" class="app-card">
-            <div class="icon">🧩</div>
-            <div class="details">
-                <b>Matching exercise</b>
-                <span>Unir palabras, lecturas o significados correspondientes.</span>
-            </div>
-        </a>
-
-        <a href="https://kekitopan13.github.io/estudio-jp/kanji_study_complejo.html" class="app-card">
-            <div class="icon">漢</div>
-            <div class="details">
-                <b>Kanji Study</b>
-                <span>Practicar kanji por etapas: memoria, lectura y comprensión.</span>
-            </div>
-        </a>
-
-        <a href="https://kekitopan13.github.io/estudio-jp/falsi_quizlet_ver2.html" class="app-card">
-            <div class="icon">✨</div>
-            <div class="details">
-                <b>Falsi Quizlet v2</b>
-                <span>Repasar vocabulario con modos de estudio más flexibles.</span>
-            </div>
-        </a>
-
-        <a href="https://kekitopan13.github.io/estudio-jp/aprendizaje.html" class="app-card">
-    <div class="icon">📘</div>
-    <div class="details">
-        <b>Para aprender</b>
-        <span>Introducir y practicar palabras nuevas paso a paso.</span>
+    <!-- EN USO -->
+    <div class="section-title active-section">
+        ✨ Ejercicios en uso
     </div>
-</a>
 
-        <a href="https://kekitopan13.github.io/estudio-jp/deep_vocab.html" class="app-card">
-    <div class="icon">🔍</div>
-    <div class="details">
-        <b>Deep Vocab</b>
-        <span>Descripción.</span>
-    </div>
-</a>
+    <a href="https://kekitopan13.github.io/estudio-jp/matchup_inline.html" class="app-card">
+        <div class="icon">🔗</div>
+        <div class="details">
+            <b>Match Up</b>
+            <span>Ejercicio rápido de asociación para practicar pares relacionados mediante matching interactivo. Ideal para vocabulario, kanji, lecturas o conceptos que necesiten reconocimiento y memoria activa.</span>
+        </div>
+    </a>
 
-        
+    <a href="https://kekitopan13.github.io/estudio-jp/aprendizaje.html" class="app-card">
+        <div class="icon">🌱</div>
+        <div class="details">
+            <b>Learning Phase</b>
+            <span>Sistema de aprendizaje progresivo para vocabulario japonés que combina exposición, construcción, lectura y comprensión. Evalúa familiaridad real y refuerza palabras difíciles mediante rondas y desafíos acumulativos.</span>
+        </div>
+    </a>
+
+    <a href="https://kekitopan13.github.io/estudio-jp/deep_vocab.html" class="app-card">
+        <div class="icon">🌊</div>
+        <div class="details">
+            <b>Deep Recall</b>
+            <span>Entrena vocabulario japonés en múltiples direcciones: lectura, escritura y significado. El ejercicio adapta repasos según tus fallos y te ayuda a consolidar palabras de forma profunda.</span>
+        </div>
+    </a>
+
+    <a href="https://kekitopan13.github.io/estudio-jp/kanjis_confusos.html" class="app-card">
+        <div class="icon">🌀</div>
+        <div class="details">
+            <b>Kanjis Confusos</b>
+            <span>Ejercicio de discriminación visual para practicar kanjis similares entre sí. Agrupa familias de confusión y te obliga a distinguir significado, forma y pequeños detalles bajo presión.</span>
+        </div>
+    </a>
+
+    <!-- EN DESUSO -->
+    <div class="section-title old-section">
+        🗂️ Ejercicios en desuso
     </div>
+
+    <a href="https://kekitopan13.github.io/estudio-jp/falsi_quizlet.html" class="app-card old-card">
+        <div class="icon">🃏</div>
+        <div class="details">
+            <b>Falsi Quizlet</b>
+        </div>
+    </a>
+
+    <a href="https://kekitopan13.github.io/estudio-jp/kanji_study_complejo.html" class="app-card old-card">
+        <div class="icon">漢</div>
+        <div class="details">
+            <b>Kanji Study</b>
+        </div>
+    </a>
+
+    <a href="https://kekitopan13.github.io/estudio-jp/falsi_quizlet_ver2.html" class="app-card old-card">
+        <div class="icon">✨</div>
+        <div class="details">
+            <b>Falsi Quizlet V2</b>
+        </div>
+    </a>
+
+</div>
+```
 
 </body>
 </html>
