@@ -685,6 +685,7 @@ function renderHardRound(isFinalRound){
     if(isFinalRound || currentGroupIdx>=sessionOrder.length){
       showSummary();
     } else {
+      show('screen-quiz');
       renderMatchRound();
     }
   });
