@@ -33,13 +33,9 @@
   }
   .kanji-font { font-family: 'Noto Serif JP', serif; }
   .jp-font { font-family: 'Noto Sans JP', sans-serif; }
-  button { -webkit-appearance: none; appearance: none; }
-
-button:active{
-  transform:scale(0.97);
-  filter:brightness(0.96);
-}
-
+  button { -webkit-appearance: none; appearance: none; transition: transform 0.1s, background 0.2s, border-color 0.2s, color 0.2s; }
+  button:not(:disabled):active { transform: scale(0.97); }
+  button:focus-visible { outline: 2px solid #4fbfac; outline-offset: 2px; }
 </style>
 </head>
 <body>
@@ -69,10 +65,6 @@ function splitMoras(str) {
   }
   return moras;
 }
-
-const FALLBACK_MORAS = ['あ','い','う','え','お','か','き','く','け','こ','さ','し','す','せ','そ',
-  'た','ち','つ','て','と','な','に','ぬ','ね','の','は','ひ','ふ','へ','ほ',
-  'ま','み','む','め','も','や','ゆ','よ','ら','り','る','れ','ろ','わ','ん'];
 
 // ─── COLORES (idénticos a aprendizaje.html) ─────────────────────────────────
 const C = {
@@ -117,7 +109,7 @@ function parseInput(text) {
     const parts = line.split(";");
     if (parts.length < 2) { errors.push(idx + 1); return; }
     const furigana = parts[0].trim();
-    const es = parts.slice(1).join(";").trim().replace(/"/g, "");
+    const es = parts.slice(1).join(";").replace(/"/g, "").trim();
     if (!furigana || !es) { errors.push(idx + 1); return; }
     words.push({ furigana, es, moras: splitMoras(furigana) });
   });
@@ -189,20 +181,13 @@ function ProgressBar({ current, total, color }) {
   );
 }
 
-function HintBanner({ mora }) {
-  return (
-    <div style={{ textAlign: "center", fontSize: 12, color: C.textMuted }}>
-      Pista: mora revelada:{" "}
-      <span className="jp-font" style={{ color: C.mintDeep, fontWeight: 700, fontSize: 16 }}>{mora}</span>
-    </div>
-  );
-}
-
 function CopyGate({ target, onDone }) {
   const [input, setInput] = useState("");
   const [shake, setShake] = useState(false);
+  const [correct, setCorrect] = useState(false);
   function submit() {
-    if (input.trim() === target) { onDone(); }
+    if (correct) return;
+    if (input.trim() === target) { setCorrect(true); setTimeout(onDone, 600); }
     else { setShake(true); setTimeout(() => setShake(false), 400); }
   }
   return (
@@ -215,6 +200,7 @@ function CopyGate({ target, onDone }) {
         background: C.bgCard, borderRadius: 14, padding: "14px",
         border: `1px solid ${C.borderLight}`, boxShadow: C.shadowCard,
       }}>{target}</div>
+      {correct && <div style={{ textAlign: "center", color: C.mintDeep, fontWeight: 700 }}>✓ Correct</div>}
       <input
         value={input}
         onChange={e => setInput(e.target.value)}
@@ -228,7 +214,7 @@ function CopyGate({ target, onDone }) {
           fontFamily: "'Noto Sans JP', sans-serif",
         }}
       />
-      <PrimaryBtn onClick={submit} disabled={!input}>Verificar</PrimaryBtn>
+      <PrimaryBtn onClick={submit} disabled={!input || correct}>{correct ? "✓" : "Verificar"}</PrimaryBtn>
     </div>
   );
 }
@@ -278,7 +264,7 @@ function ReconocimientoEx({ word, blockWords, globalWords, onNext }) {
     setChosen(opt);
     const success = opt.furigana === word.furigana;
     if (!success) setWrong(true);
-    setTimeout(() => onNext(success), success ? 550 : 1100);
+    setTimeout(() => onNext(success), success ? 600 : 1100);
   }
 
   return (
@@ -286,7 +272,7 @@ function ReconocimientoEx({ word, blockWords, globalWords, onNext }) {
       <MeaningCard text={word.es} />
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {options.map((opt, i) => {
-          const isCorrectShown = wrong && opt.furigana === word.furigana;
+          const isCorrectShown = (wrong || chosen === opt) && opt.furigana === word.furigana;
           const isChosenWrong = chosen === opt && wrong;
           return (
             <button key={i} onClick={() => pick(opt)} className="jp-font" style={{
@@ -300,6 +286,7 @@ function ReconocimientoEx({ word, blockWords, globalWords, onNext }) {
           );
         })}
       </div>
+      {chosen && !wrong && <div style={{ textAlign: "center", color: C.mintDeep, fontWeight: 700 }}>✓ Correct</div>}
     </div>
   );
 }
@@ -310,12 +297,11 @@ function ConstruccionEx({ word, onNext }) {
   const [slots, setSlots] = useState(moras.map(() => null));
   const [pool, setPool] = useState(() => shuffle(moras.map((m, i) => ({ m, used: false, key: i }))));
   const [fails, setFails] = useState(0);
-  const [showHint, setShowHint] = useState(false);
-  const [copyMode, setCopyMode] = useState(false);
+  const [wrongPick, setWrongPick] = useState(null);
   const [done, setDone] = useState(false);
 
   function handlePick(idx) {
-    if (copyMode || done) return;
+    if (done) return;
     const item = pool[idx];
     if (!item || item.used) return;
     const nextEmpty = slots.findIndex(s => s === null);
@@ -323,21 +309,15 @@ function ConstruccionEx({ word, onNext }) {
     if (item.m === moras[nextEmpty]) {
       const ns = [...slots]; ns[nextEmpty] = item.m; setSlots(ns);
       setPool(p => p.map((it, i) => i === idx ? { ...it, used: true } : it));
-      if (ns.every(s => s !== null)) setTimeout(() => setDone(true), 350);
+      if (ns.every(s => s !== null)) {
+        setDone(true);
+        setTimeout(() => onNext(fails), 600);
+      }
     } else {
-      const nf = fails + 1; setFails(nf);
-      if (nf === 1) setShowHint(true);
-      else setCopyMode(true);
+      setFails(fails + 1);
+      setWrongPick(idx);
+      setTimeout(() => setWrongPick(null), 400);
     }
-  }
-
-  if (copyMode) {
-    return (
-      <div style={{ padding: "20px 20px 28px", flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-        <div style={{ textAlign: "center", fontSize: 14, color: C.textMuted, marginBottom: 10 }}>{word.es}</div>
-        <CopyGate target={word.furigana} onDone={() => onNext(2)} />
-      </div>
-    );
   }
 
   return (
@@ -356,18 +336,17 @@ function ConstruccionEx({ word, onNext }) {
           ))}
         </div>
       </div>
-      {showHint && <div style={{display:"flex",justifyContent:"center",gap:6,flexWrap:"wrap"}}>{moras.map((m,i)=><div key={i} className="jp-font" style={{minWidth:46,height:46,padding:"0 4px",border:`2px dashed ${C.border}`,borderRadius:11,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,color:i===0?C.mintDeep:"transparent",background:i===0?C.correctBg:"transparent"}}>{i===0?m:""}</div>)}</div>}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
         {pool.map((it, i) => it.used ? <div key={i} style={{ height: 56 }} /> : (
           <button key={i} onClick={() => handlePick(i)} className="jp-font" style={{
             height: 56, fontSize: 20,
-            background: C.bgCard, border: `1.5px solid ${C.border}`,
-            borderRadius: 12, color: C.text, cursor: "pointer",
+            background: wrongPick === i ? C.wrongBg : C.bgCard, border: `1.5px solid ${wrongPick === i ? C.pink : C.border}`,
+            borderRadius: 12, color: wrongPick === i ? C.pinkDark : C.text, cursor: "pointer",
             fontFamily: "'Noto Sans JP', sans-serif", boxShadow: C.shadowCard,
           }}>{it.m}</button>
         ))}
       </div>
-      {done && <PrimaryBtn onClick={() => onNext(fails)}>Continuar →</PrimaryBtn>}
+      {done && <div style={{ textAlign: "center", color: C.mintDeep, fontWeight: 700 }}>✓ Correct<br /><span className="jp-font" style={{ fontSize: 20, letterSpacing: "0.12em" }}>{word.furigana}</span></div>}
     </div>
   );
 }
@@ -376,20 +355,20 @@ function ConstruccionEx({ word, onNext }) {
 function EscrituraEx({ word, onNext }) {
   const [input, setInput] = useState("");
   const [fails, setFails] = useState(0);
-  const [showHint, setShowHint] = useState(false);
   const [copyMode, setCopyMode] = useState(false);
   const [shake, setShake] = useState(false);
+  const [correct, setCorrect] = useState(false);
   const inputRef = useRef(null);
 
   useEffect(() => { setTimeout(() => inputRef.current?.focus(), 100); }, []);
 
   function submit() {
-    if (copyMode) return;
+    if (copyMode || correct) return;
     const trimmed = input.trim();
-    if (trimmed === word.furigana) { onNext(fails); return; }
+    if (trimmed === word.furigana) { setCorrect(true); setTimeout(() => onNext(fails), 600); return; }
     const nf = fails + 1; setFails(nf);
     setShake(true); setTimeout(() => setShake(false), 400);
-    if (nf === 1) { setShowHint(true); setInput(""); }
+    if (nf === 1) { setInput(""); }
     else { setCopyMode(true); }
   }
 
@@ -407,7 +386,6 @@ function EscrituraEx({ word, onNext }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", padding: "20px 20px 28px", gap: 20, flex: 1, justifyContent: "center" }}>
       <MeaningCard text={word.es} />
-      {showHint && <div style={{textAlign:"center",color:C.textMuted,fontSize:13}}>Pista: <span className="jp-font" style={{color:C.mintDeep,fontWeight:700}}>{word.moras[0]}</span></div>}
       <input
         ref={inputRef}
         value={input}
@@ -415,14 +393,16 @@ function EscrituraEx({ word, onNext }) {
         onKeyDown={e => { if (e.key === "Enter") submit(); }}
         placeholder="Escribe la palabra..."
         className="jp-font"
+        disabled={correct}
         style={{
           padding: "16px 18px", borderRadius: 13, fontSize: 20,
-          background: C.bgCard, border: `1.5px solid ${shake ? C.pink : C.border}`,
+          background: correct ? C.correctBg : C.bgCard, border: `1.5px solid ${correct ? C.mintDeep : shake ? C.pink : C.border}`,
           color: C.text, outline: "none", textAlign: "center", letterSpacing: "0.15em",
           fontFamily: "'Noto Sans JP', sans-serif",
         }}
       />
-      <PrimaryBtn onClick={submit} disabled={!input}>Verificar</PrimaryBtn>
+      {correct && <div style={{ textAlign: "center", color: C.mintDeep, fontWeight: 700 }}>✓ Correct<br /><span className="jp-font" style={{ fontSize: 20, letterSpacing: "0.12em" }}>{word.furigana}</span></div>}
+      <PrimaryBtn onClick={submit} disabled={!input || correct}>{correct ? "✓" : "Verificar"}</PrimaryBtn>
       <button onClick={noRecuerdo} style={{
         background: "none", border: "none", color: C.textMuted, fontSize: 12,
         cursor: "pointer", textDecoration: "underline", fontFamily: "'DM Sans', sans-serif",
@@ -431,7 +411,7 @@ function EscrituraEx({ word, onNext }) {
   );
 }
 
-// ─── RONDA CHALLENGING: generación de preguntas ─────────────────────────────
+// ─── RONDA RECALL: generación de preguntas ─────────────────────────────────
 function buildDistractors(w, key, blockWords, seenPool, count) {
   const primary = shuffle(blockWords.filter(x => x.furigana !== w.furigana && x[key] !== w[key]));
   let result = primary.slice(0, count);
@@ -445,39 +425,17 @@ function buildDistractors(w, key, blockWords, seenPool, count) {
 }
 
 function buildChallengeQueue(blockWords, seenPool) {
-  const allMoras = [...new Set(seenPool.flatMap(w => w.moras))];
-  const types = ['sig2word','word2sig','mc4'];
-  let typeAssign = [];
-  while (typeAssign.length < blockWords.length) typeAssign = typeAssign.concat(shuffle(types));
-  typeAssign = shuffle(typeAssign.slice(0, blockWords.length));
   const order = shuffle(blockWords);
-
-  const queue = order.map((w, i) => {
-    const type = typeAssign[i];
-    if (type === 'sig2word') return { type, word: w };
-    if (type === 'word2sig') {
-      const distractors = buildDistractors(w, 'es', blockWords, seenPool, 3);
-      return { type, word: w, options: shuffle([w.es, ...distractors]) };
-    }
-    if (type === 'mc4') {
-      const distractors = buildDistractors(w, 'furigana', blockWords, seenPool, 3);
-      return { type, word: w, options: shuffle([w.furigana, ...distractors]) };
-    }
-    // moraGap
-    const gapIndex = Math.floor(Math.random() * w.moras.length);
-    const correct = w.moras[gapIndex];
-    let distractors = shuffle(allMoras.filter(m => m !== correct)).slice(0, 3);
-    if (distractors.length < 3) {
-      const fb = shuffle(FALLBACK_MORAS.filter(m => m !== correct && !distractors.includes(m)));
-      distractors = distractors.concat(fb.slice(0, 3 - distractors.length));
-    }
-    return { type, word: w, gapIndex, options: shuffle([correct, ...distractors]) };
+  const multipleChoice = order.map(w => {
+    const distractors = buildDistractors(w, 'furigana', blockWords, seenPool, 3);
+    return { type: 'mc4', word: w, options: shuffle([w.furigana, ...distractors]) };
   });
+  const writing = order.map(w => ({ type: 'sig2word', word: w }));
 
-  return shuffle(queue);
+  return [...multipleChoice, ...writing];
 }
 
-// ─── COMPONENTES DE PREGUNTAS CHALLENGING ───────────────────────────────────
+// ─── COMPONENTES DE PREGUNTAS RECALL ───────────────────────────────────────
 function ChallengeMC({ label, labelJp, options, optionsJp, correct, onNext }) {
   const [chosen, setChosen] = useState(null);
   const [wrong, setWrong] = useState(false);
@@ -486,8 +444,12 @@ function ChallengeMC({ label, labelJp, options, optionsJp, correct, onNext }) {
     if (chosen) return;
     setChosen(opt);
     const success = opt === correct;
-    if (!success) setWrong(true);
-    setTimeout(() => onNext(success), success ? 550 : 1100);
+    if (success) {
+      setTimeout(() => onNext(true), 600);
+    } else {
+      setWrong(true);
+      setTimeout(() => { setChosen(null); setWrong(false); }, 900);
+    }
   }
 
   return (
@@ -497,7 +459,7 @@ function ChallengeMC({ label, labelJp, options, optionsJp, correct, onNext }) {
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {options.map((opt, i) => {
-          const isCorrectShown = wrong && opt === correct;
+          const isCorrectShown = (wrong || chosen === opt) && opt === correct;
           const isChosenWrong = chosen === opt && wrong;
           return (
             <button key={i} onClick={() => pick(opt)} className={optionsJp ? "jp-font" : undefined} style={{
@@ -514,52 +476,7 @@ function ChallengeMC({ label, labelJp, options, optionsJp, correct, onNext }) {
           );
         })}
       </div>
-    </div>
-  );
-}
-
-function ChallengeMoraGap({ question, onNext }) {
-  const { word, gapIndex, options } = question;
-  const correct = word.moras[gapIndex];
-  const [chosen, setChosen] = useState(null);
-  const [wrong, setWrong] = useState(false);
-
-  function pick(opt) {
-    if (chosen) return;
-    setChosen(opt);
-    const success = opt === correct;
-    if (!success) setWrong(true);
-    setTimeout(() => onNext(success), success ? 550 : 1100);
-  }
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", padding: "20px 20px 28px", gap: 20, flex: 1, justifyContent: "center" }}>
-      <div style={{ background: C.challenge, borderRadius: 14, padding: "18px 20px", border: `1px solid ${C.challengeBorder}`, textAlign: "center" }}>
-        <div style={{ fontSize: 12, color: C.textMuted, marginBottom: 8 }}>{word.es}</div>
-        <div className="jp-font" style={{ display: "flex", justifyContent: "center", gap: 4, flexWrap: "wrap" }}>
-          {word.moras.map((m, i) => (
-            <span key={i} style={{ fontSize: 24, color: i === gapIndex ? C.challengeDeep : C.text, fontWeight: i === gapIndex ? 700 : 400 }}>
-              {i === gapIndex ? "＿" : m}
-            </span>
-          ))}
-        </div>
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {options.map((opt, i) => {
-          const isCorrectShown = wrong && opt === correct;
-          const isChosenWrong = chosen === opt && wrong;
-          return (
-            <button key={i} onClick={() => pick(opt)} className="jp-font" style={{
-              padding: "15px 18px", borderRadius: 13, fontSize: 20,
-              background: isCorrectShown ? C.correctBg : isChosenWrong ? C.wrongBg : C.bgCard,
-              border: `1.5px solid ${isCorrectShown ? C.mintDeep : isChosenWrong ? C.pink : C.challengeBorder}`,
-              color: isCorrectShown ? C.mintDeep : isChosenWrong ? C.pinkDark : C.text,
-              cursor: chosen ? "default" : "pointer", textAlign: "center", letterSpacing: "0.12em",
-              fontFamily: "'Noto Sans JP', sans-serif", boxShadow: C.shadowCard,
-            }}>{opt}</button>
-          );
-        })}
-      </div>
+      {chosen && !wrong && <div style={{ textAlign: "center", color: C.mintDeep, fontWeight: 700 }}>✓ Correct</div>}
     </div>
   );
 }
@@ -577,15 +494,9 @@ function ChallengeWrite({ word, onNext }) {
     if (status === "correct" || showAnswer) return;
     if (input.trim() === word.furigana) {
       setStatus("correct");
-      setTimeout(() => onNext(fails === 0), 550);
+      setTimeout(() => onNext(true), 600);
     } else {
-      const nf = fails + 1; setFails(nf); setStatus("wrong");
-      if (nf >= 2) {
-        setShowAnswer(true);
-        setTimeout(() => onNext(false), 1400);
-      } else {
-        setTimeout(() => { setStatus("idle"); setInput(""); }, 600);
-      }
+      setFails(fails + 1); setStatus("wrong"); setShowAnswer(true);
     }
   }
 
@@ -597,36 +508,32 @@ function ChallengeWrite({ word, onNext }) {
       <div style={{ background: C.challenge, borderRadius: 14, padding: "18px 20px", border: `1px solid ${C.challengeBorder}`, textAlign: "center" }}>
         <div style={{ fontSize: 17, color: C.text }}>{word.es}</div>
       </div>
-      {showAnswer && (
-        <div className="jp-font" style={{ textAlign: "center", fontSize: 22, color: C.challengeDeep, fontWeight: 600, letterSpacing: "0.15em" }}>
-          {word.furigana}
-        </div>
-      )}
-      <input
-        ref={inputRef}
-        value={input}
-        onChange={e => { setInput(e.target.value); if (status === "wrong") setStatus("idle"); }}
-        onKeyDown={e => { if (e.key === "Enter") submit(); }}
-        disabled={status === "correct" || showAnswer}
-        placeholder="Escribe la palabra..."
-        className="jp-font"
-        style={{
-          padding: "16px 18px", borderRadius: 13, fontSize: 20,
-          background: bg, border: `1.5px solid ${borderColor}`, color: C.text,
-          outline: "none", textAlign: "center", letterSpacing: "0.15em",
-          fontFamily: "'Noto Sans JP', sans-serif",
-        }}
-      />
-      {!showAnswer && <PrimaryBtn onClick={submit} disabled={!input || status === "correct"}>{status === "correct" ? "✓" : "Verificar"}</PrimaryBtn>}
+      {status === "correct" && <div style={{ textAlign: "center", color: C.mintDeep, fontWeight: 700 }}>✓ Correct<br /><span className="jp-font" style={{ fontSize: 20, letterSpacing: "0.12em" }}>{word.furigana}</span></div>}
+      {showAnswer ? <CopyGate target={word.furigana} onDone={() => onNext(false)} /> : <>
+        <input
+          ref={inputRef}
+          value={input}
+          onChange={e => { setInput(e.target.value); if (status === "wrong") setStatus("idle"); }}
+          onKeyDown={e => { if (e.key === "Enter") submit(); }}
+          disabled={status === "correct"}
+          placeholder="Escribe la palabra..."
+          className="jp-font"
+          style={{
+            padding: "16px 18px", borderRadius: 13, fontSize: 20,
+            background: bg, border: `1.5px solid ${borderColor}`, color: C.text,
+            outline: "none", textAlign: "center", letterSpacing: "0.15em",
+            fontFamily: "'Noto Sans JP', sans-serif",
+          }}
+        />
+        <PrimaryBtn onClick={submit} disabled={!input || status === "correct"}>{status === "correct" ? "✓" : "Verificar"}</PrimaryBtn>
+      </>}
     </div>
   );
 }
 
 function ChallengeEx({ question, onNext }) {
   if (question.type === 'sig2word') return <ChallengeWrite word={question.word} onNext={onNext} />;
-  if (question.type === 'word2sig') return <ChallengeMC label={question.word.furigana} labelJp options={question.options} correct={question.word.es} onNext={onNext} />;
   if (question.type === 'mc4') return <ChallengeMC label={question.word.es} options={question.options} optionsJp correct={question.word.furigana} onNext={onNext} />;
-  if (question.type === 'moraGap') return <ChallengeMoraGap question={question} onNext={onNext} />;
   return null;
 }
 
@@ -685,11 +592,14 @@ function ConfigScreen({ dbText, setDbText, wordDose, setWordDose, onStart, onRes
                 paddingRight: 38, outline: "none",
               }}
             >
+              <option value={2}>2 palabras</option>
+              <option value={3}>3 palabras</option>
+              <option value={4}>4 palabras</option>
               <option value={5}>5 palabras</option>
               <option value={10}>10 palabras</option>
               <option value={15}>15 palabras</option>
               <option value={20}>20 palabras</option>
-              <option value="all">Todas</option>
+              <option value="all">All</option>
             </select>
           </div>
         </div>
@@ -1002,7 +912,7 @@ function App() {
     if (!q) return null;
     return (
       <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.challenge }}>
-        <TopBar onExit={exitSession} title="🔥 Ronda Challenging" />
+        <TopBar onExit={exitSession} title="Recall" />
         <div style={{ padding: "12px 20px 0" }}>
           <ProgressBar current={challengeIdx + 1} total={challengeQueue.length} color={`linear-gradient(90deg, ${C.challengeDeep}, ${C.pink})`} />
           <div style={{ fontSize: 10, color: C.challengeText, marginTop: 4, fontWeight: 700 }}>
