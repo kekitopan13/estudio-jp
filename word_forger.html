@@ -109,7 +109,7 @@ function parseInput(text) {
     const parts = line.split(";");
     if (parts.length < 2) { errors.push(idx + 1); return; }
     const furigana = parts[0].trim();
-    const es = parts.slice(1).join(";").replace(/"/g, "").trim();
+    const es = parts.slice(1).join(";").trim().replace(/[\'"“”„‟«»‹›]/g, "");
     if (!furigana || !es) { errors.push(idx + 1); return; }
     words.push({ furigana, es, moras: splitMoras(furigana) });
   });
