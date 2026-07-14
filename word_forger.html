@@ -424,9 +424,13 @@ function buildDistractors(w, key, blockWords, seenPool, count) {
   return result.slice(0, count).map(x => x[key]);
 }
 
-function buildChallengeQueue(blockWords, seenPool) {
+function buildChallengeQueue(blockWords, seenPool, reverse) {
   const order = shuffle(blockWords);
   const multipleChoice = order.map(w => {
+    if (reverse) {
+      const distractors = buildDistractors(w, 'es', blockWords, seenPool, 3);
+      return { type: 'word2sig', word: w, options: shuffle([w.es, ...distractors]) };
+    }
     const distractors = buildDistractors(w, 'furigana', blockWords, seenPool, 3);
     return { type: 'mc4', word: w, options: shuffle([w.furigana, ...distractors]) };
   });
@@ -533,6 +537,7 @@ function ChallengeWrite({ word, onNext }) {
 
 function ChallengeEx({ question, onNext }) {
   if (question.type === 'sig2word') return <ChallengeWrite word={question.word} onNext={onNext} />;
+  if (question.type === 'word2sig') return <ChallengeMC label={question.word.furigana} labelJp options={question.options} correct={question.word.es} onNext={onNext} />;
   if (question.type === 'mc4') return <ChallengeMC label={question.word.es} options={question.options} optionsJp correct={question.word.furigana} onNext={onNext} />;
   return null;
 }
@@ -813,7 +818,10 @@ function App() {
     } else {
       const newSeen = [...seenWords, ...block];
       setSeenWords(newSeen);
-      const queue = buildChallengeQueue(block, newSeen);
+      const queue = [
+        ...buildChallengeQueue(block, newSeen, false),
+        ...buildChallengeQueue(blocks[blockIdx - 1] || [], newSeen, true),
+      ];
       setChallengeQueue(queue); setChallengeIdx(0);
       setScreen('challenge');
     }
