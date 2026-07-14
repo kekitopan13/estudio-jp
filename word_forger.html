@@ -34,6 +34,12 @@
   .kanji-font { font-family: 'Noto Serif JP', serif; }
   .jp-font { font-family: 'Noto Sans JP', sans-serif; }
   button { -webkit-appearance: none; appearance: none; }
+
+button:active{
+  transform:scale(0.97);
+  filter:brightness(0.96);
+}
+
 </style>
 </head>
 <body>
@@ -111,7 +117,7 @@ function parseInput(text) {
     const parts = line.split(";");
     if (parts.length < 2) { errors.push(idx + 1); return; }
     const furigana = parts[0].trim();
-    const es = parts.slice(1).join(";").trim();
+    const es = parts.slice(1).join(";").trim().replace(/"/g, "");
     if (!furigana || !es) { errors.push(idx + 1); return; }
     words.push({ furigana, es, moras: splitMoras(furigana) });
   });
@@ -186,7 +192,7 @@ function ProgressBar({ current, total, color }) {
 function HintBanner({ mora }) {
   return (
     <div style={{ textAlign: "center", fontSize: 12, color: C.textMuted }}>
-      Pista: la palabra empieza con{" "}
+      Pista: mora revelada:{" "}
       <span className="jp-font" style={{ color: C.mintDeep, fontWeight: 700, fontSize: 16 }}>{mora}</span>
     </div>
   );
@@ -350,7 +356,7 @@ function ConstruccionEx({ word, onNext }) {
           ))}
         </div>
       </div>
-      {showHint && <HintBanner mora={moras[0]} />}
+      {showHint && <div style={{display:"flex",justifyContent:"center",gap:6,flexWrap:"wrap"}}>{moras.map((m,i)=><div key={i} className="jp-font" style={{minWidth:46,height:46,padding:"0 4px",border:`2px dashed ${C.border}`,borderRadius:11,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,color:i===0?C.mintDeep:"transparent",background:i===0?C.correctBg:"transparent"}}>{i===0?m:""}</div>)}</div>}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
         {pool.map((it, i) => it.used ? <div key={i} style={{ height: 56 }} /> : (
           <button key={i} onClick={() => handlePick(i)} className="jp-font" style={{
@@ -401,7 +407,7 @@ function EscrituraEx({ word, onNext }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", padding: "20px 20px 28px", gap: 20, flex: 1, justifyContent: "center" }}>
       <MeaningCard text={word.es} />
-      {showHint && <HintBanner mora={word.moras[0]} />}
+      {showHint && <div style={{textAlign:"center",color:C.textMuted,fontSize:13}}>Pista: <span className="jp-font" style={{color:C.mintDeep,fontWeight:700}}>{word.moras[0]}</span></div>}
       <input
         ref={inputRef}
         value={input}
@@ -440,7 +446,7 @@ function buildDistractors(w, key, blockWords, seenPool, count) {
 
 function buildChallengeQueue(blockWords, seenPool) {
   const allMoras = [...new Set(seenPool.flatMap(w => w.moras))];
-  const types = ['sig2word', 'word2sig', 'moraGap', 'mc4'];
+  const types = ['sig2word','word2sig','mc4'];
   let typeAssign = [];
   while (typeAssign.length < blockWords.length) typeAssign = typeAssign.concat(shuffle(types));
   typeAssign = shuffle(typeAssign.slice(0, blockWords.length));
