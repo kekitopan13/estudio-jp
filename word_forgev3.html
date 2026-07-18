@@ -156,6 +156,12 @@ function TopBar({ title = "🔨 Word Forge", onExit }) {
       background: C.white, borderBottom: `1px solid ${C.borderLight}`,
     }}>
       <span style={{ fontSize: 15, fontWeight: 600, color: C.text }}>{title}</span>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <a href="https://kekitopan13.github.io/estudio-jp/" style={{
+          padding: "6px 10px", borderRadius: 8, textDecoration: "none",
+          background: C.bgAlt, border: `1px solid ${C.border}`,
+          color: C.textMuted, fontSize: 12, fontFamily: "'DM Sans', sans-serif",
+        }}>⌂ Menú</a>
       {onExit && (
         <button onClick={onExit} style={{
           padding: "6px 12px", borderRadius: 8,
@@ -164,6 +170,7 @@ function TopBar({ title = "🔨 Word Forge", onExit }) {
           fontFamily: "'DM Sans', sans-serif",
         }}>Salir</button>
       )}
+      </div>
     </div>
   );
 }
