@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Study Tool</title>
+<title>Falsi Quizlet v.2</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Segoe UI', sans-serif; background: #f7f4ff; color: #111; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 16px; }
@@ -122,6 +122,14 @@
   .tag-phase { background: #ede0f7; color: #7a4fa0; border-radius: 99px; padding: 2px 9px; font-size: 0.73rem; white-space: nowrap; }
 
   .results-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+  .btn-copy-results { background: #fff; color: #7a4fa0; border: 1.5px solid #b07ddb; border-radius: 8px; padding: 12px 28px; font-size: 1rem; cursor: pointer; transition: all 0.2s; width: 100%; margin-bottom: 14px; }
+  .btn-copy-results:hover { background: #ede0f7; }
+  .summary-detail { font-size: 0.78rem; color: #666; line-height: 1.35; }
+  .status-tag { display: inline-block; border-radius: 99px; padding: 3px 9px; font-size: 0.73rem; white-space: nowrap; font-weight: 600; }
+  .status-mastered { background: #f0fdf4; color: #15803d; }
+  .status-reviewed { background: #eff6ff; color: #2563eb; }
+  .status-recognition { background: #fff7ed; color: #c2410c; }
+  .status-weak { background: #fef2f2; color: #dc2626; }
   .btn-repeat-errors { background: #dc2626; color: #fff; border: none; border-radius: 8px; padding: 12px 28px; font-size: 1rem; cursor: pointer; transition: background 0.2s; width: 100%; }
   .btn-repeat-errors:hover { background: #b91c1c; }
   .btn-repeat-group { background: #fff; color: #7a4fa0; border: 1.5px solid #b07ddb; border-radius: 8px; padding: 12px 28px; font-size: 1rem; cursor: pointer; transition: all 0.2s; width: 100%; }
@@ -306,6 +314,7 @@
 <div id="results">
   <div class="results-title">📊 Resultados finales</div>
   <div class="results-stats" id="results-stats"></div>
+  <button class="btn-copy-results" id="btn-copy-results" onclick="copyResults()">📋 Copiar resumen</button>
   <div id="mistakes-list"></div>
   <div class="results-actions">
     <button class="btn-repeat-errors" id="btn-repeat-errors" onclick="repeatErrors()" style="display:none">🔁 Repetir errores</button>
@@ -315,29 +324,94 @@
 </div>
 
 <script>
-// ─── CONFIG STATE ─────────────────────────────────────────────────────────────
-let GROUP_SIZE = 5;
-let dataMode = '2';     // '2' | '3'
-let exerciseDir = 'b';   // dirección para alternativas: 'a' | 'b' | 'both'
-let writeDir = 'b';      // dirección para escritura:    'a' | 'b' | 'both'
-let practiceType = 'mc'; // 'mc' | 'mc+write'
-// colMapping: en modo 3 datos, qué rol tiene cada columna (índice 0,1,2)
-// colMapping[i] = 'a' | 'b' | 'c'
-let colMapping = ['a', 'b', 'c'];
+// ─── STUDY MODEL ──────────────────────────────────────────────────────────────
+// Configuration stays separate from the words and the progress of one session.
+// The phase names include the future review phases, but this version still uses
+// only multiple choice and writing exactly as before.
+const PHASES = Object.freeze({
+  MULTIPLE_CHOICE: 'mc',
+  WRITING: 'write',
+  REVIEW_WRITING: 'reviewWriting',
+  REVIEW_CHOICE: 'reviewChoice'
+});
 
-// ─── RUNTIME STATE ────────────────────────────────────────────────────────────
-let vocab = [];        // [{a, b, c?}]
-let allGroups = [];
-let groupIdx = 0;
-let subPhase = 'mc';   // 'mc' | 'write'
-let queue = [];
-let current = null;    // {word, direction: 'ab'|'ba'}
-let mistakes = [];
-let totalQ = 0;
-let doneQ = 0;
-let writeAttempts = 0;
-let vocabExDone = false;
-let lastGroupIdx = 0; // tracks the last group shown, for "repeat group"
+const config = {
+  groupSize: 5,
+  dataMode: '2',
+  exerciseDir: 'b',
+  writeDir: 'b',
+  practiceType: 'mc',
+  colMapping: ['a', 'b', 'c']
+};
+
+const study = {
+  words: [],
+  groups: []
+};
+
+function createSession() {
+  return {
+    groupIndex: 0,
+    phase: PHASES.MULTIPLE_CHOICE,
+    queue: [],
+    currentQuestion: null,
+    totalQuestions: 0,
+    completedQuestions: 0,
+    writeAttempts: 0,
+    vocabExerciseDone: false,
+    lastGroupIndex: 0,
+    reviewWords: [],
+    reviewBlockStartIndex: 0,
+    nextPhaseCallback: null
+  };
+}
+
+let session = createSession();
+
+function prepareWords(words) {
+  return words.map((word, index) => ({
+    ...word,
+    id: `word-${index}`,
+    state: {
+      initialChoice: null,
+      initialWrite: null,
+      reviewWrite: null,
+      reviewChoice: null
+    }
+  }));
+}
+
+const configFields = {
+  GROUP_SIZE: 'groupSize', dataMode: 'dataMode', exerciseDir: 'exerciseDir',
+  writeDir: 'writeDir', practiceType: 'practiceType', colMapping: 'colMapping'
+};
+
+Object.entries(configFields).forEach(([name, field]) => {
+  Object.defineProperty(globalThis, name, {
+    get: () => config[field],
+    set: value => { config[field] = value; },
+    configurable: true
+  });
+});
+
+// Compatibility bridge: the existing answer and results helpers continue to use
+// concise names, while all mutable runtime data now lives in `study` or `session`.
+const runtimeFields = {
+  vocab: ['study', 'words'], allGroups: ['study', 'groups'],
+  groupIdx: ['session', 'groupIndex'], subPhase: ['session', 'phase'],
+  queue: ['session', 'queue'], current: ['session', 'currentQuestion'],
+  totalQ: ['session', 'totalQuestions'],
+  doneQ: ['session', 'completedQuestions'], writeAttempts: ['session', 'writeAttempts'],
+  vocabExDone: ['session', 'vocabExerciseDone'], lastGroupIdx: ['session', 'lastGroupIndex']
+};
+
+Object.entries(runtimeFields).forEach(([name, [owner, field]]) => {
+  Object.defineProperty(globalThis, name, {
+    get: () => owner === 'study' ? study[field] : session[field],
+    set: value => { (owner === 'study' ? study : session)[field] = value; },
+    configurable: true
+  });
+});
 
 // ─── SETUP SELECTORS ─────────────────────────────────────────────────────────
 
@@ -437,7 +511,7 @@ function shuffle(arr) {
 // ─── NAVIGATION ───────────────────────────────────────────────────────────────
 
 function goToSetup() {
-  mistakes = []; groupIdx = 0; subPhase = 'mc';
+  session = createSession();
   hide('results'); hide('card'); hide('progress-bar-wrap'); hide('phase-transition');
   show('setup');
 }
@@ -464,6 +538,50 @@ function buildQueueItems(group, dir) {
   return shuffle(items);
 }
 
+function isReviewPhase(phase = session.phase) {
+  return phase === PHASES.REVIEW_WRITING || phase === PHASES.REVIEW_CHOICE;
+}
+
+function isWritingPhase(phase = session.phase) {
+  return phase === PHASES.WRITING || phase === PHASES.REVIEW_WRITING;
+}
+
+function getPhaseWords() {
+  return isReviewPhase() ? session.reviewWords : study.groups[session.groupIndex];
+}
+
+function getPhaseDirection() {
+  return isWritingPhase() ? config.writeDir : config.exerciseDir;
+}
+
+function getPhaseLabel() {
+  const activity = isWritingPhase() ? 'Escritura' : 'Alternativas';
+  return isReviewPhase() ? `Repaso · ${activity}` : activity;
+}
+
+function buildPhaseQueue() {
+  let words = getPhaseWords();
+  if (session.phase === PHASES.REVIEW_WRITING) {
+    words = words.filter(word => word.state.initialWrite === false);
+  } else if (session.phase === PHASES.REVIEW_CHOICE) {
+    words = words.filter(word => word.state.reviewWrite === false);
+  }
+  return buildQueueItems(words, getPhaseDirection());
+}
+
+function shouldStartReview() {
+  const groupsSinceLastReview = session.groupIndex - session.reviewBlockStartIndex;
+  return config.practiceType === 'mc+write' &&
+    (groupsSinceLastReview === 3 || session.groupIndex === study.groups.length);
+}
+
+function prepareReviewBlock() {
+  session.reviewWords = study.groups
+    .slice(session.reviewBlockStartIndex, session.groupIndex)
+    .flat();
+  session.reviewBlockStartIndex = session.groupIndex;
+}
+
 // ─── START ────────────────────────────────────────────────────────────────────
 
 function startStudy() {
@@ -477,10 +595,12 @@ function startStudy() {
     return;
   }
   document.getElementById('input-error').textContent = '';
-  vocab = shuffle(parsed);
-  allGroups = [];
-  for (let i = 0; i < vocab.length; i += GROUP_SIZE) allGroups.push(vocab.slice(i, i + GROUP_SIZE));
-  groupIdx = 0; subPhase = 'mc'; mistakes = [];
+  study.words = shuffle(prepareWords(parsed));
+  study.groups = [];
+  for (let i = 0; i < study.words.length; i += config.groupSize) {
+    study.groups.push(study.words.slice(i, i + config.groupSize));
+  }
+  session = createSession();
   hide('setup'); show('progress-bar-wrap'); show('card');
   loadSubPhase();
 }
@@ -488,55 +608,105 @@ function startStudy() {
 // ─── PHASE MANAGEMENT ─────────────────────────────────────────────────────────
 
 function loadSubPhase() {
-  const group = allGroups[groupIdx];
-  const dir = subPhase === 'mc' ? exerciseDir : writeDir;
-  queue = buildQueueItems(group, dir);
-  totalQ = queue.length;
-  doneQ = 0; writeAttempts = 0;
+  session.queue = buildPhaseQueue();
+  session.totalQuestions = session.queue.length;
+  session.completedQuestions = 0;
+  session.writeAttempts = 0;
   updateProgress();
-  showQuestion();
+  advanceQuestion();
 }
 
 function updateProgress() {
-  const phaseLabel = subPhase === 'mc' ? 'Alternativas' : 'Escritura';
+  const phaseLabel = getPhaseLabel();
+  const groupLabel = isReviewPhase()
+    ? `Repaso ${Math.ceil(session.groupIndex / 3)}`
+    : `Grupo ${groupIdx + 1}/${allGroups.length}`;
   document.getElementById('phase-label').textContent =
-    `Grupo ${groupIdx + 1}/${allGroups.length} · ${phaseLabel} — ${doneQ}/${totalQ}`;
+    `${groupLabel} · ${phaseLabel} — ${doneQ}/${totalQ}`;
   document.getElementById('bar-fill').style.width = totalQ ? (doneQ / totalQ * 100) + '%' : '0%';
 }
 
 // ─── SHOW QUESTION ────────────────────────────────────────────────────────────
 
-function showQuestion() {
+function advanceQuestion() {
   if (queue.length === 0) {
-    // Current subPhase exhausted
-    if (subPhase === 'mc' && practiceType === 'mc+write') {
-      showTransition(
-        `¡Bien! Ahora a escribir`,
-        `Escribirás las mismas ${buildQueueItems(allGroups[groupIdx], writeDir).length} entradas del grupo ${groupIdx + 1}.`,
-        () => { subPhase = 'write'; loadSubPhase(); }
-      );
-    } else {
-      // Done with this group (either mc-only, or write phase done)
-      groupIdx++;
-      if (groupIdx >= allGroups.length) {
-        lastGroupIdx = groupIdx - 1;
-        showResults();
-      } else {
-        lastGroupIdx = groupIdx - 1;
-        showTransition(
-          `Grupo ${groupIdx} completado ✓`,
-          `Pasando al grupo ${groupIdx + 1} de ${allGroups.length} (${allGroups[groupIdx].length} entradas).`,
-          () => { subPhase = 'mc'; loadSubPhase(); }
-        );
-      }
-    }
+    handleCompletedPhase();
     return;
   }
 
-  current = queue.shift();
-  writeAttempts = 0;
-  vocabExDone = false;
+  session.currentQuestion = session.queue.shift();
+  session.writeAttempts = 0;
+  session.vocabExerciseDone = false;
+  renderCurrentQuestion();
+}
 
+function handleCompletedPhase() {
+  if (session.phase === PHASES.MULTIPLE_CHOICE && config.practiceType === 'mc+write') {
+      showTransition(
+        `¡Bien! Ahora a escribir`,
+        `Escribirás las mismas ${buildQueueItems(study.groups[session.groupIndex], config.writeDir).length} entradas del grupo ${session.groupIndex + 1}.`,
+        () => { session.phase = PHASES.WRITING; loadSubPhase(); }
+      );
+    return;
+  }
+
+  if (session.phase === PHASES.REVIEW_WRITING) {
+    session.phase = PHASES.REVIEW_CHOICE;
+    loadSubPhase();
+    return;
+  }
+
+  if (session.phase === PHASES.REVIEW_CHOICE) {
+    finishReviewBlock();
+    return;
+  }
+
+  session.groupIndex++;
+  if (shouldStartReview()) {
+    prepareReviewBlock();
+    session.phase = PHASES.REVIEW_WRITING;
+    showTransition(
+      'Hora de repasar',
+      'Primero practicarás por escritura las entradas que fallaste.',
+      () => loadSubPhase()
+    );
+    return;
+  }
+
+  continueToNextGroup();
+}
+
+function finishReviewBlock() {
+  if (session.groupIndex >= study.groups.length) {
+    session.lastGroupIndex = session.groupIndex - 1;
+    showResults();
+    return;
+  }
+
+  showTransition(
+    'Repaso completado ✓',
+    `Pasando al grupo ${session.groupIndex + 1} de ${study.groups.length} (${study.groups[session.groupIndex].length} entradas).`,
+    () => { session.phase = PHASES.MULTIPLE_CHOICE; loadSubPhase(); }
+  );
+}
+
+function continueToNextGroup() {
+  if (session.groupIndex >= study.groups.length) {
+    session.lastGroupIndex = session.groupIndex - 1;
+    showResults();
+  } else {
+    session.lastGroupIndex = session.groupIndex - 1;
+    showTransition(
+      `Grupo ${session.groupIndex} completado ✓`,
+      `Pasando al grupo ${session.groupIndex + 1} de ${study.groups.length} (${study.groups[session.groupIndex].length} entradas).`,
+      () => { session.phase = PHASES.MULTIPLE_CHOICE; loadSubPhase(); }
+    );
+  }
+}
+
+function showQuestion() { advanceQuestion(); }
+
+function renderCurrentQuestion() {
   hide('phase-transition'); show('card');
   hide('feedback'); hide('post-answer'); hide('meaning-reveal');
   hide('vocab-exercise'); hide('next-btn'); hide('retry-prompt');
@@ -548,14 +718,16 @@ function showQuestion() {
   const answer = direction === 'ab' ? word.b : word.a;
 
   const badge = document.getElementById('phase-badge');
-  badge.textContent = `Grupo ${groupIdx + 1} · ${subPhase === 'mc' ? 'Alternativas' : 'Escritura'}`;
+  badge.textContent = isReviewPhase()
+    ? getPhaseLabel()
+    : `Grupo ${groupIdx + 1} · ${getPhaseLabel()}`;
   document.getElementById('q-label').textContent =
     direction === 'ab' ? 'Escoge o escribe el Dato B:' : 'Escoge o escribe el Dato A:';
   document.getElementById('q-text').textContent = shown;
 
   const choicesWrap = document.getElementById('choices-wrap');
 
-  if (subPhase === 'mc') {
+  if (!isWritingPhase()) {
     show('choices-wrap'); hide('write-wrap');
     choicesWrap.style.display = 'grid';
     const choices = buildChoices(word, direction);
@@ -607,16 +779,14 @@ function similarity(a, b) {
 
 function selectChoice(btn, isCorrect, word, direction) {
   doneQ++;
+  const stateField = session.phase === PHASES.REVIEW_CHOICE ? 'reviewChoice' : 'initialChoice';
+  if (!isCorrect || word.state[stateField] === null) word.state[stateField] = isCorrect;
   const allBtns = document.querySelectorAll('#choices-wrap .choice-btn');
   allBtns.forEach(b => b.disabled = true);
   const correctAnswer = direction === 'ab' ? word.b : word.a;
   btn.classList.add(isCorrect ? 'correct' : 'wrong');
   if (!isCorrect) {
     allBtns.forEach(b => { if (b.textContent === correctAnswer) b.classList.add('correct'); });
-    mistakes.push({ phase: 'Alternativas', grupo: groupIdx + 1, a: word.a, b: word.b, c: word.c || null, direction });
-    current._mistakeRef = mistakes[mistakes.length - 1];
-  } else {
-    current._mistakeRef = null;
   }
   showFeedback(isCorrect, correctAnswer);
   updateProgress();
@@ -630,21 +800,23 @@ function checkWrite() {
   const val = inp.value.trim();
   const { word, direction } = current;
   const correct = direction === 'ab' ? word.b : word.a;
+  const stateField = session.phase === PHASES.REVIEW_WRITING ? 'reviewWrite' : 'initialWrite';
   if (val === correct) {
     inp.className = 'write-input correct';
     inp.disabled = true;
     document.getElementById('submit-write-btn').disabled = true;
     hide('retry-prompt');
-    if (writeAttempts === 0) doneQ++;
+    if (writeAttempts === 0) {
+      doneQ++;
+      if (word.state[stateField] === null) word.state[stateField] = true;
+    }
     showFeedback(true, correct);
     updateProgress();
-    current._mistakeRef = null;
     showPostAnswer();
   } else {
     inp.className = 'write-input wrong';
     if (writeAttempts === 0) {
-      mistakes.push({ phase: 'Escritura', grupo: groupIdx + 1, a: word.a, b: word.b, c: word.c || null, direction });
-      current._mistakeRef = mistakes[mistakes.length - 1];
+      word.state[stateField] = false;
     }
     writeAttempts++;
     show('retry-prompt');
@@ -740,69 +912,131 @@ function showFeedback(isCorrect, correctAns) {
 
 function nextQuestion() { showQuestion(); }
 
-let _nextSubPhaseCallback = null;
 function showTransition(title, desc, callback) {
   hide('card');
   show('phase-transition');
   document.getElementById('pt-title').textContent = title;
   document.getElementById('pt-desc').textContent = desc;
-  _nextSubPhaseCallback = callback;
+  session.nextPhaseCallback = callback;
 }
 
 function startNextSubPhase() {
   hide('phase-transition');
-  if (_nextSubPhaseCallback) _nextSubPhaseCallback();
+  if (session.nextPhaseCallback) session.nextPhaseCallback();
+}
+
+function wordNeedsMorePractice(word) {
+  if (config.practiceType !== 'mc+write') return word.state.initialChoice === false;
+  // A word only remains pending when it was still missed in review writing.
+  // The later summary will show whether it was at least recognized in choices.
+  return word.state.initialWrite === false && word.state.reviewWrite === false;
+}
+
+function getWordStatus(word) {
+  if (config.practiceType !== 'mc+write') {
+    return word.state.initialChoice === false
+      ? { key: 'weak', label: 'Necesita refuerzo', detail: '✗ Alternativas iniciales' }
+      : { key: 'mastered', label: 'Dominada', detail: '✓ Alternativas iniciales' };
+  }
+
+  if (word.state.initialWrite === true) {
+    return { key: 'mastered', label: 'Dominada', detail: '✓ Escritura inicial' };
+  }
+  if (word.state.reviewWrite === true) {
+    return { key: 'reviewed', label: 'Corregida en repaso', detail: '✓ Escritura de repaso' };
+  }
+  if (word.state.reviewChoice === true) {
+    return { key: 'recognition', label: 'Solo reconocimiento', detail: '✓ Alternativas de repaso · falta escritura' };
+  }
+  return { key: 'weak', label: 'Necesita refuerzo', detail: '✗ Escritura y alternativas de repaso' };
+}
+
+function getSummaryRows() {
+  const collator = new Intl.Collator('ja');
+  return study.words
+    .map(word => ({ ...word, status: getWordStatus(word) }))
+    .sort((left, right) => collator.compare(left.a, right.a));
+}
+
+function getFinalResultRows() {
+  return study.words
+    .filter(wordNeedsMorePractice)
+    .map(word => ({
+      a: word.a,
+      b: word.b,
+      c: word.c || null,
+      direction: word.state.reviewChoice === false ? 'reviewChoice' : 'reviewWriting',
+      phase: config.practiceType === 'mc+write' ? 'Repaso' : 'Alternativas'
+    }));
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>'"]/g, char => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+  })[char]);
+}
+
+function copyResults() {
+  const rows = getSummaryRows();
+  const hasCol = config.dataMode === '3';
+  const header = ['Dato A', 'Dato B', ...(hasCol ? ['Dato C'] : []), 'Estado', 'Detalle'];
+  const lines = rows.map(row => [
+    row.a, row.b, ...(hasCol ? [row.c || '—'] : []), row.status.label, row.status.detail
+  ].join('\t'));
+  const text = [header.join('\t'), ...lines].join('\n');
+  const button = document.getElementById('btn-copy-results');
+  const copied = () => {
+    button.textContent = '✓ Resumen copiado';
+    setTimeout(() => { button.textContent = '📋 Copiar resumen'; }, 2000);
+  };
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(copied).catch(() => fallbackCopy(text, copied));
+  } else {
+    fallbackCopy(text, copied);
+  }
+}
+
+function fallbackCopy(text, onCopied) {
+  const area = document.createElement('textarea');
+  area.value = text;
+  area.style.position = 'fixed';
+  area.style.opacity = '0';
+  document.body.appendChild(area);
+  area.select();
+  document.execCommand('copy');
+  area.remove();
+  onCopied();
 }
 
 function showResults() {
   hide('card'); hide('progress-bar-wrap'); hide('phase-transition');
   show('results');
 
-  // ── Stats: total, errors, accuracy ──────────────────────────────────────────
-  const totalAnswered = totalQ + (practiceType === 'mc+write' ? totalQ : 0);
-  // totalQ is per-subphase; use doneQ accumulation instead via a simpler approach:
-  // We track total questions answered as the sum across all subphases.
-  // The cleanest source is: mistakes.length = errors. Accuracy from doneQ isn't
-  // reliable across groups, so we derive totals from allGroups and practiceType.
-  const itemsPerGroup = allGroups.reduce((s, g) => {
-    const dir = exerciseDir;
-    const multiplier = dir === 'both' ? 2 : 1;
-    return s + g.length * multiplier;
-  }, 0);
-  const writeMultiplier = practiceType === 'mc+write'
-    ? allGroups.reduce((s, g) => {
-        const dir = writeDir;
-        return s + g.length * (dir === 'both' ? 2 : 1);
-      }, 0)
-    : 0;
-  const totalQuestions = itemsPerGroup + writeMultiplier;
-  const errorCount = mistakes.length;
-  const accuracy = totalQuestions > 0 ? Math.round((totalQuestions - errorCount) / totalQuestions * 100) : 100;
+  const summaryRows = getSummaryRows();
+  const finalRows = getFinalResultRows();
+  const errorCount = finalRows.length;
+  const totalWords = study.words.length;
+  const accuracy = totalWords > 0 ? Math.round((totalWords - errorCount) / totalWords * 100) : 100;
   document.getElementById('results-stats').textContent =
-    `Errores: ${errorCount} de ${totalQuestions} · Precisión: ${accuracy}%`;
+    `Pendientes tras el repaso: ${errorCount} de ${totalWords} · Dominio: ${accuracy}%`;
 
   // ── Repeat-errors button: only show if there are errors ──────────────────────
   document.getElementById('btn-repeat-errors').style.display = errorCount > 0 ? 'block' : 'none';
 
   // ── Mistakes table ───────────────────────────────────────────────────────────
   const list = document.getElementById('mistakes-list');
-  if (mistakes.length === 0) {
-    list.innerHTML = '<div class="no-mistakes">🎉 ¡Sin errores! ¡Perfecto!</div>'; return;
-  }
-
-  // Build table columns dynamically depending on dataMode
   const hasCol = dataMode === '3';
   let html = `<table class="results-table"><thead><tr>
-    <th>Dato A</th><th>Dato B</th>${hasCol ? '<th>Dato C</th>' : ''}<th>Dirección</th><th>Fase</th>
+    <th>Dato A</th><th>Dato B</th>${hasCol ? '<th>Dato C</th>' : ''}<th>Estado final</th><th>Detalle</th>
   </tr></thead><tbody>`;
-  mistakes.forEach(m => {
-    const dirLabel = m.direction === 'ab' ? 'A→B' : 'B→A';
+  summaryRows.forEach(row => {
     html += `<tr>
-      <td class="td-a">${m.a}</td>
-      <td>${m.b}</td>
-      ${hasCol ? `<td class="td-c">${m.c || '—'}</td>` : ''}
-      <td><span class="tag-phase">${dirLabel}</span></td>
-      <td><span class="tag-phase">${m.phase}</span></td>
+      <td class="td-a">${escapeHtml(row.a)}</td>
+      <td>${escapeHtml(row.b)}</td>
+      ${hasCol ? `<td class="td-c">${escapeHtml(row.c || '—')}</td>` : ''}
+      <td><span class="status-tag status-${row.status.key}">${row.status.label}</span></td>
+      <td class="summary-detail">${row.status.detail}</td>
     </tr>`;
   });
   html += '</tbody></table>';
@@ -812,27 +1046,24 @@ function showResults() {
 // ─── REPEAT FUNCTIONS ─────────────────────────────────────────────────────────
 
 function repeatErrors() {
-  if (mistakes.length === 0) return;
-  // Deduplicate: one entry per unique word (by a+b)
-  const seen = new Set();
-  const errorWords = [];
-  mistakes.forEach(m => {
-    const key = m.a + '|' + m.b;
-    if (!seen.has(key)) { seen.add(key); errorWords.push({ a: m.a, b: m.b, c: m.c || undefined }); }
-  });
-  vocab = shuffle(errorWords);
-  allGroups = [];
-  for (let i = 0; i < vocab.length; i += GROUP_SIZE) allGroups.push(vocab.slice(i, i + GROUP_SIZE));
-  groupIdx = 0; lastGroupIdx = 0; subPhase = 'mc'; mistakes = [];
+  const errorWords = getFinalResultRows();
+  if (errorWords.length === 0) return;
+  study.words = shuffle(prepareWords(errorWords));
+  study.groups = [];
+  for (let i = 0; i < study.words.length; i += config.groupSize) {
+    study.groups.push(study.words.slice(i, i + config.groupSize));
+  }
+  session = createSession();
   hide('results'); show('progress-bar-wrap'); show('card');
   loadSubPhase();
 }
 
 function repeatLastGroup() {
-  const group = allGroups[lastGroupIdx] || allGroups[allGroups.length - 1];
-  vocab = group; // keep same vocab reference for distractor pool
-  allGroups = [group];
-  groupIdx = 0; lastGroupIdx = 0; subPhase = 'mc'; mistakes = [];
+  const group = study.groups[session.lastGroupIndex] || study.groups[study.groups.length - 1];
+  // Keep the same group-sized distractor pool as the original repeat behavior.
+  study.words = prepareWords(group.map(({ a, b, c }) => ({ a, b, c })));
+  study.groups = [study.words];
+  session = createSession();
   hide('results'); show('progress-bar-wrap'); show('card');
   loadSubPhase();
 }
