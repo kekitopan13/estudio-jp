@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Falsi Quizlet v.2</title>
+<title>Falsi Quizlet v.3</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Segoe UI', sans-serif; background: #f7f4ff; color: #111; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 16px; }
@@ -142,7 +142,7 @@
   <a href="https://kekitopan13.github.io/estudio-jp/">← メニュー</a>
 </div>
 
-<h1>Falsi Quizlet v.2</h1>
+<h1>Falsi Quizlet v.3</h1>
 <p class="subtitle">Herramienta de estudio flexible</p>
 
 <!-- SETUP -->
@@ -561,9 +561,7 @@ function getPhaseLabel() {
 
 function buildPhaseQueue() {
   let words = getPhaseWords();
-  if (session.phase === PHASES.REVIEW_WRITING) {
-    words = words.filter(word => word.state.initialWrite === false);
-  } else if (session.phase === PHASES.REVIEW_CHOICE) {
+  if (session.phase === PHASES.REVIEW_CHOICE) {
     words = words.filter(word => word.state.reviewWrite === false);
   }
   return buildQueueItems(words, getPhaseDirection());
@@ -667,7 +665,7 @@ function handleCompletedPhase() {
     session.phase = PHASES.REVIEW_WRITING;
     showTransition(
       'Hora de repasar',
-      'Primero practicarás por escritura las entradas que fallaste.',
+      'Escribirás todas las entradas de estos tres grupos, mezcladas.',
       () => loadSubPhase()
     );
     return;
@@ -927,9 +925,9 @@ function startNextSubPhase() {
 
 function wordNeedsMorePractice(word) {
   if (config.practiceType !== 'mc+write') return word.state.initialChoice === false;
-  // A word only remains pending when it was still missed in review writing.
-  // The later summary will show whether it was at least recognized in choices.
-  return word.state.initialWrite === false && word.state.reviewWrite === false;
+  // The review is the final evaluation: writing failures remain pending, even if
+  // the word is later recognized in alternatives.
+  return word.state.reviewWrite === false;
 }
 
 function getWordStatus(word) {
@@ -939,11 +937,10 @@ function getWordStatus(word) {
       : { key: 'mastered', label: 'Dominada', detail: '✓ Alternativas iniciales' };
   }
 
-  if (word.state.initialWrite === true) {
-    return { key: 'mastered', label: 'Dominada', detail: '✓ Escritura inicial' };
-  }
   if (word.state.reviewWrite === true) {
-    return { key: 'reviewed', label: 'Corregida en repaso', detail: '✓ Escritura de repaso' };
+    return word.state.initialWrite === false
+      ? { key: 'reviewed', label: 'Corregida en repaso', detail: '✓ Escritura de repaso' }
+      : { key: 'mastered', label: 'Dominada', detail: '✓ Escritura de repaso' };
   }
   if (word.state.reviewChoice === true) {
     return { key: 'recognition', label: 'Solo reconocimiento', detail: '✓ Alternativas de repaso · falta escritura' };
