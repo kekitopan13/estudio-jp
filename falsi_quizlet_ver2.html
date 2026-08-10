@@ -282,7 +282,7 @@
       <button class="post-btn" id="post-btn-vocab" onclick="postAction('vocab')">
         <span class="post-icon">🧩</span> Ejercitar el dato C en alternativas
       </button>
-      <button class="post-btn" onclick="postAction('next')">
+      <button class="post-btn" id="post-btn-next" onclick="postAction('next')">
         <span class="post-icon">➡️</span> Seguir
       </button>
     </div>
@@ -826,7 +826,42 @@ function checkWrite() {
   }
 }
 
-document.getElementById('write-input').addEventListener('keydown', e => { if (e.key === 'Enter') checkWrite(); });
+// One contextual Enter handler keeps keyboard navigation from firing both an
+// input confirmation and a visible action button on the same key press.
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter' || e.repeat || e.isComposing || e.defaultPrevented) return;
+
+  const writeInput = document.getElementById('write-input');
+  const writeNeedsConfirmation = document.activeElement === writeInput
+    && writeInput && !writeInput.disabled
+    && isVisible(document.getElementById('write-wrap'));
+
+  if (writeNeedsConfirmation) {
+    e.preventDefault();
+    checkWrite();
+    return;
+  }
+
+  const transition = document.getElementById('phase-transition');
+  if (isVisible(transition)) {
+    e.preventDefault();
+    startNextSubPhase();
+    return;
+  }
+
+  const nextButton = document.getElementById('next-btn');
+  if (isVisible(nextButton) && !nextButton.disabled) {
+    e.preventDefault();
+    nextQuestion();
+    return;
+  }
+
+  const followButton = document.getElementById('post-btn-next');
+  if (isVisible(followButton) && !followButton.disabled) {
+    e.preventDefault();
+    postAction('next');
+  }
+});
 
 // ─── POST-ANSWER ──────────────────────────────────────────────────────────────
 
@@ -1069,6 +1104,9 @@ function repeatLastGroup() {
 
 function show(id) { const el = document.getElementById(id); if (el) el.style.display = 'block'; }
 function hide(id) { const el = document.getElementById(id); if (el) el.style.display = 'none'; }
+function isVisible(el) {
+  return !!el && el.style.display !== 'none' && el.getClientRects().length > 0;
+}
 </script>
 </body>
 </html>
