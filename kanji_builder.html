@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Kanji Builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&family=Noto+Sans+JP:wght@300;400;500&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; background: #e6f2fa; }
+  body { font-family: 'DM Sans', sans-serif; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; }
+  #root { width: 100%; max-width: 430px; min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; background: #f7fdfb; position: relative; }
+  .kanji-font { font-family: 'Noto Serif JP', serif; }
+  .jp-font { font-family: 'Noto Sans JP', sans-serif; }
+  button, input, textarea { font: inherit; -webkit-appearance: none; appearance: none; }
+  button:focus-visible, textarea:focus-visible { outline: 2px solid #7dd4c4; outline-offset: 2px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+// ─── COLORES (paleta de la app de referencia) ───────────────────────────────
+const C = {
+  bg: "#f7fbfd", bgAlt: "#eef6fc", bgCard: "#ffffff", bgDeep: "#dfeefa",
+  text: "#17324a", textMuted: "#5a7890", textDim: "#9cb9cc",
+  mintDark: "#6ec3e8", mintDeep: "#3f9fd1",
+  pink: "#FA7DB3", pinkDark: "#e8609a",
+  correct: "#3f9fd1", correctBg: "rgba(63,159,209,0.12)",
+  wrong: "#FA7DB3", wrongBg: "rgba(250,125,179,0.15)",
+  border: "#c3ddf0", borderLight: "#dceaf6",
+  white: "#ffffff",
+  shadow: "0 2px 12px rgba(63,159,209,0.14)", shadowCard: "0 1px 4px rgba(0,0,0,0.06)",
+};
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────
+function isKanji(ch) { return /[\u4e00-\u9faf\u3400-\u4dbf]/.test(ch); }
+function shuffle(arr) { return [...arr].sort(() => Math.random() - 0.5); }
+
+function parse(text) {
+  const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
+  const errors = [];
+  const words = [];
+  lines.forEach((line, i) => {
+    const parts = line.split(";");
+    const a = (parts.shift() || "").trim();
+    const b = parts.join(";").trim();
+    const chars = [...a];
+    const kanjiChars = chars.filter(isKanji);
+    if (!a || !b || kanjiChars.length === 0) errors.push(i + 1);
+    else words.push({ id: `${i}-${a}`, a, b, chars, kanjiChars });
+  });
+  return { words, errors };
+}
+
+function buildKanjiPool(words) {
+  return [...new Set(words.flatMap(w => w.kanjiChars))];
+}
+
+function getDistractors(pool, exclude, count) {
+  const filtered = pool.filter(k => !exclude.includes(k));
+  return shuffle(filtered).slice(0, Math.max(0, Math.min(count, filtered.length)));
+}
+
+// ─── UI BÁSICOS ──────────────────────────────────────────────────────────
+function PrimaryBtn({ onClick, children, disabled, quiet }) {
+  return (
+    <button onClick={onClick} disabled={disabled} style={{
+      width: "100%", padding: "16px",
+      background: quiet ? C.bgCard : (disabled ? C.bgDeep : `linear-gradient(135deg, ${C.mintDeep}, ${C.mintDark})`),
+      border: quiet ? `1.5px solid ${C.border}` : "none", borderRadius: 14,
+      color: quiet ? C.textMuted : (disabled ? C.textDim : C.white),
+      fontSize: 16, fontWeight: 600,
+      cursor: disabled ? "not-allowed" : "pointer",
+      boxShadow: quiet ? "none" : (disabled ? "none" : C.shadow),
+    }}>{children}</button>
+  );
+}
+
+function Top({ onExit, title = "字 Kanji Builder" }) {
+  return (
+    <header style={{ padding: "13px 18px", background: C.bgCard, borderBottom: `1px solid ${C.borderLight}`, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+      <strong style={{ fontSize: 15, color: C.text }}>{title}</strong>
+      <div style={{ display: "flex", gap: 7, alignItems: "center" }}>
+        <a href="https://kekitopan13.github.io/estudio-jp/" style={{ border: `1px solid ${C.border}`, background: C.bgAlt, borderRadius: 8, padding: "6px 9px", color: C.textMuted, cursor: "pointer", fontSize: 12, textDecoration: "none", whiteSpace: "nowrap" }}>Menú principal</a>
+        {onExit && <button onClick={onExit} style={{ border: `1px solid ${C.border}`, background: C.bgAlt, borderRadius: 8, padding: "6px 11px", color: C.textMuted, cursor: "pointer", fontSize: 12 }}>Salir</button>}
+      </div>
+    </header>
+  );
+}
+
+function Progress({ done, total }) {
+  return (
+    <div style={{ padding: "13px 20px 0" }}>
+      <div style={{ height: 5, borderRadius: 9, background: C.bgDeep, overflow: "hidden" }}>
+        <div style={{ height: "100%", width: `${total ? Math.round(done / total * 100) : 0}%`, background: `linear-gradient(90deg, ${C.mintDeep}, ${C.mintDark})`, transition: "width .3s" }} />
+      </div>
+      <div style={{ fontSize: 11, color: C.textDim, marginTop: 5 }}>Palabra {Math.min(done + 1, total)}/{total}</div>
+    </div>
+  );
+}
+
+// ─── CONFIG ──────────────────────────────────────────────────────────────
+function Config({ text, setText, onStart, onReset }) {
+  const p = parse(text);
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+      <Top />
+      <main style={{ padding: "26px 20px", display: "flex", flexDirection: "column", gap: 18, flex: 1 }}>
+        <section style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 38, marginBottom: 8 }}>字</div>
+          <h1 style={{ fontSize: 23, letterSpacing: "-.03em", color: C.text }}>Kanji Builder</h1>
+          <p style={{ fontSize: 13, color: C.textMuted, lineHeight: 1.55, margin: "8px auto 0", maxWidth: 320 }}>
+            Verás la lectura de una palabra y deberás armarla seleccionando sus kanji en orden.
+          </p>
+        </section>
+
+        <section style={{ background: C.bgCard, border: `1px solid ${C.borderLight}`, borderRadius: 15, padding: 16, boxShadow: C.shadowCard }}>
+          <label style={{ fontSize: 12, fontWeight: 600, color: C.text }}>Tus palabras</label>
+          <p style={{ fontSize: 11, color: C.textDim, margin: "4px 0 10px" }}>Una por línea: <span className="jp-font">palabra;lectura</span></p>
+          <textarea value={text} onChange={e => setText(e.target.value)} spellCheck="false"
+            placeholder={"猫;ねこ\n学校;がっこう\n食べる;たべる\n電車;でんしゃ"}
+            style={{ width: "100%", minHeight: 190, resize: "vertical", padding: 12, borderRadius: 10, border: `1.5px solid ${p.errors.length ? C.pink : C.border}`, background: C.bgAlt, color: C.text, lineHeight: 1.8, fontFamily: "'Noto Sans JP', sans-serif", fontSize: 14 }} />
+          {p.errors.length > 0 && <p style={{ fontSize: 11, color: C.pinkDark, marginTop: 7 }}>Revisa las líneas: {p.errors.join(", ")} (falta un dato o no contienen kanji).</p>}
+          <p style={{ fontSize: 11, color: C.textMuted, marginTop: 8 }}>{p.words.length} palabra{p.words.length === 1 ? "" : "s"} lista{p.words.length === 1 ? "" : "s"}</p>
+        </section>
+
+        <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: 10 }}>
+          <PrimaryBtn disabled={!p.words.length} onClick={onStart}>Iniciar ejercicio →</PrimaryBtn>
+          <PrimaryBtn quiet onClick={onReset}>Borrar palabras guardadas</PrimaryBtn>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+// ─── EJERCICIO DE CONSTRUCCIÓN ───────────────────────────────────────────
+function ConstruccionEx({ word, kanjiPool, onDone }) {
+  const correctKanjis = word.kanjiChars;
+  const [slots, setSlots] = useState(correctKanjis.map(() => null));
+  const [pool, setPool] = useState(() => shuffle([...correctKanjis, ...getDistractors(kanjiPool, correctKanjis, 9 - correctKanjis.length)]));
+  const [errors, setErrors] = useState(new Set());
+  const [errorCount, setErrorCount] = useState(0);
+  const [done, setDone] = useState(false);
+
+  const kanjiPositionsInWord = word.chars.reduce((acc, ch, i) => { if (isKanji(ch)) acc.push(i); return acc; }, []);
+
+  function handleSelect(k, poolIdx) {
+    if (done || errors.has(poolIdx)) return;
+    const nextEmpty = slots.findIndex(s => s === null);
+    if (nextEmpty === -1) return;
+    const expected = correctKanjis[nextEmpty];
+    if (k === expected) {
+      const newSlots = [...slots];
+      newSlots[nextEmpty] = k;
+      setSlots(newSlots);
+      setPool(prev => prev.map((p, i) => (i === poolIdx ? null : p)));
+      setErrors(new Set());
+      if (newSlots.every(s => s !== null)) {
+        setTimeout(() => setDone(true), 350);
+      }
+    } else {
+      setErrors(prev => new Set([...prev, poolIdx]));
+      setErrorCount(prev => prev + 1);
+    }
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", padding: "20px 20px 28px", gap: 20, flex: 1, justifyContent: "center" }}>
+      <div style={{ textAlign: "center" }}>
+        <div className="jp-font" style={{ fontSize: 26, color: C.text, letterSpacing: "0.18em", marginBottom: 14 }}>{word.b}</div>
+        <div style={{ display: "flex", justifyContent: "center", gap: 6, flexWrap: "wrap" }}>
+          {word.chars.map((ch, i) => {
+            const kanjiIdx = kanjiPositionsInWord.indexOf(i);
+            if (isKanji(ch)) {
+              const filled = slots[kanjiIdx];
+              return (
+                <div key={i} className="kanji-font" style={{
+                  width: 54, height: 54, border: `2px dashed ${filled ? C.mintDeep : C.border}`, borderRadius: 11,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 28, color: filled ? C.mintDeep : "transparent",
+                  background: filled ? C.correctBg : "transparent", transition: "all 0.2s",
+                }}>{filled || ch}</div>
+              );
+            }
+            return (
+              <div key={i} className="jp-font" style={{ width: 34, height: 54, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, color: C.textMuted }}>{ch}</div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, width: "100%" }}>
+        {pool.map((k, i) => {
+          if (k === null) return <div key={i} style={{ height: 68 }} />;
+          const isErr = errors.has(i);
+          return (
+            <button key={i} onClick={() => handleSelect(k, i)} className="kanji-font" style={{
+              height: 68, fontSize: 34,
+              background: isErr ? C.wrongBg : C.bgCard,
+              border: `1.5px solid ${isErr ? C.wrong : C.border}`,
+              borderRadius: 12, color: isErr ? C.pinkDark : C.text,
+              cursor: "pointer", boxShadow: C.shadowCard,
+            }}>{k}</button>
+          );
+        })}
+      </div>
+
+      {done && <PrimaryBtn onClick={() => onDone(errorCount)}>Continuar →</PrimaryBtn>}
+    </div>
+  );
+}
+
+// ─── RESUMEN FINAL ───────────────────────────────────────────────────────
+function CopyButton({ rows }) {
+  const [copied, setCopied] = useState(false);
+  function handleCopy() {
+    const header = "Palabra\tLectura\tErrores\tResultado";
+    const lines = rows.map(r => `${r.a}\t${r.b}\t${r.errors}\t${r.result}`);
+    navigator.clipboard.writeText([header, ...lines].join("\n")).then(() => {
+      setCopied(true); setTimeout(() => setCopied(false), 2000);
+    });
+  }
+  return (
+    <button onClick={handleCopy} style={{ width: "100%", border: `1.5px solid ${C.border}`, borderRadius: 14, padding: "13px", background: copied ? C.correctBg : C.bgCard, color: copied ? C.mintDeep : C.textMuted, fontWeight: 600, fontSize: 13, cursor: "pointer", boxShadow: C.shadowCard }}>
+      {copied ? "¡Copiado!" : "📋 Copiar resultados"}
+    </button>
+  );
+}
+
+function ResultsTable({ rows }) {
+  const thStyle = { padding: "9px 10px", fontSize: 10, fontWeight: 700, color: C.textMuted, textTransform: "uppercase", letterSpacing: ".07em", position: "sticky", top: 0, background: C.bgAlt };
+  return (
+    <div style={{ background: C.bgCard, border: `1px solid ${C.borderLight}`, borderRadius: 14, overflow: "hidden", boxShadow: C.shadowCard }}>
+      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <thead><tr>
+          <th style={{ ...thStyle, textAlign: "left" }}>Palabra</th>
+          <th style={{ ...thStyle, textAlign: "left" }}>Lectura</th>
+          <th style={{ ...thStyle, textAlign: "center" }}>Errores</th>
+          <th style={{ ...thStyle, textAlign: "center" }}>Resultado</th>
+        </tr></thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={r.id} style={{ borderBottom: i < rows.length - 1 ? `1px solid ${C.borderLight}` : "none" }}>
+              <td className="kanji-font" style={{ padding: "10px 10px", fontSize: 17 }}>{r.a}</td>
+              <td className="jp-font" style={{ padding: "10px 10px", fontSize: 13, color: C.textMuted }}>{r.b}</td>
+              <td style={{ padding: "10px 10px", textAlign: "center", fontSize: 13, color: C.textMuted }}>{r.errors}</td>
+              <td style={{ padding: "10px 10px", textAlign: "center" }}>
+                <span style={{ display: "inline-block", padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: r.result === "Exitoso" ? C.correctBg : C.wrongBg, color: r.result === "Exitoso" ? C.mintDeep : C.pinkDark }}>{r.result}</span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function Summary({ rows, onNew }) {
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+      <Top title="字 Kanji Builder · Resultado" />
+      <main style={{ padding: "23px 20px 30px", overflowY: "auto", display: "flex", flexDirection: "column", gap: 15 }}>
+        <section style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 36 }}>字</div>
+          <h1 style={{ fontSize: 21, color: C.text }}>Resumen de la sesión</h1>
+          <p style={{ fontSize: 12, color: C.textMuted, marginTop: 5 }}>Practicaste {rows.length} palabra{rows.length === 1 ? "" : "s"}.</p>
+        </section>
+        <CopyButton rows={rows} />
+        <ResultsTable rows={rows} />
+        <PrimaryBtn onClick={onNew}>Nueva sesión</PrimaryBtn>
+      </main>
+    </div>
+  );
+}
+
+// ─── APP ─────────────────────────────────────────────────────────────────
+function App() {
+  const [text, setText] = useState(() => localStorage.getItem("kanji_builder_text") || "");
+  const [screen, setScreen] = useState("config");
+  const [kanjiPool, setKanjiPool] = useState([]);
+
+  const [remaining, setRemaining] = useState([]);   // palabras pendientes de primer intento
+  const [pendingRepeats, setPendingRepeats] = useState([]); // [{word, firstErrors, triggerAt}]
+  const [successCount, setSuccessCount] = useState(0);
+  const [current, setCurrent] = useState(null); // {word, attempt, firstErrors?}
+  const [results, setResults] = useState([]);
+  const [totalWords, setTotalWords] = useState(0);
+
+  useEffect(() => localStorage.setItem("kanji_builder_text", text), [text]);
+
+  function pickNext(remainingArr, repeatsArr, success) {
+    const readyIdx = repeatsArr.findIndex(r => r.triggerAt <= success);
+    if (readyIdx !== -1) {
+      const item = repeatsArr[readyIdx];
+      setPendingRepeats(repeatsArr.filter((_, i) => i !== readyIdx));
+      setCurrent({ word: item.word, attempt: 2, firstErrors: item.firstErrors });
+      return;
+    }
+    if (remainingArr.length > 0) {
+      const [next, ...rest] = remainingArr;
+      setRemaining(rest);
+      setCurrent({ word: next, attempt: 1 });
+      return;
+    }
+    if (repeatsArr.length > 0) {
+      // no quedan palabras nuevas: toma la repetición más próxima aunque no se haya cumplido el umbral
+      const item = repeatsArr[0];
+      setPendingRepeats(repeatsArr.slice(1));
+      setCurrent({ word: item.word, attempt: 2, firstErrors: item.firstErrors });
+      return;
+    }
+    setCurrent(null);
+    setScreen("summary");
+  }
+
+  function start() {
+    const p = parse(text);
+    const pool = buildKanjiPool(p.words);
+    const shuffled = shuffle(p.words);
+    setKanjiPool(pool);
+    setTotalWords(p.words.length);
+    setResults([]);
+    setPendingRepeats([]);
+    setSuccessCount(0);
+    setScreen("review");
+    pickNext(shuffled, [], 0);
+  }
+
+  function handleDone(errorCount) {
+    const { word, attempt, firstErrors } = current;
+    if (attempt === 1) {
+      if (errorCount === 0) {
+        const newSuccess = successCount + 1;
+        setResults(r => [...r, { ...word, errors: 0, result: "Exitoso" }]);
+        setSuccessCount(newSuccess);
+        pickNext(remaining, pendingRepeats, newSuccess);
+      } else {
+        const newRepeats = [...pendingRepeats, { word, firstErrors: errorCount, triggerAt: successCount + 3 }];
+        setPendingRepeats(newRepeats);
+        pickNext(remaining, newRepeats, successCount);
+      }
+    } else {
+      const total = firstErrors + errorCount;
+      if (errorCount === 0) {
+        const newSuccess = successCount + 1;
+        setResults(r => [...r, { ...word, errors: total, result: "Exitoso" }]);
+        setSuccessCount(newSuccess);
+        pickNext(remaining, pendingRepeats, newSuccess);
+      } else {
+        setResults(r => [...r, { ...word, errors: total, result: "Error" }]);
+        pickNext(remaining, pendingRepeats, successCount);
+      }
+    }
+  }
+
+  function exit() { setScreen("config"); }
+
+  if (screen === "config") return <Config text={text} setText={setText} onStart={start} onReset={() => setText("")} />;
+  if (screen === "summary") return <Summary rows={results} onNew={exit} />;
+
+  if (!current) return null;
+  const finishedCount = results.length;
+
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+      <Top onExit={exit} />
+      <Progress done={finishedCount} total={totalWords} />
+      <ConstruccionEx key={`${current.word.id}-${current.attempt}`} word={current.word} kanjiPool={kanjiPool} onDone={handleDone} />
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
