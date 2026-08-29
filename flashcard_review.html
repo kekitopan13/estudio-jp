@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Flashcards de Vocabulario</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { min-height: 100%; background: #eaf6ef; }
+  body { display:flex; justify-content:center; font-family:'DM Sans',sans-serif; color:#173b2d; }
+  #root { width:100%; max-width:430px; min-height:100vh; min-height:100dvh; display:flex; flex-direction:column; background:#f7fcf8; }
+  button, input, textarea { font:inherit; }
+  button { -webkit-appearance:none; appearance:none; transition:transform .1s, background .2s, border-color .2s; }
+  button:not(:disabled):active { transform:scale(.975); }
+  button:focus-visible, input:focus-visible, textarea:focus-visible { outline:2px solid #65bfa3; outline-offset:2px; }
+  .jp { font-family:'Noto Sans JP',sans-serif; }
+</style>
+</head>
+<body><div id="root"></div>
+<script type="text/babel">
+const {useEffect, useRef, useState} = React;
+
+const C = {
+  bg:'#f7fcf8', alt:'#edf8f1', card:'#fff', deep:'#dcefe4', text:'#173b2d',
+  muted:'#5e8070', dim:'#98b8a8', border:'#c9e5d6', light:'#e1f1e8',
+  mint:'#65bfa3', mintDark:'#3f9b7d', mintBg:'rgba(101,191,163,.16)',
+  yellow:'#d99a35', yellowDark:'#b9791f', yellowBg:'#fff8e8',
+  red:'#e0554f', redDark:'#c23b36', redBg:'rgba(224,85,79,.14)',
+  shadow:'0 2px 12px rgba(39,111,82,.10)'
+};
+
+const LEVELS = {
+  facil:    {label:'Fácil',        color:C.mint,   dark:C.mintDark,   bg:C.mintBg},
+  regular:  {label:'Más o menos',  color:C.yellow, dark:C.yellowDark, bg:C.yellowBg},
+  dificil:  {label:'Difícil',      color:C.red,    dark:C.redDark,    bg:C.redBg},
+};
+
+const shuffle = arr => [...arr].sort(() => Math.random() - .5);
+
+function parse(text) {
+  const errors = [], words = [];
+  text.split('\n').map(x=>x.trim()).filter(Boolean).forEach((line,i)=>{
+    const p = line.split(';');
+    const a = (p.shift()||'').trim();
+    const b = p.join(';').trim();
+    if(!a || !b) errors.push(i+1);
+    else words.push({id:`${i}-${a}`, a, b});
+  });
+  return {words, errors};
+}
+
+function Btn({children,onClick,disabled=false,quiet=false}) {
+  return <button disabled={disabled} onClick={onClick} style={{
+    width:'100%', border:quiet?`1.5px solid ${C.border}`:'none', borderRadius:14, padding:'16px',
+    background:quiet?C.card:`linear-gradient(135deg,${C.mintDark},${C.mint})`,
+    color:quiet?C.muted:'#fff', fontWeight:600, fontSize:16,
+    cursor:disabled?'not-allowed':'pointer', boxShadow:quiet?'none':C.shadow, opacity:disabled?.55:1
+  }}>{children}</button>;
+}
+
+function Top({onExit,title='📇 Flashcards JP'}) {
+  return <header style={{padding:'13px 18px',background:C.card,borderBottom:`1px solid ${C.light}`,display:'flex',justifyContent:'space-between',alignItems:'center',gap:10}}>
+    <strong style={{fontSize:15}}>{title}</strong>
+    <div style={{display:'flex',gap:7,alignItems:'center'}}>
+      <a href="https://kekitopan13.github.io/estudio-jp/" style={{border:`1px solid ${C.border}`,background:C.alt,borderRadius:8,padding:'6px 9px',color:C.muted,cursor:'pointer',fontSize:12,textDecoration:'none',whiteSpace:'nowrap'}}>Menú principal</a>
+      {onExit && <button onClick={onExit} style={{border:`1px solid ${C.border}`,background:C.alt,borderRadius:8,padding:'6px 11px',color:C.muted,cursor:'pointer',fontSize:12}}>Salir</button>}
+    </div>
+  </header>;
+}
+
+function Progress({now,total}) {
+  return <div style={{padding:'13px 20px 0'}}>
+    <div style={{height:5,borderRadius:9,background:C.deep,overflow:'hidden'}}>
+      <div style={{height:'100%',width:`${total?Math.round(now/total*100):0}%`,background:`linear-gradient(90deg,${C.mintDark},${C.mint})`,transition:'width .3s'}} />
+    </div>
+    <div style={{fontSize:11,color:C.dim,marginTop:5}}>Palabra {now}/{total}</div>
+  </div>;
+}
+
+function OrderToggle({order,setOrder}) {
+  const opts = [{v:'original',label:'Orden original'},{v:'random',label:'Orden aleatorio'}];
+  return <div style={{display:'flex',gap:8}}>
+    {opts.map(o=>
+      <button key={o.v} onClick={()=>setOrder(o.v)} style={{
+        flex:1, padding:'12px 8px', borderRadius:12, fontSize:13, fontWeight:600,
+        border:`1.5px solid ${order===o.v?C.mint:C.border}`,
+        background:order===o.v?C.mintBg:C.card,
+        color:order===o.v?C.mintDark:C.muted, cursor:'pointer'
+      }}>{o.label}</button>
+    )}
+  </div>;
+}
+
+function Config({text,setText,order,setOrder,onStart,onReset}) {
+  const p = parse(text);
+  return <div style={{flex:1,display:'flex',flexDirection:'column'}}>
+    <Top/>
+    <main style={{padding:'26px 20px',display:'flex',flexDirection:'column',gap:18,flex:1}}>
+      <section style={{textAlign:'center'}}>
+        <div style={{fontSize:38,marginBottom:8}}>📇</div>
+        <h1 style={{fontSize:24,letterSpacing:'-.04em'}}>Flashcards de vocabulario</h1>
+        <p style={{fontSize:13,color:C.muted,lineHeight:1.55,margin:'8px auto 0',maxWidth:330}}>
+          Mira la palabra, recuerda la lectura y evalúa qué tan fácil te resultó.
+        </p>
+      </section>
+
+      <section style={{background:C.card,border:`1px solid ${C.light}`,borderRadius:15,padding:16,boxShadow:C.shadow}}>
+        <label style={{fontSize:12,fontWeight:600}}>Tus palabras</label>
+        <p style={{fontSize:11,color:C.dim,margin:'4px 0 10px'}}>Una por línea: <span className="jp">kanji;lectura</span></p>
+        <textarea value={text} onChange={e=>setText(e.target.value)} spellCheck="false"
+          placeholder={'猫;ねこ\n犬;いぬ\n学校;がっこう'}
+          style={{width:'100%',minHeight:190,resize:'vertical',padding:12,borderRadius:10,
+            border:`1.5px solid ${p.errors.length?C.red:C.border}`,background:C.alt,color:C.text,
+            lineHeight:1.8,fontFamily:"'Noto Sans JP', sans-serif",fontSize:14}} />
+        {p.errors.length>0 && <p style={{fontSize:11,color:C.redDark,marginTop:7}}>Revisa las líneas: {p.errors.join(', ')}.</p>}
+        <p style={{fontSize:11,color:C.muted,marginTop:8}}>{p.words.length} palabra{p.words.length===1?'':'s'} lista{p.words.length===1?'':'s'}</p>
+      </section>
+
+      <section style={{display:'flex',flexDirection:'column',gap:8}}>
+        <label style={{fontSize:12,fontWeight:600}}>Orden de la revisión</label>
+        <OrderToggle order={order} setOrder={setOrder}/>
+      </section>
+
+      <div style={{marginTop:'auto',display:'flex',flexDirection:'column',gap:10}}>
+        <Btn disabled={!p.words.length} onClick={onStart}>Iniciar revisión →</Btn>
+        <Btn quiet onClick={onReset}>Borrar palabras guardadas</Btn>
+      </div>
+    </main>
+  </div>;
+}
+
+function Flashcard({word,revealed,onReveal,onEvaluate}) {
+  return <main style={{flex:1,padding:'20px 20px 30px',display:'flex',flexDirection:'column',justifyContent:'center',gap:20}}>
+    <div style={{background:C.card,border:`1px solid ${C.light}`,borderRadius:18,padding:'40px 20px',boxShadow:C.shadow,textAlign:'center',minHeight:150,display:'flex',flexDirection:'column',justifyContent:'center',gap:14}}>
+      <div className="jp" style={{fontSize:38,letterSpacing:'.04em',lineHeight:1.3,wordBreak:'break-word'}}>{word.a}</div>
+      {revealed && <div className="jp" style={{fontSize:22,color:C.mintDark,letterSpacing:'.1em'}}>{word.b}</div>}
+    </div>
+
+    {!revealed && <Btn onClick={onReveal}>Mostrar lectura</Btn>}
+
+    {revealed && <div style={{display:'flex',flexDirection:'column',gap:10}}>
+      <p style={{fontSize:13,color:C.muted,textAlign:'center',fontWeight:600}}>¿Qué tan fácil recordaste esta palabra?</p>
+      <div style={{display:'flex',flexDirection:'column',gap:9}}>
+        {['facil','regular','dificil'].map(k=>{
+          const lv = LEVELS[k];
+          return <button key={k} onClick={()=>onEvaluate(k)} style={{
+            padding:'15px',borderRadius:13,fontSize:15,fontWeight:700,
+            border:`1.5px solid ${lv.color}`,background:lv.bg,color:lv.dark,
+            cursor:'pointer',boxShadow:C.shadow
+          }}>{lv.label}</button>;
+        })}
+      </div>
+    </div>}
+  </main>;
+}
+
+function CopyButton({rows}) {
+  const [copied,setCopied] = useState(false);
+  function handleCopy(){
+    const header = 'Palabra\tLectura\tEvaluación';
+    const lines = rows.map(r=>`${r.a}\t${r.b}\t${LEVELS[r.stage].label}`);
+    navigator.clipboard.writeText([header,...lines].join('\n')).then(()=>{
+      setCopied(true); setTimeout(()=>setCopied(false),2000);
+    });
+  }
+  return <button onClick={handleCopy} style={{
+    width:'100%',border:`1.5px solid ${C.border}`,borderRadius:14,padding:'13px',
+    background:copied?C.mintBg:C.card,color:copied?C.mintDark:C.muted,
+    fontWeight:600,fontSize:13,cursor:'pointer',boxShadow:C.shadow
+  }}>{copied?'¡Copiado!':'📋 Copiar resultados'}</button>;
+}
+
+function ResultsTable({rows}) {
+  const thStyle = {padding:'9px 10px',fontSize:10,fontWeight:700,color:C.muted,textTransform:'uppercase',letterSpacing:'.07em',position:'sticky',top:0,background:C.alt};
+  return <div style={{background:C.card,border:`1px solid ${C.light}`,borderRadius:14,overflow:'hidden',boxShadow:C.shadow}}>
+    <table style={{width:'100%',borderCollapse:'collapse'}}>
+      <thead><tr>
+        <th style={{...thStyle,textAlign:'left'}}>Palabra</th>
+        <th style={{...thStyle,textAlign:'left'}}>Lectura</th>
+        <th style={{...thStyle,textAlign:'center'}}>Evaluación</th>
+      </tr></thead>
+      <tbody>
+        {rows.map((r,i)=>{
+          const lv = LEVELS[r.stage];
+          return <tr key={r.id} style={{borderBottom:i<rows.length-1?`1px solid ${C.light}`:'none'}}>
+            <td className="jp" style={{padding:'10px 10px',fontSize:16}}>{r.a}</td>
+            <td className="jp" style={{padding:'10px 10px',fontSize:14,color:C.muted}}>{r.b}</td>
+            <td style={{padding:'10px 10px',textAlign:'center'}}>
+              <span style={{display:'inline-block',padding:'4px 10px',borderRadius:20,fontSize:11,fontWeight:700,background:lv.bg,color:lv.dark,letterSpacing:'.02em'}}>{lv.label}</span>
+            </td>
+          </tr>;
+        })}
+      </tbody>
+    </table>
+  </div>;
+}
+
+function Summary({rows,onNew}) {
+  return <div style={{flex:1,display:'flex',flexDirection:'column'}}>
+    <Top title="📇 Resultado"/>
+    <main style={{padding:'23px 20px 30px',overflowY:'auto',display:'flex',flexDirection:'column',gap:15}}>
+      <section style={{textAlign:'center'}}>
+        <div style={{fontSize:36}}>📇</div>
+        <h1 style={{fontSize:21}}>Resumen de la revisión</h1>
+        <p style={{fontSize:12,color:C.muted,marginTop:5}}>Revisaste {rows.length} palabra{rows.length===1?'':'s'}.</p>
+      </section>
+      <CopyButton rows={rows}/>
+      <ResultsTable rows={rows}/>
+      <Btn onClick={onNew}>Nueva revisión</Btn>
+    </main>
+  </div>;
+}
+
+function App(){
+  const [text,setText] = useState(()=>localStorage.getItem('flashcard_jp_text')||'');
+  const [order,setOrder] = useState('original');
+  const [screen,setScreen] = useState('config');
+  const [queue,setQueue] = useState([]);
+  const [index,setIndex] = useState(0);
+  const [revealed,setRevealed] = useState(false);
+  const [rows,setRows] = useState([]);
+
+  useEffect(()=>localStorage.setItem('flashcard_jp_text',text),[text]);
+
+  function start(){
+    const p = parse(text);
+    const q = order==='random' ? shuffle(p.words) : p.words;
+    setQueue(q); setIndex(0); setRevealed(false); setRows([]); setScreen('review');
+  }
+
+  function reveal(){ setRevealed(true); }
+
+  function evaluate(level){
+    const w = queue[index];
+    setRows(r=>[...r, {...w, stage:level}]);
+    if(index+1 < queue.length){
+      setIndex(index+1);
+      setRevealed(false);
+    } else {
+      setScreen('summary');
+    }
+  }
+
+  function exit(){ setScreen('config'); }
+
+  if(screen==='config') return <Config text={text} setText={setText} order={order} setOrder={setOrder} onStart={start} onReset={()=>setText('')}/>;
+  if(screen==='summary') return <Summary rows={rows} onNew={exit}/>;
+
+  const w = queue[index];
+  if(!w) return null;
+  return <div style={{flex:1,display:'flex',flexDirection:'column'}}>
+    <Top onExit={exit}/>
+    <Progress now={index+1} total={queue.length}/>
+    <Flashcard key={w.id} word={w} revealed={revealed} onReveal={reveal} onEvaluate={evaluate}/>
+  </div>;
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script></body></html>
