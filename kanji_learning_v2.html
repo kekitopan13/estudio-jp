@@ -1,0 +1,1742 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Kanji vocabulary learning</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&family=Noto+Sans+JP:wght@300;400;500&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; background: #f0faf6; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+    background: #e8f6f0;
+  }
+  #root {
+    width: 100%;
+    max-width: 430px;
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    background: #f7fdfb;
+    position: relative;
+  }
+  .kanji-font { font-family: 'Noto Serif JP', serif; }
+  .jp-font { font-family: 'Noto Sans JP', sans-serif; }
+  button { -webkit-appearance: none; appearance: none; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+// ─── HELPERS ────────────────────────────────────────────────────────────────
+function isKanji(ch) {
+  return /[\u4e00-\u9faf\u3400-\u4dbf]/.test(ch);
+}
+function wordToChars(w) { return [...w]; }
+function shuffle(arr) { return [...arr].sort(() => Math.random() - 0.5); }
+
+// ─── COLORES ────────────────────────────────────────────────────────────────
+const C = {
+  bg:          "#f7fdfb",
+  bgAlt:       "#edf7f3",
+  bgCard:      "#ffffff",
+  bgDeep:      "#e4f5ef",
+  text:        "#1a2e28",
+  textMuted:   "#5a7a72",
+  textDim:     "#9bbdb5",
+  mint:        "#B3EEE3",
+  mintDark:    "#7dd4c4",
+  mintDeep:    "#4fbfac",
+  pink:        "#FA7DB3",
+  pinkLight:   "rgba(250,125,179,0.15)",
+  pinkDark:    "#e8609a",
+  correct:     "#4fbfac",
+  correctBg:   "rgba(79,191,172,0.12)",
+  wrong:       "#FA7DB3",
+  wrongBg:     "rgba(250,125,179,0.15)",
+  border:      "#c8e8e0",
+  borderLight: "#dff2ed",
+  white:       "#ffffff",
+  shadow:      "0 2px 12px rgba(79,191,172,0.12)",
+  shadowCard:  "0 1px 4px rgba(0,0,0,0.06)",
+  yellow:      "#fffbe6",
+  yellowBorder:"#f0d060",
+  yellowText:  "#8a7020",
+  challenge:   "#fff3e0",
+  challengeBorder: "#ffb74d",
+  challengeText: "#e65100",
+  challengeDeep: "#f57c00",
+};
+
+// ─── VOCABULARIO POR DEFECTO ─────────────────────────────────────────────────
+const DEFAULT_DB = `必要な\tひつような\tNecesario
+空の箱\tからのはこ\tcaja vacía
+製造\tせいぞう\tFabricación, Producción industrial.
+音声\tおんせい\tSonido de voz (como la que emite la TV)
+缶詰\tかんづめ\tEnlatado. Comida conservada en lata.`;
+
+function parseDB(text) {
+  const lines = text.trim().split("\n").filter(l => l.trim());
+  const byKanji = {};
+  const words = [];
+  for (const line of lines) {
+    const parts = line.split("\t");
+    if (parts.length < 3) continue;
+    const [kanjiWord, furigana, es] = parts.map(p => p.trim());
+    if (!kanjiWord || !furigana || !es) continue;
+    const kanjiClave = kanjiWord;
+    const chars = wordToChars(kanjiWord);
+    const word = { kanjiClave, kanji: kanjiWord, furigana, es, chars };
+    words.push(word);
+    if (!byKanji[kanjiClave]) byKanji[kanjiClave] = [];
+    byKanji[kanjiClave].push(word);
+  }
+  return { words, byKanji, kanjiKeys: Object.keys(byKanji) };
+}
+
+function buildKanjiPool(words) {
+  return [...new Set(words.flatMap(w => w.chars.filter(isKanji)))];
+}
+
+let CURRENT_DB = parseDB(DEFAULT_DB);
+let ALL_KANJI_POOL = buildKanjiPool(CURRENT_DB.words);
+
+function getKanjiChars(word) { return word.chars.filter(isKanji); }
+
+function getDistractors(correctChars, count = 7) {
+  const pool = ALL_KANJI_POOL.filter(k => !correctChars.includes(k));
+  return shuffle(pool).slice(0, Math.min(count, pool.length));
+}
+
+// ─── ALGORITMO DE FAMILIARIDAD ───────────────────────────────────────────────
+const EXERCISE_WEIGHTS = { construccion: 3, lectura: 2, comprension: 1 };
+const AREA_LABELS = { construccion: "Armar", lectura: "Lectura", comprension: "Significado" };
+
+function errorMultiplier(errores, saltado) {
+  if (saltado) return 0;
+  if (errores === 0) return 1;
+  if (errores === 1) return 0.5;
+  return 0.25;
+}
+
+function familiaridadLabel(pct) {
+  if (pct >= 0.85) return "Muy familiar";
+  if (pct >= 0.65) return "Bastante familiar";
+  if (pct >= 0.40) return "En proceso";
+  return "Necesita más exposición";
+}
+
+function familiaridadColor(pct) {
+  if (pct >= 0.85) return C.mintDeep;
+  if (pct >= 0.65) return "#5aab94";
+  if (pct >= 0.40) return C.yellowText;
+  return C.pinkDark;
+}
+
+function familiaridadBg(pct) {
+  if (pct >= 0.85) return C.correctBg;
+  if (pct >= 0.65) return "rgba(90,171,148,0.10)";
+  if (pct >= 0.40) return C.yellow;
+  return C.wrongBg;
+}
+
+function calculateFamiliarity(attempts) {
+  // Agrupar intentos por kanjiClave
+  const byKanji = {};
+  for (const a of attempts) {
+    if (!byKanji[a.kanjiClave]) byKanji[a.kanjiClave] = [];
+    byKanji[a.kanjiClave].push(a);
+  }
+
+  const results = [];
+  for (const [kanji, ats] of Object.entries(byKanji)) {
+    let scoreTotal = 0;
+    let posibleTotal = 0;
+    const areaScores = { construccion: { ganado: 0, posible: 0 }, lectura: { ganado: 0, posible: 0 }, comprension: { ganado: 0, posible: 0 } };
+    const palabras = [...new Set(ats.map(a => a.palabra))];
+
+    for (const a of ats) {
+      const peso = EXERCISE_WEIGHTS[a.ejercicio] || 0;
+      const mult = errorMultiplier(a.errores, a.saltado);
+      const ganado = peso * mult;
+      scoreTotal += ganado;
+      posibleTotal += peso;
+      if (areaScores[a.ejercicio]) {
+        areaScores[a.ejercicio].ganado += ganado;
+        areaScores[a.ejercicio].posible += peso;
+      }
+    }
+
+    const porcentaje = posibleTotal > 0 ? scoreTotal / posibleTotal : 0;
+
+    const areas = {};
+    for (const [tipo, s] of Object.entries(areaScores)) {
+      areas[tipo] = s.posible > 0 ? s.ganado / s.posible : null;
+    }
+
+    results.push({
+      kanji,
+      estado: familiaridadLabel(porcentaje),
+      porcentaje,
+      areas,
+      palabras,
+    });
+  }
+
+  // Ordenar: más bajo primero (los que más necesitan atención arriba al final)
+  results.sort((a, b) => a.porcentaje - b.porcentaje);
+  return results;
+}
+
+// Calcular área más fuerte y más a reforzar entre construccion/lectura/comprension
+function calcAreaSummary(attempts) {
+  const totals = { construccion: { ganado: 0, posible: 0 }, lectura: { ganado: 0, posible: 0 }, comprension: { ganado: 0, posible: 0 } };
+  for (const a of attempts) {
+    if (!totals[a.ejercicio]) continue;
+    const peso = EXERCISE_WEIGHTS[a.ejercicio] || 0;
+    const mult = errorMultiplier(a.errores, a.saltado);
+    totals[a.ejercicio].ganado += peso * mult;
+    totals[a.ejercicio].posible += peso;
+  }
+  const scores = Object.entries(totals)
+    .filter(([, s]) => s.posible > 0)
+    .map(([tipo, s]) => ({ tipo, pct: s.ganado / s.posible }));
+
+  if (scores.length < 2) return null;
+  scores.sort((a, b) => b.pct - a.pct);
+  return { fuerte: scores[0], reforzar: scores[scores.length - 1] };
+}
+
+// ─── COMPONENTES COMPARTIDOS ─────────────────────────────────────────────────
+
+function ProgressBar({ current, total }) {
+  const pct = Math.round((current / total) * 100);
+  return (
+    <div style={{ height: 5, background: C.bgDeep, borderRadius: 3, overflow: "hidden" }}>
+      <div style={{
+        height: "100%", width: `${pct}%`,
+        background: `linear-gradient(90deg, ${C.mintDeep}, ${C.pink})`,
+        borderRadius: 3, transition: "width 0.4s ease",
+      }} />
+    </div>
+  );
+}
+
+function ExerciseTopBar({ stepCurrent, stepTotal, roundCurrent, roundTotal, onClose, onFinish, devMode, onDevSkip, isChallenge }) {
+  const barBg = isChallenge
+    ? `linear-gradient(90deg, ${C.challengeDeep}, ${C.pink})`
+    : `linear-gradient(90deg, ${C.mintDeep}, ${C.pink})`;
+  const headerBg = isChallenge ? C.challenge : C.white;
+  const headerBorder = isChallenge ? C.challengeBorder : C.borderLight;
+  return (
+    <div style={{
+      padding: "12px 16px 10px",
+      display: "flex", alignItems: "center", gap: 8,
+      background: headerBg, borderBottom: `1px solid ${headerBorder}`,
+      position: "sticky", top: 0, zIndex: 10,
+    }}>
+      <button onClick={onClose} style={{
+        width: 34, height: 34, borderRadius: "50%",
+        background: C.bgDeep, border: `1px solid ${C.border}`,
+        color: C.textMuted, fontSize: 16, cursor: "pointer",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        flexShrink: 0,
+      }}>✕</button>
+      <div style={{ flex: 1 }}>
+        <div style={{ height: 5, background: C.bgDeep, borderRadius: 3, overflow: "hidden" }}>
+          <div style={{ height: "100%", width: `${Math.round((stepCurrent/stepTotal)*100)}%`, background: barBg, borderRadius: 3, transition: "width 0.4s ease" }} />
+        </div>
+        <div style={{ fontSize: 10, color: isChallenge ? C.challengeText : C.textDim, marginTop: 3, fontWeight: isChallenge ? 700 : 400 }}>
+          {isChallenge ? "🔥 Ronda Challenging" : `Ronda ${roundCurrent}/${roundTotal}`}
+        </div>
+      </div>
+      {devMode && (
+        <button onClick={onDevSkip} style={{
+          padding: "5px 10px", borderRadius: 8,
+          background: C.pinkLight, border: `1px solid ${C.pink}`,
+          color: C.pinkDark, fontSize: 11, cursor: "pointer",
+          fontFamily: "'DM Sans', sans-serif", flexShrink: 0,
+        }}>skip →</button>
+      )}
+    </div>
+  );
+}
+
+function PageTopBar({ onHome }) {
+  return (
+    <div style={{
+      padding: "12px 16px",
+      display: "flex", alignItems: "center", justifyContent: "space-between",
+      background: C.white, borderBottom: `1px solid ${C.borderLight}`,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <span style={{ fontSize: 18 }}>📖</span>
+        <span style={{ fontSize: 15, fontWeight: 600, color: C.text }}>Kanji vocabulary learning</span>
+      </div>
+      <div style={{ display: "flex", gap: 8 }}>
+        {onHome && (
+          <button onClick={onHome} style={{
+            padding: "6px 12px", borderRadius: 8,
+            background: C.bgDeep, border: `1px solid ${C.border}`,
+            color: C.textMuted, fontSize: 12, cursor: "pointer",
+            fontFamily: "'DM Sans', sans-serif",
+          }}>Inicio</button>
+        )}
+        <a href="https://kekitopan13.github.io/estudio-jp/" target="_blank" rel="noopener noreferrer" style={{
+          padding: "6px 12px", borderRadius: 8,
+          background: C.mint, border: "none",
+          color: C.text, fontSize: 12, cursor: "pointer",
+          fontFamily: "'DM Sans', sans-serif", fontWeight: 500,
+          textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4,
+        }}>Menú ↗</a>
+      </div>
+    </div>
+  );
+}
+
+function TypeLabel({ label, color }) {
+  return (
+    <div style={{
+      fontSize: 10, letterSpacing: "0.14em", fontWeight: 700,
+      color: color || C.textMuted, textTransform: "uppercase",
+    }}>{label}</div>
+  );
+}
+
+function KanjiDisplay({ word, showFurigana = true, size = 88 }) {
+  return (
+    <div style={{ textAlign: "center" }}>
+      <div className="kanji-font" style={{
+        fontSize: size, color: C.text,
+        lineHeight: 1.1, letterSpacing: "0.04em",
+      }}>{word.kanji}</div>
+      {showFurigana && (
+        <div className="jp-font" style={{
+          fontSize: 20, color: C.textMuted, marginTop: 8,
+          letterSpacing: "0.2em",
+        }}>{word.furigana}</div>
+      )}
+    </div>
+  );
+}
+
+function PrimaryBtn({ onClick, children, disabled }) {
+  return (
+    <button onClick={onClick} disabled={disabled} style={{
+      width: "100%", padding: "17px",
+      background: disabled ? C.bgDeep : `linear-gradient(135deg, ${C.mintDeep}, ${C.mintDark})`,
+      border: "none", borderRadius: 14,
+      color: disabled ? C.textDim : C.white,
+      fontSize: 17, fontWeight: 600,
+      cursor: disabled ? "not-allowed" : "pointer",
+      fontFamily: "'DM Sans', sans-serif",
+      boxShadow: disabled ? "none" : C.shadow,
+      transition: "transform 0.1s",
+    }}
+    onPointerDown={e => { if (!disabled) e.currentTarget.style.transform = "scale(0.97)"; }}
+    onPointerUp={e => e.currentTarget.style.transform = "scale(1)"}
+    onPointerLeave={e => e.currentTarget.style.transform = "scale(1)"}
+    >{children}</button>
+  );
+}
+
+// ─── EJERCICIO 1: EXPOSICIÓN ─────────────────────────────────────────────────
+// No genera datos de tracking
+function ExposicionEx({ word, onNext }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", padding: "20px 24px 28px", gap: 18 }}>
+      <KanjiDisplay word={word} showFurigana={true} size={88} />
+      <div style={{
+        background: C.bgCard, borderRadius: 14, padding: "16px 20px",
+        border: `1px solid ${C.borderLight}`, boxShadow: C.shadowCard,
+      }}>
+        <div style={{ fontSize: 10, color: C.textDim, marginBottom: 4, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em" }}>Significado</div>
+        <div style={{ fontSize: 17, color: C.text, lineHeight: 1.5 }}>{word.es}</div>
+      </div>
+      <div style={{ display: "flex", justifyContent: "center", gap: 8, flexWrap: "wrap" }}>
+        {word.chars.filter(isKanji).map((ch, i) => (
+          <div key={i} className="kanji-font" style={{
+            width: 48, height: 48, display: "flex", alignItems: "center", justifyContent: "center",
+            background: C.bgDeep, border: `1px solid ${C.border}`,
+            borderRadius: 10, fontSize: 24, color: C.mintDeep,
+          }}>{ch}</div>
+        ))}
+      </div>
+      <PrimaryBtn onClick={onNext}>OK</PrimaryBtn>
+    </div>
+  );
+}
+
+// ─── EJERCICIO 2: CONSTRUCCIÓN ───────────────────────────────────────────────
+function ConstruccionEx({ word, onNext, recordAttempt, roundIdx, isChallenge = false }) {
+  const correctKanjis = getKanjiChars(word);
+  const [slots, setSlots] = useState(correctKanjis.map(() => null));
+  const [pool, setPool] = useState(() => shuffle([...correctKanjis, ...getDistractors(correctKanjis, 9 - correctKanjis.length)]));
+  const [errors, setErrors] = useState(new Set());
+  const [errorCount, setErrorCount] = useState(0);
+  const [done, setDone] = useState(false);
+  const [gaveUp, setGaveUp] = useState(false);
+  const reported = useRef(false);
+
+  const kanjiPositionsInWord = word.chars.reduce((acc, ch, i) => {
+    if (isKanji(ch)) acc.push(i);
+    return acc;
+  }, []);
+
+  function handleSelect(k, poolIdx) {
+    if (errors.has(poolIdx)) return;
+    const nextEmpty = slots.findIndex(s => s === null);
+    if (nextEmpty === -1) return;
+    const expected = correctKanjis[nextEmpty];
+    if (k === expected) {
+      const newSlots = [...slots];
+      newSlots[nextEmpty] = k;
+      setSlots(newSlots);
+      setPool(prev => prev.map((p, i) => i === poolIdx ? null : p));
+      setErrors(new Set());
+      if (newSlots.every(s => s !== null)) {
+        setTimeout(() => setDone(true), 350);
+      }
+    } else {
+      setErrors(prev => new Set([...prev, poolIdx]));
+      setErrorCount(prev => prev + 1);
+    }
+  }
+
+  function handleContinue() {
+    if (!reported.current) {
+      reported.current = true;
+      recordAttempt({
+        kanjiClave: word.kanjiClave,
+        palabra: word.kanji,
+        furigana: word.furigana,
+        significado: word.es,
+        ejercicio: "construccion",
+        correcto: true,
+        errores: errorCount,
+        primerIntentoCorrecto: errorCount === 0,
+        saltado: false,
+        ronda: roundIdx + 1,
+        isChallenge,
+      });
+    }
+    onNext();
+  }
+
+  function handleGiveUp() {
+    if (!reported.current) {
+      reported.current = true;
+      recordAttempt({
+        kanjiClave: word.kanjiClave, palabra: word.kanji, furigana: word.furigana,
+        significado: word.es, ejercicio: "construccion", correcto: false,
+        errores: errorCount + 1, primerIntentoCorrecto: false, saltado: true,
+        ronda: roundIdx + 1, isChallenge,
+      });
+    }
+    setGaveUp(true);
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", padding: "16px 20px 24px", gap: 12 }}>
+      <div style={{ textAlign: "center" }}>
+        <div style={{ fontSize: 14, color: C.textMuted, marginBottom: 6 }}>{word.es}</div>
+        <div className="jp-font" style={{ fontSize: 24, color: C.text, letterSpacing: "0.18em", marginBottom: 12 }}>
+          {word.furigana}
+        </div>
+        <div style={{ display: "flex", justifyContent: "center", gap: 6, flexWrap: "wrap" }}>
+          {word.chars.map((ch, i) => {
+            const kanjiIdx = kanjiPositionsInWord.indexOf(i);
+            if (isKanji(ch)) {
+              const filled = slots[kanjiIdx];
+              return (
+                <div key={i} className="kanji-font" style={{
+                  width: 54, height: 54,
+                  border: `2px dashed ${filled ? C.mintDeep : C.border}`,
+                  borderRadius: 11,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 28, color: filled ? C.mintDeep : "transparent",
+                  background: filled ? C.correctBg : "transparent",
+                  transition: "all 0.2s",
+                }}>{filled || ch}</div>
+              );
+            } else {
+              return (
+                <div key={i} className="jp-font" style={{
+                  width: 34, height: 54,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 24, color: C.textMuted,
+                }}>{ch}</div>
+              );
+            }
+          })}
+        </div>
+      </div>
+
+      {!gaveUp && <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, width: "100%" }}>
+        {pool.map((k, i) => {
+          if (k === null) return <div key={i} style={{ height: 68 }} />;
+          const isErr = errors.has(i);
+          return (
+            <button key={i} onClick={() => handleSelect(k, i)} className="kanji-font" style={{
+              height: 68, fontSize: 34,
+              background: isErr ? C.wrongBg : C.bgCard,
+              border: `1.5px solid ${isErr ? C.wrong : C.border}`,
+              borderRadius: 12, color: isErr ? C.pinkDark : C.text,
+              cursor: "pointer", transition: "all 0.15s",
+              fontFamily: "'Noto Serif JP', serif",
+              boxShadow: C.shadowCard,
+            }}>{k}</button>
+          );
+        })}
+      </div>}
+
+      {done && <PrimaryBtn onClick={handleContinue}>Continuar →</PrimaryBtn>}
+      {!done && !gaveUp && isChallenge && <button onClick={handleGiveUp} style={{ padding: "10px", borderRadius: 10, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMuted, cursor: "pointer", fontSize: 13 }}>No lo sé</button>}
+      {gaveUp && <div style={{ textAlign: "center", padding: 12, borderRadius: 12, background: C.wrongBg, color: C.pinkDark, fontSize: 13 }}>
+        La respuesta era <span className="kanji-font" style={{ fontSize: 22, marginLeft: 5 }}>{word.kanji}</span>
+        <div style={{ marginTop: 10 }}><PrimaryBtn onClick={onNext}>Continuar →</PrimaryBtn></div>
+      </div>}
+    </div>
+  );
+}
+
+// ─── EJERCICIO 3: LECTURA ────────────────────────────────────────────────────
+function LecturaEx({ word, allWords, onNext, recordAttempt, roundIdx }) {
+  const correct = word.furigana;
+  const distractors = allWords.filter(w => w.furigana !== correct).sort(() => Math.random() - 0.5).slice(0, 1).map(w => w.furigana);
+  const [options] = useState(() => shuffle([correct, ...distractors]));
+  const [chosen, setChosen] = useState(null);
+  const [wrong, setWrong] = useState(new Set());
+  const [errorCount, setErrorCount] = useState(0);
+  const reported = useRef(false);
+
+  function handlePick(opt) {
+    if (chosen) return;
+    if (opt === correct) {
+      setChosen(opt);
+      if (!reported.current) {
+        reported.current = true;
+        recordAttempt({
+          kanjiClave: word.kanjiClave,
+          palabra: word.kanji,
+          furigana: word.furigana,
+          significado: word.es,
+          ejercicio: "lectura",
+          correcto: true,
+          errores: errorCount,
+          primerIntentoCorrecto: errorCount === 0,
+          saltado: false,
+          ronda: roundIdx + 1,
+        });
+      }
+      setTimeout(onNext, 650);
+    } else {
+      setWrong(prev => new Set([...prev, opt]));
+      setErrorCount(prev => prev + 1);
+    }
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", padding: "20px 20px 28px", gap: 24 }}>
+      <KanjiDisplay word={word} showFurigana={false} size={88} />
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {options.map((opt, i) => {
+          const isWrong = wrong.has(opt);
+          const isCorrect = chosen === opt;
+          return (
+            <button key={i} onClick={() => handlePick(opt)} className="jp-font" style={{
+              padding: "18px 20px", borderRadius: 13, fontSize: 22,
+              background: isCorrect ? C.correctBg : isWrong ? C.wrongBg : C.bgCard,
+              border: `1.5px solid ${isCorrect ? C.mintDeep : isWrong ? C.pink : C.border}`,
+              color: isCorrect ? C.mintDeep : isWrong ? C.pinkDark : C.text,
+              cursor: "pointer", transition: "all 0.15s",
+              letterSpacing: "0.15em", textAlign: "center",
+              fontFamily: "'Noto Sans JP', sans-serif",
+              boxShadow: C.shadowCard,
+            }}>{opt}</button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── EJERCICIO 4: COMPRENSIÓN ────────────────────────────────────────────────
+function ComprehensionEx({ word, allWords, onNext, recordAttempt, roundIdx }) {
+  const correct = word.es;
+  const distractors = allWords.filter(w => w.es !== correct).sort(() => Math.random() - 0.5).slice(0, 1).map(w => w.es);
+  const [options] = useState(() => shuffle([correct, ...distractors]));
+  const [chosen, setChosen] = useState(null);
+  const [wrong, setWrong] = useState(new Set());
+  const [errorCount, setErrorCount] = useState(0);
+  const reported = useRef(false);
+
+  function handlePick(opt) {
+    if (chosen) return;
+    if (opt === correct) {
+      setChosen(opt);
+      if (!reported.current) {
+        reported.current = true;
+        recordAttempt({
+          kanjiClave: word.kanjiClave,
+          palabra: word.kanji,
+          furigana: word.furigana,
+          significado: word.es,
+          ejercicio: "comprension",
+          correcto: true,
+          errores: errorCount,
+          primerIntentoCorrecto: errorCount === 0,
+          saltado: false,
+          ronda: roundIdx + 1,
+        });
+      }
+      setTimeout(onNext, 650);
+    } else {
+      setWrong(prev => new Set([...prev, opt]));
+      setErrorCount(prev => prev + 1);
+    }
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", padding: "20px 20px 28px", gap: 24, justifyContent: "space-between" }}>
+      <KanjiDisplay word={word} showFurigana={true} size={84} />
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {options.map((opt, i) => {
+          const isWrong = wrong.has(opt);
+          const isCorrect = chosen === opt;
+          return (
+            <button key={i} onClick={() => handlePick(opt)} style={{
+              padding: "17px 20px", borderRadius: 13, fontSize: 15,
+              background: isCorrect ? C.correctBg : isWrong ? C.wrongBg : C.bgCard,
+              border: `1.5px solid ${isCorrect ? C.mintDeep : isWrong ? C.pink : C.border}`,
+              color: isCorrect ? C.mintDeep : isWrong ? C.pinkDark : C.text,
+              cursor: "pointer", transition: "all 0.15s",
+              textAlign: "left", lineHeight: 1.5,
+              fontFamily: "'DM Sans', sans-serif",
+              boxShadow: C.shadowCard,
+            }}>{opt}</button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── PANTALLA ENTRE RONDAS ───────────────────────────────────────────────────
+function RoundTransitionScreen({ roundDone, roundTotal, wordsInRound, onContinue, onHome, isChallengeNext, starredWords = new Set() }) {
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflowY: "auto" }}>
+      <PageTopBar onHome={onHome} />
+      <div style={{ flex: 1, padding: "28px 24px 24px", display: "flex", flexDirection: "column", gap: 20 }}>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 12, color: C.textMuted, letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: 600, marginBottom: 12 }}>
+            Ronda {roundDone} completada
+          </div>
+          <div style={{ display: "flex", gap: 6, justifyContent: "center", marginBottom: 4 }}>
+            {Array.from({ length: roundTotal }).map((_, i) => (
+              <div key={i} style={{
+                width: i < roundDone ? 28 : 8, height: 6, borderRadius: 3,
+                background: i < roundDone ? C.mintDeep : C.border,
+                transition: "all 0.4s ease",
+              }} />
+            ))}
+          </div>
+        </div>
+
+        <div style={{ background: C.bgCard, borderRadius: 14, overflow: "hidden", border: `1px solid ${C.borderLight}`, boxShadow: C.shadowCard }}>
+          <div style={{ padding: "10px 16px", borderBottom: `1px solid ${C.borderLight}`, background: C.bgAlt }}>
+            <div style={{ fontSize: 10, color: C.textMuted, letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600 }}>Palabras de esta ronda</div>
+          </div>
+          {wordsInRound.map((w, i) => (
+            <div key={i} style={{
+              display: "flex", alignItems: "center", gap: 10, padding: "11px 16px",
+              borderBottom: i < wordsInRound.length - 1 ? `1px solid ${C.borderLight}` : "none",
+            }}>
+              {starredWords.has(w.kanji) && <span style={{ fontSize: 14, flexShrink: 0 }}>⭐</span>}
+              <span className="kanji-font" style={{ fontSize: 20, color: C.text, minWidth: 54 }}>{w.kanji}</span>
+              <span className="jp-font" style={{ fontSize: 12, color: C.textMuted, minWidth: 72 }}>{w.furigana}</span>
+              <span style={{ fontSize: 12, color: C.textDim, lineHeight: 1.4 }}>{w.es}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ padding: "0 24px 32px", flexShrink: 0, display: "flex", flexDirection: "column", gap: 14 }}>
+        {isChallengeNext && (
+          <div style={{
+            background: C.challenge,
+            borderRadius: 14,
+            padding: "18px 20px",
+            border: `2px solid ${C.challengeBorder}`,
+            textAlign: "center",
+          }}>
+            <div style={{ fontSize: 22, marginBottom: 6 }}>🔥</div>
+            <div style={{ fontSize: 16, color: C.challengeText, fontWeight: 700, marginBottom: 4 }}>
+              Ronda Challenging
+            </div>
+            <div style={{ fontSize: 13, color: C.challengeText, opacity: 0.85, lineHeight: 1.5 }}>
+              Mismas palabras · 4 opciones · escritura · orden aleatorio
+            </div>
+          </div>
+        )}
+        <PrimaryBtn onClick={onContinue}>
+          {isChallengeNext ? "Empezar challenge 🔥" : "Continuar →"}
+        </PrimaryBtn>
+      </div>
+    </div>
+  );
+}
+
+// ─── PANTALLA FINAL ──────────────────────────────────────────────────────────
+const CHALLENGE_STATUS_STYLE = {
+  directo:       { color: C.mintDeep, bg: C.correctBg },
+  construccion:  { color: C.yellowText, bg: C.yellow },
+  alternativas:  { color: "#7a9eff", bg: "#edf1ff" },
+  sinResolver:   { color: C.pinkDark, bg: C.wrongBg },
+};
+
+function copyChallengeResults(rows) {
+  const header = "Kanji\tFurigana\tSignificado\tEstado\tMarcada";
+  const lines = rows.map(r => [r.word.kanji, r.word.furigana, r.word.es, r.estado, r.starred ? "Sí" : ""].join("\t"));
+  const text = [header, ...lines].join("\n");
+  const legacyCopy = () => {
+    const area = document.createElement("textarea");
+    area.value = text;
+    area.style.position = "fixed";
+    area.style.opacity = "0";
+    document.body.appendChild(area);
+    area.select();
+    document.execCommand("copy");
+    document.body.removeChild(area);
+  };
+  if (navigator.clipboard?.writeText) return navigator.clipboard.writeText(text).catch(legacyCopy);
+  legacyCopy();
+  return Promise.resolve();
+}
+
+function ChallengeResultsTable({ rows }) {
+  const [copied, setCopied] = useState(false);
+  const th = { padding: "9px 10px", fontSize: 10, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.07em", background: C.challenge, textAlign: "left" };
+  function handleCopy() {
+    copyChallengeResults(rows).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <button onClick={handleCopy} style={{ padding: "13px", borderRadius: 12, border: `1.5px solid ${C.challengeBorder}`, background: copied ? C.correctBg : C.bgCard, color: copied ? C.mintDeep : C.challengeText, fontWeight: 600, fontSize: 13, cursor: "pointer", boxShadow: C.shadowCard }}>
+        {copied ? "✓ Copiado" : "📋 Copiar para Excel / Sheets"}
+      </button>
+      <div style={{ background: C.bgCard, borderRadius: 14, overflowX: "auto", border: `1px solid ${C.challengeBorder}`, boxShadow: C.shadowCard }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 540 }}>
+          <thead><tr><th style={th}>Kanji</th><th style={th}>Furigana</th><th style={th}>Significado</th><th style={th}>Estado</th><th style={{ ...th, textAlign: "center" }}>⭐</th></tr></thead>
+          <tbody>{rows.map((r, i) => {
+            const style = CHALLENGE_STATUS_STYLE[r.stage] || CHALLENGE_STATUS_STYLE.sinResolver;
+            return <tr key={r.word.kanji} style={{ borderBottom: i < rows.length - 1 ? `1px solid ${C.borderLight}` : "none" }}>
+              <td className="kanji-font" style={{ padding: "11px 10px", fontSize: 20 }}>{r.word.kanji}</td>
+              <td className="jp-font" style={{ padding: "11px 10px", fontSize: 13, color: C.textMuted }}>{r.word.furigana}</td>
+              <td style={{ padding: "11px 10px", fontSize: 12, color: C.textDim }}>{r.word.es}</td>
+              <td style={{ padding: "11px 10px" }}><span style={{ fontSize: 10, fontWeight: 700, color: style.color, background: style.bg, borderRadius: 7, padding: "4px 7px", whiteSpace: "nowrap" }}>{r.estado}</span></td>
+              <td style={{ padding: "11px 10px", textAlign: "center" }}>{r.starred ? "⭐" : ""}</td>
+            </tr>;
+          })}</tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function FinScreen({ allSessionWords, sessionAttempts, challengingAttempts, starredWords, onNewSession }) {
+  // Estado final basado SOLO en challenging
+  const challengingResults = calculateChallengingResults(challengingAttempts, allSessionWords);
+  const palabraCount = allSessionWords.length;
+  const sinDatos = challengingAttempts.length === 0;
+
+  const resultsWithStars = challengingResults.map(r => ({ ...r, starred: starredWords.has(r.word.kanji) }));
+  const paraRepasar = challengingResults.filter(r => r.stage !== "directo");
+  const starred = allSessionWords.filter(w => starredWords.has(w.kanji));
+
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <PageTopBar onHome={onNewSession} />
+      <div style={{ flex: 1, overflowY: "auto", padding: "24px 20px 32px", display: "flex", flexDirection: "column", gap: 20 }}>
+
+        {/* Header */}
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 40, marginBottom: 6 }}>完了</div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: C.text, marginBottom: 4 }}>¡Sesión completada!</div>
+          <div style={{ fontSize: 13, color: C.textMuted }}>
+            Practicaste {palabraCount} {palabraCount === 1 ? "palabra" : "palabras"}
+          </div>
+        </div>
+
+        {/* Resultado final: el nivel de ayuda que necesitó cada palabra */}
+        {!sinDatos && challengingResults.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+            <div style={{ fontSize: 10, color: C.challengeText, letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600 }}>🔥 Resultado Challenging</div>
+            <ChallengeResultsTable rows={resultsWithStars} />
+          </div>
+        )}
+
+        {sinDatos && (
+          <div style={{ background: C.bgCard, borderRadius: 14, padding: "14px 16px", border: `1px solid ${C.borderLight}`, boxShadow: C.shadowCard }}>
+            <div style={{ fontSize: 13, color: C.textMuted, textAlign: "center" }}>No se completó la ronda challenging.</div>
+          </div>
+        )}
+
+        {/* Para seguir practicando */}
+        {paraRepasar.length > 0 && (
+          <div style={{ background: C.yellow, borderRadius: 14, overflow: "hidden", border: `1px solid ${C.yellowBorder}`, boxShadow: C.shadowCard }}>
+            <div style={{ padding: "10px 16px", borderBottom: `1px solid ${C.yellowBorder}`, background: "rgba(240,208,96,0.2)" }}>
+              <div style={{ fontSize: 10, color: C.yellowText, letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600 }}>Para seguir practicando</div>
+            </div>
+            <div style={{ padding: "12px 16px", display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {paraRepasar.map((r, i) => (
+                <div key={i} style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  background: C.white, borderRadius: 8, padding: "6px 12px",
+                  border: `1px solid ${C.yellowBorder}`,
+                }}>
+                  <span className="kanji-font" style={{ fontSize: 20, color: C.text }}>{r.word.kanji}</span>
+                  <span style={{ fontSize: 11, color: C.yellowText, fontWeight: 600 }}>{r.estado}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Palabras marcadas con estrella */}
+        {starred.length > 0 && (
+          <div style={{ background: C.bgCard, borderRadius: 14, overflow: "hidden", border: `1px solid ${C.yellowBorder}`, boxShadow: C.shadowCard }}>
+            <div style={{ padding: "10px 16px", borderBottom: `1px solid ${C.yellowBorder}`, background: C.yellow }}>
+              <div style={{ fontSize: 10, color: C.yellowText, letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600 }}>⭐ Palabras marcadas</div>
+            </div>
+            {starred.map((w, i) => (
+              <div key={i} style={{
+                display: "flex", alignItems: "center", gap: 10, padding: "11px 16px",
+                borderBottom: i < starred.length - 1 ? `1px solid ${C.borderLight}` : "none",
+              }}>
+                <span className="kanji-font" style={{ fontSize: 20, color: C.text, minWidth: 54 }}>{w.kanji}</span>
+                <span className="jp-font" style={{ fontSize: 12, color: C.textMuted, minWidth: 72 }}>{w.furigana}</span>
+                <span style={{ fontSize: 12, color: C.textDim, lineHeight: 1.4 }}>{w.es}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <PrimaryBtn onClick={onNewSession}>Nueva sesión</PrimaryBtn>
+      </div>
+    </div>
+  );
+}
+
+// ─── PANTALLA DE CONFIG ──────────────────────────────────────────────────────
+function ConfigScreen({ onStart, devMode, onToggleDevMode }) {
+  const [dbText, setDbText] = useState(DEFAULT_DB);
+  const [parsed, setParsed] = useState(() => parseDB(DEFAULT_DB));
+  const [wordDose, setWordDose] = useState(2);
+  const [parseError, setParseError] = useState(null);
+  const [showDB, setShowDB] = useState(false);
+
+  function handleDBChange(val) {
+    setDbText(val);
+    try {
+      const p = parseDB(val);
+      if (p.words.length === 0) { setParseError("No se encontraron entradas válidas. Revisa el formato."); return; }
+      setParsed(p);
+      setParseError(null);
+      setWordDose(d => Math.min(d, p.words.length));
+    } catch(e) { setParseError("Error al parsear el texto."); }
+  }
+
+  function clearDB() { handleDBChange(""); }
+
+  const totalWords = parsed.words.length;
+  const minDose = totalWords <= 10 ? Math.ceil(totalWords / 2) : 2;
+  // doseOptions ya no se necesita para los botones; el dropdown genera sus opciones inline
+
+  function handleStart() {
+    if (parseError || parsed.words.length === 0) return;
+    onStart(parsed, wordDose);
+  }
+
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <PageTopBar />
+
+      <div style={{ flex: 1, overflowY: "auto", padding: "20px 20px 16px", display: "flex", flexDirection: "column", gap: 20 }}>
+
+        {/* Base de datos */}
+        <div style={{ background: C.bgCard, borderRadius: 14, border: `1px solid ${C.borderLight}`, boxShadow: C.shadowCard, overflow: "hidden" }}>
+          <div style={{ padding: "12px 16px", background: C.bgAlt, borderBottom: `1px solid ${C.borderLight}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: C.text }}>Base de datos</div>
+              {!parseError && parsed.words.length > 0 && (
+                <div style={{ fontSize: 11, color: C.textMuted, marginTop: 1 }}>{parsed.kanjiKeys.length} kanjis · {parsed.words.length} palabras</div>
+              )}
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={clearDB} style={{
+                background: "none", border: `1px solid ${C.pink}`, borderRadius: 7,
+                color: C.pinkDark, fontSize: 11, cursor: "pointer",
+                padding: "3px 10px", fontFamily: "'DM Sans', sans-serif",
+              }}>Borrar todo</button>
+              <button onClick={() => setShowDB(v => !v)} style={{
+                background: "none", border: `1px solid ${C.border}`, borderRadius: 7,
+                color: C.mintDeep, fontSize: 11, cursor: "pointer",
+                padding: "3px 10px", fontFamily: "'DM Sans', sans-serif",
+              }}>{showDB ? "Cerrar ↑" : "Editar ↓"}</button>
+            </div>
+          </div>
+
+          {showDB && (
+            <div style={{ padding: "12px 16px" }}>
+              <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 8, lineHeight: 1.5 }}>
+                Formato: <span style={{ color: C.mintDeep, fontFamily: "monospace", fontSize: 10 }}>palabra [tab] furigana [tab] significado</span>
+              </div>
+              <textarea
+                value={dbText}
+                onChange={e => handleDBChange(e.target.value)}
+                spellCheck={false}
+                style={{
+                  width: "100%", minHeight: 160,
+                  background: C.bgDeep,
+                  border: `1.5px solid ${parseError ? C.pink : C.border}`,
+                  borderRadius: 10, padding: "12px 14px",
+                  color: C.text, fontSize: 12,
+                  fontFamily: "'Noto Sans JP', monospace",
+                  lineHeight: 1.8, resize: "vertical", outline: "none",
+                }}
+              />
+              {parseError && <div style={{ fontSize: 11, color: C.pinkDark, marginTop: 4 }}>{parseError}</div>}
+            </div>
+          )}
+
+          {!showDB && !parseError && parsed.words.length > 0 && (
+            <div style={{ padding: "12px 16px", display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {parsed.kanjiKeys.map((k, i) => (
+                <div key={i} style={{
+                  display: "flex", alignItems: "center", gap: 5,
+                  background: C.bgDeep, borderRadius: 8, padding: "5px 10px",
+                  border: `1px solid ${C.border}`,
+                }}>
+                  <span className="kanji-font" style={{ fontSize: 18, color: C.text }}>{k}</span>
+                  <span style={{ fontSize: 10, color: C.textDim }}>×{parsed.byKanji[k].length}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Selector de dosis */}
+        {!parseError && parsed.words.length > 0 && (
+          <div style={{ background: C.bgCard, borderRadius: 14, border: `1px solid ${C.borderLight}`, boxShadow: C.shadowCard, overflow: "hidden" }}>
+            <div style={{ padding: "12px 16px", background: C.bgAlt, borderBottom: `1px solid ${C.borderLight}` }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: C.text }}>Palabras por ronda</div>
+              <div style={{ fontSize: 11, color: C.textMuted, marginTop: 1 }}>
+                {wordDose} palabras · {Math.ceil(parsed.words.length / wordDose)} rondas en total
+              </div>
+            </div>
+            <div style={{ padding: "12px 16px" }}>
+              <select
+                value={wordDose}
+                onChange={e => setWordDose(Number(e.target.value))}
+                style={{
+                  width: "100%", padding: "11px 14px",
+                  background: C.bgDeep,
+                  border: `1.5px solid ${C.border}`,
+                  borderRadius: 10, color: C.text,
+                  fontSize: 15, fontWeight: 600, cursor: "pointer",
+                  fontFamily: "'DM Sans', sans-serif",
+                  appearance: "none", WebkitAppearance: "none",
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%235a7a72' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E")`,
+                  backgroundRepeat: "no-repeat",
+                  backgroundPosition: "right 14px center",
+                  paddingRight: 38,
+                  outline: "none",
+                }}
+              >
+                {Array.from({ length: Math.min(20, totalWords) }, (_, i) => i + 1)
+                  .filter(n => n >= minDose)
+                  .map(n => (
+                    <option key={n} value={n}>{n} {n === 1 ? "palabra" : "palabras"}</option>
+                  ))}
+              </select>
+            </div>
+          </div>
+        )}
+
+        {/* Modo revisión */}
+        <button onClick={onToggleDevMode} style={{
+          padding: "11px 16px", borderRadius: 12, cursor: "pointer",
+          background: devMode ? C.pinkLight : C.bgCard,
+          border: `1.5px solid ${devMode ? C.pink : C.border}`,
+          color: devMode ? C.pinkDark : C.textMuted,
+          fontSize: 12, fontFamily: "'DM Sans', sans-serif",
+          display: "flex", alignItems: "center", gap: 8,
+          boxShadow: C.shadowCard,
+        }}>
+          <span>{devMode ? "⚡" : "○"}</span>
+          Modo revisión {devMode ? "activado" : "desactivado"}
+          <span style={{ color: C.textDim, fontSize: 10, marginLeft: "auto" }}>skip rápido</span>
+        </button>
+
+        <PrimaryBtn onClick={handleStart} disabled={!!parseError || parsed.words.length === 0}>
+          Empezar →
+        </PrimaryBtn>
+      </div>
+    </div>
+  );
+}
+
+// ─── RONDA CHALLENGING ──────────────────────────────────────────────────────
+
+// Edita esta constante para activar/desactivar tipos de ejercicio en el challenging
+const CHALLENGE_CONFIG = {
+  lectura:     true,   // elegir furigana (4 opciones)
+  comprension: true,   // elegir significado (4 opciones)
+  escritura:   true,   // escribir furigana exacto
+  construccion: true,  // armar kanjis (solo palabras con kanji)
+};
+
+// Estado final basado SOLO en los intentos de la ronda challenging
+function calculateChallengingResults(challengingAttempts, allSessionWords) {
+  const byWord = {};
+  for (const a of challengingAttempts) {
+    if (!byWord[a.palabra]) byWord[a.palabra] = [];
+    byWord[a.palabra].push(a);
+  }
+  return allSessionWords.map(word => {
+    const ats = byWord[word.kanji] || [];
+    const escritura = ats.find(a => a.ejercicio === "escritura");
+    const construccion = ats.find(a => a.ejercicio === "construccion");
+    const alternativas = ats.find(a => a.ejercicio === "alternativas");
+    if (escritura && !escritura.saltado && escritura.errores === 0)
+      return { word, stage: "directo", estado: "Acierto directo" };
+    if (construccion && !construccion.saltado && construccion.errores === 0)
+      return { word, stage: "construccion", estado: "Recuperada al construir" };
+    if (alternativas && alternativas.correcto)
+      return { word, stage: "alternativas", estado: "Reconocida con alternativas" };
+    return { word, stage: "sinResolver", estado: ats.length ? "Sin resolver" : "Sin datos" };
+  });
+}
+
+// Cada etapa se mezcla por separado. Una palabra solo avanza si necesitó ayuda.
+function buildChallengingSequence(words, type = "challenging_escritura") {
+  return shuffle(words).map(word => ({ type, word, isChallenge: true }));
+}
+
+// ─── EJERCICIO CHALLENGING: LECTURA 4 OPCIONES ───────────────────────────────
+function ChallengingLecturaEx({ word, allWords, onNext, recordAttempt, roundIdx }) {
+  const correct = word.furigana;
+  const distractors = shuffle(allWords.filter(w => w.furigana !== correct)).slice(0, 3).map(w => w.furigana);
+  // Si no hay suficientes distractores, completar con placeholders vacíos
+  while (distractors.length < 3) distractors.push("ー");
+  const [options] = useState(() => shuffle([correct, ...distractors]));
+  const [chosen, setChosen] = useState(null);
+  const [wrong, setWrong] = useState(new Set());
+  const [errorCount, setErrorCount] = useState(0);
+  const reported = useRef(false);
+
+  function handlePick(opt) {
+    if (chosen) return;
+    if (opt === correct) {
+      setChosen(opt);
+      if (!reported.current) {
+        reported.current = true;
+        recordAttempt({
+          kanjiClave: word.kanjiClave,
+          palabra: word.kanji,
+          furigana: word.furigana,
+          significado: word.es,
+          ejercicio: "lectura",
+          correcto: true,
+          errores: errorCount,
+          primerIntentoCorrecto: errorCount === 0,
+          saltado: false,
+          ronda: roundIdx + 1,
+          isChallenge: true,
+        });
+      }
+      setTimeout(onNext, 650);
+    } else {
+      setWrong(prev => new Set([...prev, opt]));
+      setErrorCount(prev => prev + 1);
+    }
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", padding: "20px 20px 28px", gap: 24 }}>
+      <KanjiDisplay word={word} showFurigana={false} size={88} />
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {options.map((opt, i) => {
+          const isWrong = wrong.has(opt);
+          const isCorrect = chosen === opt;
+          return (
+            <button key={i} onClick={() => handlePick(opt)} className="jp-font" style={{
+              padding: "15px 20px", borderRadius: 13, fontSize: 20,
+              background: isCorrect ? C.correctBg : isWrong ? C.wrongBg : C.bgCard,
+              border: `1.5px solid ${isCorrect ? C.mintDeep : isWrong ? C.pink : C.challengeBorder}`,
+              color: isCorrect ? C.mintDeep : isWrong ? C.pinkDark : C.text,
+              cursor: "pointer", transition: "all 0.15s",
+              letterSpacing: "0.15em", textAlign: "center",
+              fontFamily: "'Noto Sans JP', sans-serif",
+              boxShadow: C.shadowCard,
+            }}>{opt}</button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── EJERCICIO CHALLENGING: COMPRENSIÓN 4 OPCIONES ──────────────────────────
+function ChallengingComprehensionEx({ word, allWords, onNext, recordAttempt, roundIdx }) {
+  const correct = word.es;
+  const distractors = shuffle(allWords.filter(w => w.es !== correct)).slice(0, 3).map(w => w.es);
+  while (distractors.length < 3) distractors.push("—");
+  const [options] = useState(() => shuffle([correct, ...distractors]));
+  const [chosen, setChosen] = useState(null);
+  const [wrong, setWrong] = useState(new Set());
+  const [errorCount, setErrorCount] = useState(0);
+  const reported = useRef(false);
+
+  function handlePick(opt) {
+    if (chosen) return;
+    if (opt === correct) {
+      setChosen(opt);
+      if (!reported.current) {
+        reported.current = true;
+        recordAttempt({
+          kanjiClave: word.kanjiClave,
+          palabra: word.kanji,
+          furigana: word.furigana,
+          significado: word.es,
+          ejercicio: "comprension",
+          correcto: true,
+          errores: errorCount,
+          primerIntentoCorrecto: errorCount === 0,
+          saltado: false,
+          ronda: roundIdx + 1,
+          isChallenge: true,
+        });
+      }
+      setTimeout(onNext, 650);
+    } else {
+      setWrong(prev => new Set([...prev, opt]));
+      setErrorCount(prev => prev + 1);
+    }
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", padding: "20px 20px 28px", gap: 24 }}>
+      <KanjiDisplay word={word} showFurigana={true} size={84} />
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {options.map((opt, i) => {
+          const isWrong = wrong.has(opt);
+          const isCorrect = chosen === opt;
+          return (
+            <button key={i} onClick={() => handlePick(opt)} style={{
+              padding: "14px 20px", borderRadius: 13, fontSize: 14,
+              background: isCorrect ? C.correctBg : isWrong ? C.wrongBg : C.bgCard,
+              border: `1.5px solid ${isCorrect ? C.mintDeep : isWrong ? C.pink : C.challengeBorder}`,
+              color: isCorrect ? C.mintDeep : isWrong ? C.pinkDark : C.text,
+              cursor: "pointer", transition: "all 0.15s",
+              textAlign: "left", lineHeight: 1.5,
+              fontFamily: "'DM Sans', sans-serif",
+              boxShadow: C.shadowCard,
+            }}>{opt}</button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── EJERCICIO CHALLENGING: ESCRITURA ───────────────────────────────────────
+function ChallengingChoicesEx({ word, allWords, onNext, recordAttempt, roundIdx }) {
+  const [picked, setPicked] = useState(null);
+  const [gaveUp, setGaveUp] = useState(false);
+  const options = useState(() => {
+    const others = shuffle(allWords.filter(w => w.kanji !== word.kanji)).slice(0, 3);
+    while (others.length < 3) others.push({ kanji: "—", furigana: "" });
+    return shuffle([word, ...others]);
+  })[0];
+  const reported = useRef(false);
+
+  function finish(correcto, saltado = false) {
+    if (reported.current) return;
+    reported.current = true;
+    recordAttempt({
+      kanjiClave: word.kanjiClave, palabra: word.kanji, furigana: word.furigana,
+      significado: word.es, ejercicio: "alternativas", correcto: correcto,
+      errores: correcto ? 0 : 1, primerIntentoCorrecto: correcto, saltado,
+      ronda: roundIdx + 1, isChallenge: true,
+    });
+  }
+  function choose(option) {
+    if (picked || gaveUp) return;
+    const correcto = option.kanji === word.kanji;
+    setPicked(option);
+    finish(correcto);
+  }
+  const answered = picked || gaveUp;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", padding: "20px 20px 28px", gap: 18 }}>
+      <div style={{ textAlign: "center" }}>
+        <div style={{ fontSize: 13, color: C.textMuted, marginBottom: 5 }}>{word.es}</div>
+        <div className="jp-font" style={{ fontSize: 24, color: C.text, letterSpacing: "0.14em" }}>{word.furigana}</div>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+        {options.map((option, i) => {
+          const correct = answered && option.kanji === word.kanji;
+          const wrong = picked === option && option.kanji !== word.kanji;
+          return <button key={`${option.kanji}-${i}`} onClick={() => choose(option)} className="kanji-font" style={{ padding: "14px", borderRadius: 13, fontSize: 25, background: correct ? C.correctBg : wrong ? C.wrongBg : C.bgCard, border: `1.5px solid ${correct ? C.mintDeep : wrong ? C.pink : C.challengeBorder}`, color: correct ? C.mintDeep : wrong ? C.pinkDark : C.text, cursor: answered ? "default" : "pointer", boxShadow: C.shadowCard }}>{option.kanji}</button>;
+        })}
+      </div>
+      {!answered && <button onClick={() => { setGaveUp(true); finish(false, true); }} style={{ padding: "10px", borderRadius: 10, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMuted, cursor: "pointer", fontSize: 13 }}>No lo sé</button>}
+      {answered && <div style={{ textAlign: "center", padding: 12, borderRadius: 12, background: picked?.kanji === word.kanji ? C.correctBg : C.wrongBg, color: picked?.kanji === word.kanji ? C.mintDeep : C.pinkDark, fontSize: 13 }}>
+        {picked?.kanji === word.kanji ? "✓ Correcto" : <>La respuesta era <span className="kanji-font" style={{ fontSize: 22, marginLeft: 5 }}>{word.kanji}</span></>}
+        <div style={{ marginTop: 10 }}><PrimaryBtn onClick={onNext}>Continuar →</PrimaryBtn></div>
+      </div>}
+    </div>
+  );
+}
+
+function ChallengingWriteEx({ word, onNext, recordAttempt, roundIdx }) {
+  const [input, setInput] = useState("");
+  const [status, setStatus] = useState("idle"); // "idle" | "correct" | "wrong"
+  const [errorCount, setErrorCount] = useState(0);
+  const [showAnswer, setShowAnswer] = useState(false);
+  const [gaveUp, setGaveUp] = useState(false);
+  const reported = useRef(false);
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    setTimeout(() => inputRef.current?.focus(), 100);
+  }, []);
+
+  function handleSubmit() {
+    if (status === "correct") { onNext(); return; }
+    const trimmed = input.trim();
+    if (trimmed === word.furigana) {
+      setStatus("correct");
+      if (!reported.current) {
+        reported.current = true;
+        recordAttempt({
+          kanjiClave: word.kanjiClave,
+          palabra: word.kanji,
+          furigana: word.furigana,
+          significado: word.es,
+          ejercicio: "escritura",
+          correcto: true,
+          errores: errorCount,
+          primerIntentoCorrecto: errorCount === 0,
+          saltado: false,
+          ronda: roundIdx + 1,
+          isChallenge: true,
+        });
+      }
+    } else {
+      const newErrors = errorCount + 1;
+      setErrorCount(newErrors);
+      setStatus("wrong");
+      if (newErrors >= 2) setShowAnswer(true);
+      setTimeout(() => { setStatus("idle"); setInput(""); }, 600);
+    }
+  }
+
+  function handleKey(e) {
+    if (e.key === "Enter") handleSubmit();
+  }
+
+  function handleGiveUp() {
+    if (reported.current) return;
+    reported.current = true;
+    recordAttempt({
+      kanjiClave: word.kanjiClave, palabra: word.kanji, furigana: word.furigana,
+      significado: word.es, ejercicio: "escritura", correcto: false,
+      errores: errorCount + 1, primerIntentoCorrecto: false, saltado: true,
+      ronda: roundIdx + 1, isChallenge: true,
+    });
+    setGaveUp(true);
+    setShowAnswer(true);
+  }
+
+  const borderColor = status === "correct" ? C.mintDeep : status === "wrong" ? C.pink : C.challengeBorder;
+  const bg = status === "correct" ? C.correctBg : status === "wrong" ? C.wrongBg : C.bgCard;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", padding: "20px 20px 28px", gap: 24 }}>
+      <KanjiDisplay word={word} showFurigana={false} size={88} />
+      {errorCount === 1 && status !== "correct" && (
+        <div style={{ textAlign: "center", fontSize: 12, color: C.textMuted }}>
+          Pista: <span className="jp-font" style={{ color: C.challengeDeep, fontWeight: 600, letterSpacing: "0.1em" }}>
+            {word.furigana[0]}{"・".repeat(word.furigana.length - 1)}
+          </span>
+        </div>
+      )}
+      {showAnswer && status !== "correct" && (
+        <div style={{ textAlign: "center", fontSize: 18, color: C.challengeDeep, fontWeight: 600, letterSpacing: "0.15em" }}
+          className="jp-font">{word.furigana}</div>
+      )}
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {!gaveUp && <input
+          ref={inputRef}
+          value={input}
+          onChange={e => { setInput(e.target.value); if (status === "wrong") setStatus("idle"); }}
+          onKeyDown={handleKey}
+          disabled={status === "correct"}
+          placeholder="Escribe el furigana..."
+          className="jp-font"
+          style={{
+            padding: "16px 18px", borderRadius: 13, fontSize: 22,
+            background: bg,
+            border: `1.5px solid ${borderColor}`,
+            color: status === "correct" ? C.mintDeep : status === "wrong" ? C.pinkDark : C.text,
+            outline: "none", width: "100%",
+            fontFamily: "'Noto Sans JP', sans-serif",
+            letterSpacing: "0.15em", textAlign: "center",
+            transition: "all 0.15s",
+          }}
+        />}
+        {status === "correct" && (
+          <div style={{ textAlign: "center", fontSize: 12, color: C.mintDeep, fontWeight: 600 }}>✓ Correcto</div>
+        )}
+        {!gaveUp && <button
+          onClick={handleSubmit}
+          style={{
+            padding: "15px", borderRadius: 13,
+            background: status === "correct"
+              ? `linear-gradient(135deg, ${C.mintDeep}, ${C.mintDark})`
+              : C.challenge,
+            border: `1.5px solid ${status === "correct" ? C.mintDeep : C.challengeBorder}`,
+            color: status === "correct" ? C.white : C.challengeText,
+            fontSize: 15, fontWeight: 600, cursor: "pointer",
+            fontFamily: "'DM Sans', sans-serif",
+            transition: "all 0.15s",
+          }}
+        >
+          {status === "correct" ? "Continuar →" : "Verificar"}
+        </button>}
+        {!gaveUp && status !== "correct" && <button onClick={handleGiveUp} style={{ padding: "10px", borderRadius: 10, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMuted, cursor: "pointer", fontSize: 13 }}>No lo sé</button>}
+        {gaveUp && <PrimaryBtn onClick={onNext}>Continuar →</PrimaryBtn>}
+      </div>
+    </div>
+  );
+}
+
+// ─── GENERADOR DE SECUENCIA ──────────────────────────────────────────────────
+function buildSequence(words) {
+  const steps = [];
+  words.forEach(w => {
+    steps.push({ type: "exposicion", word: w });
+    if (getKanjiChars(w).length > 0) steps.push({ type: "construccion", word: w });
+    steps.push({ type: "lectura", word: w });
+    steps.push({ type: "comprension", word: w });
+  });
+  return steps;
+}
+
+const TYPE_LABELS = { exposicion: "Memoriza", construccion: "Construye", lectura: "Lectura", comprension: "Comprensión" };
+const TYPE_COLORS = { exposicion: C.textDim, construccion: "#7a9eff", lectura: C.pinkDark, comprension: C.mintDeep };
+
+// ─── PERSISTENCIA DE SESIÓN ─────────────────────────────────────────────────
+const STORAGE_KEY = "learning_phase_progress";
+
+function saveProgress(state) {
+  try {
+    const data = {
+      ...state,
+      starredWords: [...state.starredWords], // Set → array
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch(e) { /* falla silenciosamente */ }
+}
+
+function loadProgress() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    data.starredWords = new Set(data.starredWords || []);
+    return data;
+  } catch(e) { return null; }
+}
+
+function clearProgress() {
+  try { localStorage.removeItem(STORAGE_KEY); } catch(e) {}
+}
+
+// ─── APP ROOT ────────────────────────────────────────────────────────────────
+function App() {
+  const [phase, setPhase] = useState("config");
+  const [allWords, setAllWords] = useState(CURRENT_DB.words);
+  const [devMode, setDevMode] = useState(false);
+  // rounds: array de grupos normales; challengingRounds: array de grupos challenging (1 por grupo normal)
+  const [rounds, setRounds] = useState([]);
+  const [roundIdx, setRoundIdx] = useState(0);
+  const [challengingRounds, setChallengingRounds] = useState([]);
+  const [challengingIdx, setChallengingIdx] = useState(0); // qué challenging toca ahora
+  const [isChallenge, setIsChallenge] = useState(false);
+  const [sequence, setSequence] = useState([]);
+  const [stepIdx, setStepIdx] = useState(0);
+  const [allSessionWords, setAllSessionWords] = useState([]);
+  const [sessionAttempts, setSessionAttempts] = useState([]);
+  const [challengingAttempts, setChallengingAttempts] = useState([]);
+  const challengingAttemptsRef = useRef([]);
+  const [starredWords, setStarredWords] = useState(new Set());
+
+  // Cargar sesión guardada automáticamente al iniciar
+  useEffect(() => {
+    const saved = loadProgress();
+    if (!saved || saved.phase === "config" || saved.phase === "fin") return;
+    // Restaurar estado completo
+    CURRENT_DB = { words: saved.allWords, byKanji: {}, kanjiKeys: [] };
+    ALL_KANJI_POOL = buildKanjiPool(saved.allWords);
+    setAllWords(saved.allWords);
+    setRounds(saved.rounds);
+    setRoundIdx(saved.roundIdx);
+    setChallengingRounds(saved.challengingRounds);
+    setChallengingIdx(saved.challengingIdx);
+    setIsChallenge(saved.isChallenge);
+    setSequence(saved.sequence);
+    setStepIdx(saved.stepIdx);
+    setAllSessionWords(saved.allSessionWords);
+    setSessionAttempts(saved.sessionAttempts);
+    setChallengingAttempts(saved.challengingAttempts);
+    challengingAttemptsRef.current = saved.challengingAttempts || [];
+    setStarredWords(saved.starredWords);
+    setPhase(saved.phase);
+  }, []);
+
+  // Helper interno para guardar: recibe el estado actualizado como parámetro
+  function _save(patch) {
+    saveProgress({
+      phase, allWords, rounds, roundIdx,
+      challengingRounds, challengingIdx, isChallenge,
+      sequence, stepIdx, allSessionWords,
+      sessionAttempts, challengingAttempts,
+      starredWords,
+      ...patch, // overrides con valores que acaban de cambiar
+    });
+  }
+
+  function recordAttempt(attempt) {
+    if (attempt.isChallenge) {
+      challengingAttemptsRef.current = [...challengingAttemptsRef.current, attempt];
+      setChallengingAttempts(prev => {
+        const next = [...prev, attempt];
+        _save({ challengingAttempts: next });
+        return next;
+      });
+    } else {
+      setSessionAttempts(prev => {
+        const next = [...prev, attempt];
+        _save({ sessionAttempts: next });
+        return next;
+      });
+    }
+  }
+
+  function toggleStar(kanji) {
+    setStarredWords(prev => {
+      const next = new Set(prev);
+      if (next.has(kanji)) next.delete(kanji); else next.add(kanji);
+      _save({ starredWords: next });
+      return next;
+    });
+  }
+
+  function startSession(parsed, wordDose) {
+    CURRENT_DB = parsed;
+    ALL_KANJI_POOL = buildKanjiPool(parsed.words);
+    setAllWords(parsed.words);
+    const shuffledWords = shuffle(parsed.words);
+    const groups = [];
+    for (let i = 0; i < shuffledWords.length; i += wordDose) {
+      groups.push(shuffledWords.slice(i, i + wordDose));
+    }
+    // Una ronda challenging por cada grupo
+    const chalRounds = groups.map(g => g);
+    setRounds(groups);
+    setChallengingRounds(chalRounds);
+    setRoundIdx(0);
+    setChallengingIdx(0);
+    setIsChallenge(false);
+    setAllSessionWords([]);
+    setSessionAttempts([]);
+    setChallengingAttempts([]);
+    challengingAttemptsRef.current = [];
+    setStarredWords(new Set());
+    const seq = buildSequence(groups[0]);
+    setSequence(seq);
+    setStepIdx(0);
+    setPhase("session");
+    saveProgress({
+      phase: "session", allWords: parsed.words,
+      rounds: groups, roundIdx: 0,
+      challengingRounds: chalRounds, challengingIdx: 0,
+      isChallenge: false, sequence: seq, stepIdx: 0,
+      allSessionWords: [], sessionAttempts: [],
+      challengingAttempts: [], starredWords: new Set(),
+    });
+  }
+
+  function nextStep() {
+    if (stepIdx + 1 < sequence.length) {
+      const nextIdx = stepIdx + 1;
+      setStepIdx(nextIdx);
+      _save({ stepIdx: nextIdx });
+      return;
+    }
+    // Fin de secuencia actual
+    if (isChallenge) {
+      const roundWords = challengingRounds[challengingIdx] || [];
+      const attempts = challengingAttemptsRef.current;
+      const attemptFor = (word, exercise) => attempts.find(a => a.palabra === word.kanji && a.ejercicio === exercise);
+      const failedWriting = roundWords.filter(w => {
+        const a = attemptFor(w, "escritura");
+        return !a || a.saltado || a.errores > 0;
+      });
+      const currentType = sequence[0]?.type;
+      if (currentType === "challenging_escritura" && failedWriting.length > 0) {
+        const constructionWords = failedWriting.filter(w => getKanjiChars(w).length > 0);
+        if (constructionWords.length > 0) {
+          const nextSequence = buildChallengingSequence(constructionWords, "challenging_construccion");
+          setSequence(nextSequence); setStepIdx(0);
+          _save({ sequence: nextSequence, stepIdx: 0 });
+          return;
+        }
+      }
+      if (currentType === "challenging_escritura" || currentType === "challenging_construccion") {
+        const choiceWords = failedWriting.filter(w => {
+          if (getKanjiChars(w).length === 0) return true;
+          const a = attemptFor(w, "construccion");
+          return !a || a.saltado || a.errores > 0;
+        });
+        if (choiceWords.length > 0) {
+          const nextSequence = buildChallengingSequence(choiceWords, "challenging_alternativas");
+          setSequence(nextSequence); setStepIdx(0);
+          _save({ sequence: nextSequence, stepIdx: 0 });
+          return;
+        }
+      }
+      // Terminó una ronda challenging
+      const nextChal = challengingIdx + 1;
+      setAllSessionWords(prev => {
+        const already = new Set(prev.map(w => w.kanji));
+        return [...prev, ...challengingRounds[challengingIdx].filter(w => !already.has(w.kanji))];
+      });
+      if (nextChal < challengingRounds.length) {
+        // Pantalla de pausa antes de la siguiente ronda
+        setChallengingIdx(nextChal);
+        setRoundIdx(nextChal);
+        _save({ challengingIdx: nextChal, roundIdx: nextChal, phase: "post_challenge" });
+        setPhase("post_challenge");
+      } else {
+        clearProgress();
+        setPhase("fin");
+      }
+    } else {
+      // Terminó ronda normal: mostrar transición antes del challenge
+      _save({ phase: "post_round" });
+      setPhase("post_round");
+    }
+  }
+
+
+
+  function handleFinish() {
+    const roundWords = isChallenge
+      ? (challengingRounds[challengingIdx] || [])
+      : (rounds[roundIdx] || []);
+    setAllSessionWords(prev => {
+      const already = new Set(prev.map(w => w.kanji));
+      return [...prev, ...roundWords.filter(w => !already.has(w.kanji))];
+    });
+    clearProgress();
+    setPhase("fin");
+  }
+
+  function goHome() { clearProgress(); setPhase("config"); }
+
+  if (phase === "config") return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
+      <ConfigScreen onStart={startSession} devMode={devMode} onToggleDevMode={() => setDevMode(v => !v)} />
+    </div>
+  );
+
+  if (phase === "post_round") {
+    return (
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
+        <RoundTransitionScreen
+          roundDone={roundIdx + 1}
+          roundTotal={rounds.length}
+          wordsInRound={rounds[roundIdx]}
+          isChallengeNext={true}
+          starredWords={starredWords}
+          onHome={goHome}
+          onContinue={() => {
+            const chalSeq = buildChallengingSequence(challengingRounds[challengingIdx]);
+            setIsChallenge(true);
+            setSequence(chalSeq);
+            setStepIdx(0);
+            setPhase("session");
+            _save({ isChallenge: true, sequence: chalSeq, stepIdx: 0, phase: "session" });
+          }}
+        />
+      </div>
+    );
+  }
+
+  if (phase === "post_challenge") {
+    // Palabras que ACABAN de terminar el challenge (ronda anterior, índice roundIdx - 1)
+    const justFinishedWords = rounds[roundIdx - 1] || [];
+    const nextRoundExists = roundIdx < rounds.length;
+    return (
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
+        <PageTopBar onHome={goHome} />
+        <div style={{ flex: 1, overflowY: "auto", padding: "28px 24px 24px", display: "flex", flexDirection: "column", gap: 20 }}>
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 32, marginBottom: 8 }}>✓</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: C.text, marginBottom: 4 }}>
+              Challenge completado
+            </div>
+            <div style={{ fontSize: 13, color: C.textMuted }}>
+              Ronda {roundIdx} de {rounds.length}
+            </div>
+          </div>
+          <div style={{ background: C.bgCard, borderRadius: 14, overflow: "hidden", border: `1px solid ${C.borderLight}`, boxShadow: C.shadowCard }}>
+            <div style={{ padding: "10px 16px", borderBottom: `1px solid ${C.borderLight}`, background: C.bgAlt }}>
+              <div style={{ fontSize: 10, color: C.textMuted, letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600 }}>Palabras practicadas</div>
+            </div>
+            {justFinishedWords.map((w, i) => (
+              <div key={i} style={{
+                display: "flex", alignItems: "center", gap: 10, padding: "11px 16px",
+                borderBottom: i < justFinishedWords.length - 1 ? `1px solid ${C.borderLight}` : "none",
+              }}>
+                {starredWords.has(w.kanji) && <span style={{ fontSize: 14, flexShrink: 0 }}>⭐</span>}
+                <span className="kanji-font" style={{ fontSize: 20, color: C.text, minWidth: 54 }}>{w.kanji}</span>
+                <span className="jp-font" style={{ fontSize: 12, color: C.textMuted, minWidth: 72 }}>{w.furigana}</span>
+                <span style={{ fontSize: 12, color: C.textDim, lineHeight: 1.4 }}>{w.es}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div style={{ padding: "0 24px 32px", flexShrink: 0, display: "flex", flexDirection: "column", gap: 12 }}>
+          {nextRoundExists && (
+            <div style={{
+              background: C.bgDeep, borderRadius: 12, padding: "12px 16px",
+              border: `1px solid ${C.border}`, textAlign: "center",
+            }}>
+              <div style={{ fontSize: 13, color: C.textMuted, fontWeight: 600 }}>
+                Siguiente: ronda {roundIdx + 1} de {rounds.length}
+              </div>
+            </div>
+          )}
+          <PrimaryBtn onClick={() => {
+            const nextSeq = buildSequence(rounds[roundIdx]);
+            setIsChallenge(false);
+            setSequence(nextSeq);
+            setStepIdx(0);
+            setPhase("session");
+            _save({ isChallenge: false, sequence: nextSeq, stepIdx: 0, phase: "session" });
+          }}>
+            Continuar →
+          </PrimaryBtn>
+        </div>
+      </div>
+    );
+  }
+
+
+
+  if (phase === "fin") return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
+      <FinScreen
+        allSessionWords={allSessionWords}
+        sessionAttempts={sessionAttempts}
+        challengingAttempts={challengingAttempts}
+        starredWords={starredWords}
+        onNewSession={goHome}
+      />
+    </div>
+  );
+
+  const step = sequence[stepIdx];
+  const word = step.word;
+  const isCurrentChallenge = step.isChallenge || false;
+
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: isCurrentChallenge ? C.challenge : C.bg }}>
+      <ExerciseTopBar
+        stepCurrent={stepIdx + 1} stepTotal={sequence.length}
+        roundCurrent={roundIdx + 1} roundTotal={rounds.length}
+        onClose={goHome} onFinish={handleFinish}
+        devMode={devMode} onDevSkip={nextStep}
+        isChallenge={isCurrentChallenge}
+      />
+      <div style={{ padding: "12px 20px 0px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <TypeLabel label={isCurrentChallenge ? ({
+          "challenging_lectura": "🔥 Lectura",
+          "challenging_comprension": "🔥 Comprensión",
+          "challenging_escritura": "🔥 Escritura",
+          "challenging_construccion": "🔥 Construye",
+          "challenging_alternativas": "🔥 Alternativas",
+        }[step.type] || "🔥 Challenging") : TYPE_LABELS[step.type]} color={isCurrentChallenge ? C.challengeDeep : TYPE_COLORS[step.type]} />
+        <button onClick={() => toggleStar(word.kanji)} style={{
+          background: "none", border: "none", cursor: "pointer",
+          fontSize: 22, lineHeight: 1, padding: "4px 6px",
+          opacity: starredWords.has(word.kanji) ? 1 : 0.3,
+          transition: "opacity 0.15s, transform 0.1s",
+        }}
+        onPointerDown={e => e.currentTarget.style.transform = "scale(1.3)"}
+        onPointerUp={e => e.currentTarget.style.transform = "scale(1)"}
+        >⭐</button>
+      </div>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+        {step.type === "exposicion" && <ExposicionEx key={`${roundIdx}-${stepIdx}`} word={word} onNext={nextStep} />}
+        {step.type === "construccion" && <ConstruccionEx key={`${roundIdx}-${stepIdx}`} word={word} onNext={nextStep} recordAttempt={recordAttempt} roundIdx={roundIdx} />}
+        {step.type === "lectura" && <LecturaEx key={`${roundIdx}-${stepIdx}`} word={word} allWords={allWords} onNext={nextStep} recordAttempt={recordAttempt} roundIdx={roundIdx} />}
+        {step.type === "comprension" && <ComprehensionEx key={`${roundIdx}-${stepIdx}`} word={word} allWords={allWords} onNext={nextStep} recordAttempt={recordAttempt} roundIdx={roundIdx} />}
+        {step.type === "challenging_lectura" && <ChallengingLecturaEx key={`ch-${stepIdx}`} word={word} allWords={allWords} onNext={nextStep} recordAttempt={recordAttempt} roundIdx={roundIdx} />}
+        {step.type === "challenging_comprension" && <ChallengingComprehensionEx key={`ch-${stepIdx}`} word={word} allWords={allWords} onNext={nextStep} recordAttempt={recordAttempt} roundIdx={roundIdx} />}
+        {step.type === "challenging_escritura" && <ChallengingWriteEx key={`ch-${stepIdx}`} word={word} onNext={nextStep} recordAttempt={recordAttempt} roundIdx={roundIdx} />}
+        {step.type === "challenging_construccion" && <ConstruccionEx key={`ch-${stepIdx}`} word={word} onNext={nextStep} recordAttempt={recordAttempt} roundIdx={roundIdx} isChallenge={true} />}
+        {step.type === "challenging_alternativas" && <ChallengingChoicesEx key={`ch-${stepIdx}`} word={word} allWords={allWords} onNext={nextStep} recordAttempt={recordAttempt} roundIdx={roundIdx} />}
+      </div>
+      <div style={{ padding: "10px 20px 20px", flexShrink: 0 }}>
+        <button onClick={handleFinish} style={{
+          width: "100%", padding: "12px",
+          background: "transparent",
+          border: `1px solid ${isCurrentChallenge ? C.challengeBorder : C.border}`,
+          borderRadius: 12,
+          color: isCurrentChallenge ? C.challengeText : C.textMuted,
+          fontSize: 13, cursor: "pointer",
+          fontFamily: "'DM Sans', sans-serif",
+          letterSpacing: "0.03em",
+        }}>Terminar sesión</button>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
