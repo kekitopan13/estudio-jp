@@ -44,6 +44,10 @@ const { useState, useEffect, useRef } = React;
 
 // ─── HELPERS ────────────────────────────────────────────────────────────────
 function shuffle(arr) { return [...arr].sort(() => Math.random() - 0.5); }
+function maskWord(palabra, kanji) {
+  if (!kanji) return palabra;
+  return [...palabra].map(ch => ch === kanji ? "＿" : ch).join("");
+}
 
 // ─── COLORES: morado pastel azulado ─────────────────────────────────────────
 const C = {
@@ -394,8 +398,6 @@ function ConfigScreen({ onStart, initialText, initialOrderMode, initialMode }) {
 // ─── EJERCICIO ───────────────────────────────────────────────────────────────
 function ExerciseScreen({ exercise, onDone, mode }) {
   const isEval = mode === "evaluacion";
-  const [revealLectura, setRevealLectura] = useState(false);
-  const [revealSignificado, setRevealSignificado] = useState(false);
   const [wrongPicks, setWrongPicks] = useState(new Set());
   const [attempts, setAttempts] = useState(0);
   const [correctPicked, setCorrectPicked] = useState(false);
@@ -439,29 +441,27 @@ function ExerciseScreen({ exercise, onDone, mode }) {
         Grupo {entry.grupoRaw}
       </div>
 
-      {/* Palabra representativa */}
+      {/* Palabra representativa, con el kanji preguntado oculto */}
       <div style={{ textAlign: "center", padding: "8px 0" }}>
-        <div className="kanji-font" style={{ fontSize: 40, color: C.text, letterSpacing: "0.06em" }}>{entry.palabra}</div>
+        <div className="kanji-font" style={{ fontSize: 40, color: C.text, letterSpacing: "0.06em" }}>{maskWord(entry.palabra, entry.kanji)}</div>
       </div>
 
-      {/* Botones de revelar */}
+      {/* Lectura y significado: siempre visibles */}
       <div style={{ display: "flex", gap: 8 }}>
-        <button onClick={() => setRevealLectura(v => !v)} style={{
-          flex: 1, padding: "10px 6px", borderRadius: 10, cursor: "pointer",
-          background: revealLectura ? C.purpleLight : C.bgCard,
-          border: `1px solid ${revealLectura ? C.purpleDeep : C.border}`,
-          color: revealLectura ? C.purpleDeep : C.textMuted, fontSize: 12,
+        <div style={{
+          flex: 1, padding: "10px 6px", borderRadius: 10,
+          background: C.purpleLight, border: `1px solid ${C.purpleDeep}`,
+          color: C.purpleDeep, fontSize: 12, textAlign: "center",
         }}>
-          {revealLectura ? <span className="jp-font">{entry.lectura}</span> : "👁 Ver lectura"}
-        </button>
-        <button onClick={() => setRevealSignificado(v => !v)} style={{
-          flex: 1, padding: "10px 6px", borderRadius: 10, cursor: "pointer",
-          background: revealSignificado ? C.purpleLight : C.bgCard,
-          border: `1px solid ${revealSignificado ? C.purpleDeep : C.border}`,
-          color: revealSignificado ? C.purpleDeep : C.textMuted, fontSize: 11.5,
+          <span className="jp-font">{entry.lectura}</span>
+        </div>
+        <div style={{
+          flex: 1, padding: "10px 6px", borderRadius: 10,
+          background: C.purpleLight, border: `1px solid ${C.purpleDeep}`,
+          color: C.purpleDeep, fontSize: 11.5, textAlign: "center",
         }}>
-          {revealSignificado ? entry.significado : "👁 Ver significado"}
-        </button>
+          {entry.significado}
+        </div>
       </div>
 
       {/* Grilla de opciones */}
