@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Kanjis confusos — Ejercicio de discriminación</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&family=Noto+Sans+JP:wght@300;400;500&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; background: #eeecfb; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+    background: #eeecfb;
+  }
+  #root {
+    width: 100%;
+    max-width: 430px;
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    background: #f6f5fc;
+    position: relative;
+  }
+  .kanji-font { font-family: 'Noto Serif JP', serif; }
+  .jp-font { font-family: 'Noto Sans JP', sans-serif; }
+  button { -webkit-appearance: none; appearance: none; font-family: 'DM Sans', sans-serif; }
+  textarea { font-family: 'Noto Sans JP', monospace; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+// ─── HELPERS ────────────────────────────────────────────────────────────────
+function shuffle(arr) { return [...arr].sort(() => Math.random() - 0.5); }
+
+// ─── COLORES: morado pastel azulado ─────────────────────────────────────────
+const C = {
+  bg:          "#f6f5fc",
+  bgAlt:       "#eeebfa",
+  bgCard:      "#ffffff",
+  bgDeep:      "#e3ddf7",
+  text:        "#2b2750",
+  textMuted:   "#6e6795",
+  textDim:     "#a7a1d4",
+  purple:      "#9b8ff0",
+  purpleDark:  "#7b6ce0",
+  purpleDeep:  "#6355c9",
+  purpleLight: "rgba(123,108,224,0.12)",
+  blue:        "#7fa0f0",
+  correct:     "#4fbf9d",
+  correctBg:   "rgba(79,191,157,0.14)",
+  correctDark: "#3a9e80",
+  wrong:       "#e2679a",
+  wrongBg:     "rgba(226,103,154,0.15)",
+  wrongDark:   "#c94f80",
+  border:      "#d6d0f0",
+  borderLight: "#e6e1f7",
+  white:       "#ffffff",
+  shadow:      "0 2px 12px rgba(123,108,224,0.15)",
+  shadowCard:  "0 1px 4px rgba(0,0,0,0.06)",
+  yellow:      "#fdf6e3",
+  yellowBorder:"#e8cf7a",
+  yellowText:  "#8a712a",
+  eval:        "#d97b4a",
+  evalBg:      "rgba(217,123,74,0.12)",
+  evalBorder:  "#eab88f",
+};
+
+const MENU_URL = "https://kekitopan13.github.io/estudio-jp/";
+
+// ─── DATOS POR DEFECTO ───────────────────────────────────────────────────────
+const DEFAULT_DB = `裏;1;裏側;うらがわ;El reverso o la parte de atrás.
+庫;1;車庫;しゃこ;Garaje o cochera.
+連;1;連れて行く;つれていく;Llevar a alguien.
+運;1;運転する;うんてんする;Conducir.
+助;2;助ける;たすける;Ayudar.
+取;2;取る;とる;Tomar o agarrar.
+組;2;組み立てる;くみたてる;Armar, ensamblar.`;
+
+// ─── PARSEO ──────────────────────────────────────────────────────────────────
+function normalizeGroupKey(raw) {
+  const t = raw.trim();
+  const n = parseFloat(t);
+  if (!isNaN(n) && isFinite(n) && /^-?\d+(\.\d+)?$/.test(t)) return String(n);
+  return t;
+}
+
+function parseInput(text) {
+  const lines = text.split("\n").map(l => l.trim()).filter(l => l.length > 0);
+  const entries = [];
+  let skipped = 0;
+  const groupOrder = [];
+  const groupsMap = {};
+
+  lines.forEach((line, idx) => {
+    const parts = line.split(";").map(p => p.trim());
+    if (parts.length < 5) { skipped++; return; }
+    const [kanji, grupoRaw, palabra, lectura, significado] = parts;
+    if (!kanji || !grupoRaw || !palabra || !lectura || !significado) { skipped++; return; }
+    const grupoKey = normalizeGroupKey(grupoRaw);
+    const entry = {
+      id: `e${idx}`,
+      kanji, grupoRaw: grupoRaw.trim(), grupoKey,
+      palabra, lectura, significado,
+    };
+    entries.push(entry);
+    if (!groupsMap[grupoKey]) { groupsMap[grupoKey] = []; groupOrder.push(grupoKey); }
+    groupsMap[grupoKey].push(entry);
+  });
+
+  // Kanjis únicos por grupo (para la grilla de opciones)
+  const groupKanjiList = {};
+  for (const g of groupOrder) {
+    groupKanjiList[g] = [...new Set(groupsMap[g].map(e => e.kanji))];
+  }
+
+  return { entries, groupOrder, groupsMap, groupKanjiList, skipped };
+}
+
+function buildExercises(parsed, orderMode) {
+  const list = [];
+  for (const g of parsed.groupOrder) {
+    for (const entry of parsed.groupsMap[g]) {
+      list.push({
+        entry,
+        grupoKey: g,
+        options: shuffle(parsed.groupKanjiList[g]),
+      });
+    }
+  }
+  if (orderMode === "random") return shuffle(list);
+  return list;
+}
+
+// ─── COMPONENTES COMPARTIDOS ─────────────────────────────────────────────────
+function PageTopBar({ onHome }) {
+  return (
+    <div style={{
+      padding: "12px 16px",
+      display: "flex", alignItems: "center", justifyContent: "space-between",
+      background: C.white, borderBottom: `1px solid ${C.borderLight}`,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <span style={{ fontSize: 18 }}>紛</span>
+        <span style={{ fontSize: 14, fontWeight: 600, color: C.text }}>Kanjis confusos</span>
+      </div>
+      <div style={{ display: "flex", gap: 8 }}>
+        {onHome && (
+          <button onClick={onHome} style={{
+            padding: "6px 12px", borderRadius: 8,
+            background: C.bgDeep, border: `1px solid ${C.border}`,
+            color: C.textMuted, fontSize: 12, cursor: "pointer",
+          }}>Inicio</button>
+        )}
+        <a href={MENU_URL} target="_blank" rel="noopener noreferrer" style={{
+          padding: "6px 12px", borderRadius: 8,
+          background: C.purple, border: "none",
+          color: "#ffffff", fontSize: 12, cursor: "pointer",
+          fontWeight: 500,
+          textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4,
+        }}>Menú ↗</a>
+      </div>
+    </div>
+  );
+}
+
+function ExerciseTopBar({ stepCurrent, stepTotal, onClose, mode }) {
+  const isEval = mode === "evaluacion";
+  return (
+    <div style={{
+      padding: "12px 16px 10px",
+      display: "flex", alignItems: "center", gap: 8,
+      background: isEval ? C.evalBg : C.white,
+      borderBottom: `1px solid ${isEval ? C.evalBorder : C.borderLight}`,
+      position: "sticky", top: 0, zIndex: 10,
+    }}>
+      <button onClick={onClose} style={{
+        width: 34, height: 34, borderRadius: "50%",
+        background: C.bgDeep, border: `1px solid ${C.border}`,
+        color: C.textMuted, fontSize: 16, cursor: "pointer",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        flexShrink: 0,
+      }}>✕</button>
+      <div style={{ flex: 1 }}>
+        <div style={{ height: 5, background: C.bgDeep, borderRadius: 3, overflow: "hidden" }}>
+          <div style={{
+            height: "100%", width: `${Math.round((stepCurrent / stepTotal) * 100)}%`,
+            background: isEval ? `linear-gradient(90deg, ${C.eval}, ${C.purple})` : `linear-gradient(90deg, ${C.purpleDeep}, ${C.blue})`,
+            borderRadius: 3, transition: "width 0.4s ease",
+          }} />
+        </div>
+        <div style={{ fontSize: 10, color: isEval ? C.eval : C.textDim, marginTop: 3, fontWeight: isEval ? 700 : 400 }}>
+          {isEval ? "🎯 Evaluación · " : ""}Ejercicio {stepCurrent}/{stepTotal}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PrimaryBtn({ onClick, children, disabled }) {
+  return (
+    <button onClick={onClick} disabled={disabled} style={{
+      width: "100%", padding: "17px",
+      background: disabled ? C.bgDeep : `linear-gradient(135deg, ${C.purpleDeep}, ${C.purple})`,
+      border: "none", borderRadius: 14,
+      color: disabled ? C.textDim : "#ffffff",
+      fontSize: 15, fontWeight: 600, cursor: disabled ? "default" : "pointer",
+      boxShadow: disabled ? "none" : C.shadow,
+      transition: "transform 0.1s",
+    }}
+    onPointerDown={e => { if (!disabled) e.currentTarget.style.transform = "scale(0.98)"; }}
+    onPointerUp={e => e.currentTarget.style.transform = "scale(1)"}
+    >{children}</button>
+  );
+}
+
+function SecondaryBtn({ onClick, children }) {
+  return (
+    <button onClick={onClick} style={{
+      width: "100%", padding: "15px",
+      background: "transparent",
+      border: `1.5px solid ${C.border}`, borderRadius: 14,
+      color: C.textMuted, fontSize: 14, fontWeight: 500, cursor: "pointer",
+    }}>{children}</button>
+  );
+}
+
+// ─── PANTALLA DE CONFIGURACIÓN ───────────────────────────────────────────────
+function ConfigScreen({ onStart, initialText, initialOrderMode, initialMode }) {
+  const [dbText, setDbText] = useState(initialText);
+  const [orderMode, setOrderMode] = useState(initialOrderMode);
+  const [mode, setMode] = useState(initialMode);
+  const [showDB, setShowDB] = useState(true);
+
+  const parsed = React.useMemo(() => parseInput(dbText), [dbText]);
+  const totalEntries = parsed.entries.length;
+  const totalGroups = parsed.groupOrder.length;
+  const hasError = totalEntries === 0;
+
+  function handleStart() {
+    if (hasError) return;
+    onStart(dbText, orderMode, mode);
+  }
+
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <PageTopBar />
+      <div style={{ flex: 1, overflowY: "auto", padding: "20px 20px 16px", display: "flex", flexDirection: "column", gap: 20 }}>
+
+        <div style={{ textAlign: "center", padding: "4px 0 2px" }}>
+          <div style={{ fontSize: 22, fontWeight: 700, color: C.text, marginBottom: 4 }}>Kanjis confusos</div>
+          <div style={{ fontSize: 12, color: C.textMuted, lineHeight: 1.5 }}>
+            Ejercita distinguir entre kanjis que se te confunden, agrupados por similitud.
+          </div>
+        </div>
+
+        {/* Datos */}
+        <div style={{ background: C.bgCard, borderRadius: 14, border: `1px solid ${C.borderLight}`, boxShadow: C.shadowCard, overflow: "hidden" }}>
+          <div style={{ padding: "12px 16px", background: C.bgAlt, borderBottom: `1px solid ${C.borderLight}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: C.text }}>Datos</div>
+              {!hasError && (
+                <div style={{ fontSize: 11, color: C.textMuted, marginTop: 1 }}>
+                  {totalGroups} {totalGroups === 1 ? "grupo" : "grupos"} · {totalEntries} {totalEntries === 1 ? "ejercicio" : "ejercicios"}
+                  {parsed.skipped > 0 && <span style={{ color: C.wrongDark }}> · {parsed.skipped} líneas ignoradas</span>}
+                </div>
+              )}
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={() => setDbText("")} style={{
+                background: "none", border: `1px solid ${C.wrong}`, borderRadius: 7,
+                color: C.wrongDark, fontSize: 11, cursor: "pointer",
+                padding: "3px 10px",
+              }}>Borrar todo</button>
+              <button onClick={() => setShowDB(v => !v)} style={{
+                background: "none", border: `1px solid ${C.border}`, borderRadius: 7,
+                color: C.purpleDeep, fontSize: 11, cursor: "pointer",
+                padding: "3px 10px",
+              }}>{showDB ? "Cerrar ↑" : "Editar ↓"}</button>
+            </div>
+          </div>
+
+          {showDB && (
+            <div style={{ padding: "12px 16px" }}>
+              <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 8, lineHeight: 1.6 }}>
+                Formato, una línea por kanji:<br/>
+                <span style={{ color: C.purpleDeep, fontFamily: "monospace", fontSize: 10.5 }}>
+                  kanji;N° grupo;palabra representativa;lectura;significado
+                </span>
+              </div>
+              <textarea
+                value={dbText}
+                onChange={e => setDbText(e.target.value)}
+                spellCheck={false}
+                style={{
+                  width: "100%", minHeight: 180,
+                  background: C.bgDeep,
+                  border: `1.5px solid ${hasError ? C.wrong : C.border}`,
+                  borderRadius: 10, padding: "12px 14px",
+                  color: C.text, fontSize: 12,
+                  lineHeight: 1.8, resize: "vertical", outline: "none",
+                }}
+              />
+              {hasError && <div style={{ fontSize: 11, color: C.wrongDark, marginTop: 4 }}>No se encontraron entradas válidas. Revisa el formato (5 campos separados por ";").</div>}
+            </div>
+          )}
+
+          {!showDB && !hasError && (
+            <div style={{ padding: "12px 16px", display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {parsed.groupOrder.map((g, i) => (
+                <div key={i} style={{
+                  display: "flex", alignItems: "center", gap: 5,
+                  background: C.bgDeep, borderRadius: 8, padding: "5px 10px",
+                  border: `1px solid ${C.border}`,
+                }}>
+                  <span style={{ fontSize: 11, color: C.textMuted, fontWeight: 600 }}>Grupo {g}</span>
+                  <span className="kanji-font" style={{ fontSize: 15, color: C.text }}>{parsed.groupKanjiList[g].join(" ")}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Modo de ejercicio */}
+        {!hasError && (
+          <div style={{ background: C.bgCard, borderRadius: 14, border: `1px solid ${C.borderLight}`, boxShadow: C.shadowCard, overflow: "hidden" }}>
+            <div style={{ padding: "12px 16px", background: C.bgAlt, borderBottom: `1px solid ${C.borderLight}` }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: C.text }}>Modo</div>
+            </div>
+            <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
+              <button onClick={() => setMode("practica")} style={{
+                padding: "11px 12px", borderRadius: 10, cursor: "pointer", textAlign: "left",
+                background: mode === "practica" ? C.purpleLight : "transparent",
+                border: `1.5px solid ${mode === "practica" ? C.purpleDeep : C.border}`,
+              }}>
+                <div style={{ fontSize: 12.5, fontWeight: 600, color: mode === "practica" ? C.purpleDeep : C.text }}>Práctica</div>
+                <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>Varios intentos por palabra, hasta acertar.</div>
+              </button>
+              <button onClick={() => setMode("evaluacion")} style={{
+                padding: "11px 12px", borderRadius: 10, cursor: "pointer", textAlign: "left",
+                background: mode === "evaluacion" ? C.evalBg : "transparent",
+                border: `1.5px solid ${mode === "evaluacion" ? C.eval : C.border}`,
+              }}>
+                <div style={{ fontSize: 12.5, fontWeight: 600, color: mode === "evaluacion" ? C.eval : C.text }}>🎯 Evaluación</div>
+                <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>Una sola oportunidad por palabra.</div>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Orden de los ejercicios */}
+        {!hasError && (
+          <div style={{ background: C.bgCard, borderRadius: 14, border: `1px solid ${C.borderLight}`, boxShadow: C.shadowCard, overflow: "hidden" }}>
+            <div style={{ padding: "12px 16px", background: C.bgAlt, borderBottom: `1px solid ${C.borderLight}` }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: C.text }}>Orden de los ejercicios</div>
+            </div>
+            <div style={{ padding: "12px 16px", display: "flex", gap: 8 }}>
+              <button onClick={() => setOrderMode("sequential")} style={{
+                flex: 1, padding: "11px 8px", borderRadius: 10, cursor: "pointer",
+                background: orderMode === "sequential" ? C.purpleLight : "transparent",
+                border: `1.5px solid ${orderMode === "sequential" ? C.purpleDeep : C.border}`,
+                color: orderMode === "sequential" ? C.purpleDeep : C.textMuted,
+                fontSize: 12, fontWeight: 600,
+              }}>En orden ingresado</button>
+              <button onClick={() => setOrderMode("random")} style={{
+                flex: 1, padding: "11px 8px", borderRadius: 10, cursor: "pointer",
+                background: orderMode === "random" ? C.purpleLight : "transparent",
+                border: `1.5px solid ${orderMode === "random" ? C.purpleDeep : C.border}`,
+                color: orderMode === "random" ? C.purpleDeep : C.textMuted,
+                fontSize: 12, fontWeight: 600,
+              }}>Aleatorio</button>
+            </div>
+          </div>
+        )}
+
+        <PrimaryBtn onClick={handleStart} disabled={hasError}>Empezar →</PrimaryBtn>
+      </div>
+    </div>
+  );
+}
+
+// ─── EJERCICIO ───────────────────────────────────────────────────────────────
+function ExerciseScreen({ exercise, onDone, mode }) {
+  const isEval = mode === "evaluacion";
+  const [revealLectura, setRevealLectura] = useState(false);
+  const [revealSignificado, setRevealSignificado] = useState(false);
+  const [wrongPicks, setWrongPicks] = useState(new Set());
+  const [attempts, setAttempts] = useState(0);
+  const [correctPicked, setCorrectPicked] = useState(false);
+  const [evalWrongPick, setEvalWrongPick] = useState(null); // en modo evaluación: la opción incorrecta elegida (si la hubo)
+  const [evalAnswered, setEvalAnswered] = useState(false);
+  const reported = useRef(false);
+  const { entry, options } = exercise;
+
+  function handlePick(kanji) {
+    if (isEval) {
+      if (evalAnswered) return;
+      setEvalAnswered(true);
+      if (kanji !== entry.kanji) setEvalWrongPick(kanji);
+      else setCorrectPicked(true);
+      return;
+    }
+    if (correctPicked || wrongPicks.has(kanji)) return;
+    const newAttempts = attempts + 1;
+    setAttempts(newAttempts);
+    if (kanji === entry.kanji) {
+      setCorrectPicked(true);
+    } else {
+      setWrongPicks(prev => new Set([...prev, kanji]));
+    }
+  }
+
+  function handleContinue() {
+    if (!reported.current) {
+      reported.current = true;
+      if (isEval) onDone(1, evalWrongPick === null);
+      else onDone(attempts, true);
+    }
+  }
+
+  const cols = options.length <= 4 ? 3 : options.length <= 9 ? 3 : 4;
+  const answered = isEval ? evalAnswered : correctPicked;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", padding: "20px 20px 28px", gap: 18 }}>
+      <div style={{ fontSize: 10, letterSpacing: "0.14em", fontWeight: 700, color: isEval ? C.eval : C.purpleDeep, textTransform: "uppercase", textAlign: "center" }}>
+        Grupo {entry.grupoRaw}
+      </div>
+
+      {/* Palabra representativa */}
+      <div style={{ textAlign: "center", padding: "8px 0" }}>
+        <div className="kanji-font" style={{ fontSize: 40, color: C.text, letterSpacing: "0.06em" }}>{entry.palabra}</div>
+      </div>
+
+      {/* Botones de revelar */}
+      <div style={{ display: "flex", gap: 8 }}>
+        <button onClick={() => setRevealLectura(v => !v)} style={{
+          flex: 1, padding: "10px 6px", borderRadius: 10, cursor: "pointer",
+          background: revealLectura ? C.purpleLight : C.bgCard,
+          border: `1px solid ${revealLectura ? C.purpleDeep : C.border}`,
+          color: revealLectura ? C.purpleDeep : C.textMuted, fontSize: 12,
+        }}>
+          {revealLectura ? <span className="jp-font">{entry.lectura}</span> : "👁 Ver lectura"}
+        </button>
+        <button onClick={() => setRevealSignificado(v => !v)} style={{
+          flex: 1, padding: "10px 6px", borderRadius: 10, cursor: "pointer",
+          background: revealSignificado ? C.purpleLight : C.bgCard,
+          border: `1px solid ${revealSignificado ? C.purpleDeep : C.border}`,
+          color: revealSignificado ? C.purpleDeep : C.textMuted, fontSize: 11.5,
+        }}>
+          {revealSignificado ? entry.significado : "👁 Ver significado"}
+        </button>
+      </div>
+
+      {/* Grilla de opciones */}
+      <div style={{ fontSize: 11, color: C.textDim, textAlign: "center", marginTop: 4 }}>
+        ¿Cuál de estos kanjis es el que aparece en la palabra?
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 8, width: "100%" }}>
+        {options.map((k, i) => {
+          const isWrong = isEval ? evalWrongPick === k : wrongPicks.has(k);
+          const isCorrect = isEval
+            ? (evalAnswered && k === entry.kanji)
+            : (correctPicked && k === entry.kanji);
+          const disabled = isEval ? evalAnswered : (isWrong || correctPicked);
+          return (
+            <button key={i} onClick={() => handlePick(k)} disabled={disabled} className="kanji-font" style={{
+              height: 66, fontSize: 30,
+              background: isCorrect ? C.correctBg : isWrong ? C.wrongBg : C.bgCard,
+              border: `1.5px solid ${isCorrect ? C.correctDark : isWrong ? C.wrong : C.border}`,
+              borderRadius: 12,
+              color: isCorrect ? C.correctDark : isWrong ? C.wrongDark : C.text,
+              cursor: disabled ? "default" : "pointer",
+              transition: "all 0.15s",
+              boxShadow: C.shadowCard,
+              opacity: (isEval ? (evalAnswered && !isWrong && !isCorrect) : isWrong) ? 0.6 : 1,
+            }}>{k}</button>
+          );
+        })}
+      </div>
+
+      {!isEval && (
+        <div style={{ fontSize: 11, color: C.textDim, textAlign: "center" }}>
+          Intentos: {attempts}
+        </div>
+      )}
+
+      {!isEval && correctPicked && (
+        <div style={{ textAlign: "center", padding: 12, borderRadius: 12, background: C.correctBg, color: C.correctDark, fontSize: 13 }}>
+          ✓ Correcto
+          <div style={{ marginTop: 10 }}><PrimaryBtn onClick={handleContinue}>Continuar →</PrimaryBtn></div>
+        </div>
+      )}
+
+      {isEval && evalAnswered && (
+        <div style={{
+          textAlign: "center", padding: 12, borderRadius: 12,
+          background: correctPicked ? C.correctBg : C.wrongBg,
+          color: correctPicked ? C.correctDark : C.wrongDark, fontSize: 13,
+        }}>
+          {correctPicked ? "✓ Correcto" : <>✗ Incorrecto — era <span className="kanji-font" style={{ fontSize: 20, marginLeft: 5 }}>{entry.kanji}</span></>}
+          <div style={{ marginTop: 10 }}><PrimaryBtn onClick={handleContinue}>Continuar →</PrimaryBtn></div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── RESUMEN ─────────────────────────────────────────────────────────────────
+function attemptsStyle(n) {
+  if (n <= 1) return { color: C.correctDark, bg: C.correctBg, label: "1 intento" };
+  if (n === 2) return { color: C.yellowText, bg: C.yellow, label: "2 intentos" };
+  return { color: C.wrongDark, bg: C.wrongBg, label: `${n} intentos` };
+}
+
+function resultStyle(correct) {
+  return correct
+    ? { color: C.correctDark, bg: C.correctBg, label: "Correcto" }
+    : { color: C.wrongDark, bg: C.wrongBg, label: "Incorrecto" };
+}
+
+function copyResults(rows, isEval) {
+  const header = isEval
+    ? "Grupo\tKanji\tPalabra\tLectura\tSignificado\tResultado"
+    : "Grupo\tKanji\tPalabra\tLectura\tSignificado\tIntentos";
+  const lines = rows.map(r => [
+    r.entry.grupoRaw, r.entry.kanji, r.entry.palabra, r.entry.lectura, r.entry.significado,
+    isEval ? (r.correct ? "Correcto" : "Incorrecto") : r.attempts,
+  ].join("\t"));
+  const text = [header, ...lines].join("\n");
+  const legacyCopy = () => {
+    const area = document.createElement("textarea");
+    area.value = text;
+    area.style.position = "fixed";
+    area.style.opacity = "0";
+    document.body.appendChild(area);
+    area.select();
+    document.execCommand("copy");
+    document.body.removeChild(area);
+  };
+  if (navigator.clipboard?.writeText) return navigator.clipboard.writeText(text).catch(legacyCopy);
+  legacyCopy();
+  return Promise.resolve();
+}
+
+function ResultsTable({ rows, isEval }) {
+  const [copied, setCopied] = useState(false);
+  const th = { padding: "9px 8px", fontSize: 10, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.06em", background: C.bgAlt, textAlign: "left" };
+  function handleCopy() {
+    copyResults(rows, isEval).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
+  }
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <button onClick={handleCopy} style={{ padding: "13px", borderRadius: 12, border: `1.5px solid ${C.purpleDeep}`, background: copied ? C.correctBg : C.bgCard, color: copied ? C.correctDark : C.purpleDeep, fontWeight: 600, fontSize: 13, cursor: "pointer", boxShadow: C.shadowCard }}>
+        {copied ? "✓ Copiado" : "📋 Copiar para Excel / Sheets"}
+      </button>
+      <div style={{ background: C.bgCard, borderRadius: 14, overflowX: "auto", border: `1px solid ${C.borderLight}`, boxShadow: C.shadowCard }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 480 }}>
+          <thead><tr><th style={th}>Grupo</th><th style={th}>Kanji</th><th style={th}>Palabra</th><th style={th}>Significado</th><th style={th}>{isEval ? "Resultado" : "Intentos"}</th></tr></thead>
+          <tbody>{rows.map((r, i) => {
+            const st = isEval ? resultStyle(r.correct) : attemptsStyle(r.attempts);
+            return (
+              <tr key={r.entry.id} style={{ borderBottom: i < rows.length - 1 ? `1px solid ${C.borderLight}` : "none" }}>
+                <td style={{ padding: "10px 8px", fontSize: 12, color: C.textMuted }}>{r.entry.grupoRaw}</td>
+                <td className="kanji-font" style={{ padding: "10px 8px", fontSize: 19 }}>{r.entry.kanji}</td>
+                <td className="kanji-font" style={{ padding: "10px 8px", fontSize: 14, color: C.text }}>{r.entry.palabra}</td>
+                <td style={{ padding: "10px 8px", fontSize: 11, color: C.textDim }}>{r.entry.significado}</td>
+                <td style={{ padding: "10px 8px" }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: st.color, background: st.bg, borderRadius: 7, padding: "4px 7px", whiteSpace: "nowrap" }}>{st.label}</span>
+                </td>
+              </tr>
+            );
+          })}</tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function SummaryScreen({ results, onRestart, onHome, mode }) {
+  const isEval = mode === "evaluacion";
+  const sorted = [...results].sort((a, b) => {
+    const ga = parseFloat(a.entry.grupoKey), gb = parseFloat(b.entry.grupoKey);
+    if (!isNaN(ga) && !isNaN(gb) && ga !== gb) return ga - gb;
+    if (a.entry.grupoKey !== b.entry.grupoKey) return a.entry.grupoKey.localeCompare(b.entry.grupoKey);
+    return a.order - b.order;
+  });
+  const totalIntentos = results.reduce((s, r) => s + r.attempts, 0);
+  const directos = results.filter(r => r.attempts === 1).length;
+  const correctos = results.filter(r => r.correct).length;
+  const incorrectos = results.length - correctos;
+
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <PageTopBar onHome={onHome} />
+      <div style={{ flex: 1, overflowY: "auto", padding: "24px 20px 32px", display: "flex", flexDirection: "column", gap: 20 }}>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 40, marginBottom: 6 }}>完了</div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: C.text, marginBottom: 4 }}>¡Sesión completada!</div>
+          <div style={{ fontSize: 13, color: C.textMuted }}>
+            {isEval
+              ? <>{results.length} {results.length === 1 ? "ejercicio" : "ejercicios"} · {correctos} correctos · {incorrectos} incorrectos</>
+              : <>{results.length} {results.length === 1 ? "ejercicio" : "ejercicios"} · {directos} a la primera · {totalIntentos} intentos en total</>}
+          </div>
+        </div>
+
+        {results.length > 0 ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+            <div style={{ fontSize: 10, color: C.purpleDeep, letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600 }}>Resultado</div>
+            <ResultsTable rows={sorted} isEval={isEval} />
+          </div>
+        ) : (
+          <div style={{ background: C.bgCard, borderRadius: 14, padding: "14px 16px", border: `1px solid ${C.borderLight}`, boxShadow: C.shadowCard }}>
+            <div style={{ fontSize: 13, color: C.textMuted, textAlign: "center" }}>No se completó ningún ejercicio.</div>
+          </div>
+        )}
+
+        <PrimaryBtn onClick={onRestart}>Reiniciar sesión</PrimaryBtn>
+        <SecondaryBtn onClick={onHome}>Volver al inicio</SecondaryBtn>
+      </div>
+    </div>
+  );
+}
+
+// ─── APP ─────────────────────────────────────────────────────────────────────
+function App() {
+  const [phase, setPhase] = useState("config");
+  const [rawText, setRawText] = useState(DEFAULT_DB);
+  const [orderMode, setOrderMode] = useState("sequential");
+  const [mode, setMode] = useState("practica");
+  const [exercises, setExercises] = useState([]);
+  const [stepIdx, setStepIdx] = useState(0);
+  const [results, setResults] = useState([]);
+
+  function startSession(text, oMode, exMode) {
+    const parsed = parseInput(text);
+    const list = buildExercises(parsed, oMode).map((ex, i) => ({ ...ex, order: i }));
+    setRawText(text);
+    setOrderMode(oMode);
+    setMode(exMode);
+    setExercises(list);
+    setStepIdx(0);
+    setResults([]);
+    setPhase("session");
+  }
+
+  function handleExerciseDone(attempts, correct) {
+    const ex = exercises[stepIdx];
+    setResults(prev => [...prev, { entry: ex.entry, attempts, correct, order: ex.order }]);
+    if (stepIdx + 1 < exercises.length) {
+      setStepIdx(stepIdx + 1);
+    } else {
+      setPhase("summary");
+    }
+  }
+
+  function handleFinishSession() {
+    setPhase("summary");
+  }
+
+  function goHome() {
+    setPhase("config");
+  }
+
+  function restartSession() {
+    startSession(rawText, orderMode, mode);
+  }
+
+  if (phase === "config") {
+    return <ConfigScreen onStart={startSession} initialText={rawText} initialOrderMode={orderMode} initialMode={mode} />;
+  }
+
+  if (phase === "summary") {
+    return <SummaryScreen results={results} onRestart={restartSession} onHome={goHome} mode={mode} />;
+  }
+
+  const exercise = exercises[stepIdx];
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
+      <ExerciseTopBar stepCurrent={stepIdx + 1} stepTotal={exercises.length} onClose={goHome} mode={mode} />
+      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+        <ExerciseScreen key={exercise.entry.id} exercise={exercise} onDone={handleExerciseDone} mode={mode} />
+      </div>
+      <div style={{ padding: "10px 20px 20px", flexShrink: 0 }}>
+        <button onClick={handleFinishSession} style={{
+          width: "100%", padding: "12px",
+          background: "transparent",
+          border: `1px solid ${C.border}`,
+          borderRadius: 12,
+          color: C.textMuted,
+          fontSize: 13, cursor: "pointer",
+        }}>Terminar sesión</button>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
