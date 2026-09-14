@@ -49,12 +49,13 @@ function parse(text) {
   const words = [];
   lines.forEach((line, i) => {
     const parts = line.split(";");
-    const a = (parts.shift() || "").trim();
-    const b = parts.join(";").trim();
+    const a = (parts[0] || "").trim();
+    const b = (parts[1] || "").trim();
+    const c = parts.slice(2).join(";").trim();
     const chars = [...a];
     const kanjiChars = chars.filter(isKanji);
-    if (!a || !b || kanjiChars.length === 0) errors.push(i + 1);
-    else words.push({ id: `${i}-${a}`, a, b, chars, kanjiChars });
+    if (!a || !b || !c || kanjiChars.length === 0) errors.push(i + 1);
+    else words.push({ id: `${i}-${a}`, a, b, c, chars, kanjiChars });
   });
   return { words, errors };
 }
@@ -123,9 +124,9 @@ function Config({ text, setText, onStart, onReset }) {
 
         <section style={{ background: C.bgCard, border: `1px solid ${C.borderLight}`, borderRadius: 15, padding: 16, boxShadow: C.shadowCard }}>
           <label style={{ fontSize: 12, fontWeight: 600, color: C.text }}>Tus palabras</label>
-          <p style={{ fontSize: 11, color: C.textDim, margin: "4px 0 10px" }}>Una por línea: <span className="jp-font">palabra;lectura</span></p>
+          <p style={{ fontSize: 11, color: C.textDim, margin: "4px 0 10px" }}>Una por línea: <span className="jp-font">palabra;lectura;significado</span></p>
           <textarea value={text} onChange={e => setText(e.target.value)} spellCheck="false"
-            placeholder={"猫;ねこ\n学校;がっこう\n食べる;たべる\n電車;でんしゃ"}
+            placeholder={"猫;ねこ;gato\n学校;がっこう;escuela\n食べる;たべる;comer\n電車;でんしゃ;tren"}
             style={{ width: "100%", minHeight: 190, resize: "vertical", padding: 12, borderRadius: 10, border: `1.5px solid ${p.errors.length ? C.pink : C.border}`, background: C.bgAlt, color: C.text, lineHeight: 1.8, fontFamily: "'Noto Sans JP', sans-serif", fontSize: 14 }} />
           {p.errors.length > 0 && <p style={{ fontSize: 11, color: C.pinkDark, marginTop: 7 }}>Revisa las líneas: {p.errors.join(", ")} (falta un dato o no contienen kanji).</p>}
           <p style={{ fontSize: 11, color: C.textMuted, marginTop: 8 }}>{p.words.length} palabra{p.words.length === 1 ? "" : "s"} lista{p.words.length === 1 ? "" : "s"}</p>
@@ -148,6 +149,7 @@ function ConstruccionEx({ word, kanjiPool, onDone }) {
   const [errors, setErrors] = useState(new Set());
   const [errorCount, setErrorCount] = useState(0);
   const [done, setDone] = useState(false);
+  const [showMeaning, setShowMeaning] = useState(false);
 
   const kanjiPositionsInWord = word.chars.reduce((acc, ch, i) => { if (isKanji(ch)) acc.push(i); return acc; }, []);
 
@@ -174,8 +176,13 @@ function ConstruccionEx({ word, kanjiPool, onDone }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", padding: "20px 20px 28px", gap: 20, flex: 1, justifyContent: "center" }}>
       <div style={{ textAlign: "center" }}>
-        <div className="jp-font" style={{ fontSize: 26, color: C.text, letterSpacing: "0.18em", marginBottom: 14 }}>{word.b}</div>
-        <div style={{ display: "flex", justifyContent: "center", gap: 6, flexWrap: "wrap" }}>
+        <div className="jp-font" style={{ fontSize: 26, color: C.text, letterSpacing: "0.18em", marginBottom: 10 }}>{word.b}</div>
+        <button onClick={() => setShowMeaning(s => !s)} style={{
+          border: `1px solid ${C.border}`, background: showMeaning ? C.bgDeep : C.bgAlt, borderRadius: 20,
+          padding: "6px 14px", color: C.textMuted, fontSize: 12, fontWeight: 600, cursor: "pointer",
+        }}>{showMeaning ? "Ocultar significado" : "Ver significado"}</button>
+        {showMeaning && <div style={{ fontSize: 13, color: C.textMuted, marginTop: 8 }}>{word.c}</div>}
+        <div style={{ display: "flex", justifyContent: "center", gap: 6, flexWrap: "wrap", marginTop: 14 }}>
           {word.chars.map((ch, i) => {
             const kanjiIdx = kanjiPositionsInWord.indexOf(i);
             if (isKanji(ch)) {
