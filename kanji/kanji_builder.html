@@ -142,7 +142,7 @@ function Config({ text, setText, onStart, onReset }) {
 }
 
 // ─── EJERCICIO DE CONSTRUCCIÓN ───────────────────────────────────────────
-function ConstruccionEx({ word, kanjiPool, onDone }) {
+function ConstruccionEx({ word, kanjiPool, onDone, onFinish }) {
   const correctKanjis = word.kanjiChars;
   const [slots, setSlots] = useState(correctKanjis.map(() => null));
   const [pool, setPool] = useState(() => shuffle([...correctKanjis, ...getDistractors(kanjiPool, correctKanjis, 9 - correctKanjis.length)]));
@@ -150,6 +150,7 @@ function ConstruccionEx({ word, kanjiPool, onDone }) {
   const [errorCount, setErrorCount] = useState(0);
   const [done, setDone] = useState(false);
   const [showMeaning, setShowMeaning] = useState(false);
+  const [meaningUsed, setMeaningUsed] = useState(false);
 
   const kanjiPositionsInWord = word.chars.reduce((acc, ch, i) => { if (isKanji(ch)) acc.push(i); return acc; }, []);
 
@@ -177,7 +178,7 @@ function ConstruccionEx({ word, kanjiPool, onDone }) {
     <div style={{ display: "flex", flexDirection: "column", padding: "20px 20px 28px", gap: 20, flex: 1, justifyContent: "center" }}>
       <div style={{ textAlign: "center" }}>
         <div className="jp-font" style={{ fontSize: 26, color: C.text, letterSpacing: "0.18em", marginBottom: 10 }}>{word.b}</div>
-        <button onClick={() => setShowMeaning(s => !s)} style={{
+        <button onClick={() => { setShowMeaning(s => !s); setMeaningUsed(true); }} style={{
           border: `1px solid ${C.border}`, background: showMeaning ? C.bgDeep : C.bgAlt, borderRadius: 20,
           padding: "6px 14px", color: C.textMuted, fontSize: 12, fontWeight: 600, cursor: "pointer",
         }}>{showMeaning ? "Ocultar significado" : "Ver significado"}</button>
@@ -219,7 +220,12 @@ function ConstruccionEx({ word, kanjiPool, onDone }) {
         })}
       </div>
 
-      {done && <PrimaryBtn onClick={() => onDone(errorCount)}>Continuar →</PrimaryBtn>}
+      {done && <PrimaryBtn onClick={() => onDone(errorCount, meaningUsed)}>Continuar →</PrimaryBtn>}
+
+      <button onClick={() => onFinish(errorCount, meaningUsed)} style={{
+        width: "100%", border: `1.5px solid ${C.border}`, borderRadius: 14, padding: "12px",
+        background: C.bgCard, color: C.textMuted, fontSize: 13, fontWeight: 600, cursor: "pointer",
+      }}>Terminar sesión y ver resumen</button>
     </div>
   );
 }
@@ -228,8 +234,8 @@ function ConstruccionEx({ word, kanjiPool, onDone }) {
 function CopyButton({ rows }) {
   const [copied, setCopied] = useState(false);
   function handleCopy() {
-    const header = "Palabra\tLectura\tErrores\tResultado";
-    const lines = rows.map(r => `${r.a}\t${r.b}\t${r.errors}\t${r.result}`);
+    const header = "Palabra\tLectura\tErrores\tResultado\tVio significado";
+    const lines = rows.map(r => `${r.a}\t${r.b}\t${r.errors}\t${r.result}\t${r.usedMeaning ? "Sí" : "No"}`);
     navigator.clipboard.writeText([header, ...lines].join("\n")).then(() => {
       setCopied(true); setTimeout(() => setCopied(false), 2000);
     });
@@ -250,19 +256,27 @@ function ResultsTable({ rows }) {
           <th style={{ ...thStyle, textAlign: "left" }}>Palabra</th>
           <th style={{ ...thStyle, textAlign: "left" }}>Lectura</th>
           <th style={{ ...thStyle, textAlign: "center" }}>Errores</th>
+          <th style={{ ...thStyle, textAlign: "center" }}>Sig. 👁</th>
           <th style={{ ...thStyle, textAlign: "center" }}>Resultado</th>
         </tr></thead>
         <tbody>
-          {rows.map((r, i) => (
+          {rows.map((r, i) => {
+            const neutral = r.result === "Sin respuesta";
+            const ok = r.result === "Exitoso";
+            return (
             <tr key={r.id} style={{ borderBottom: i < rows.length - 1 ? `1px solid ${C.borderLight}` : "none" }}>
-              <td className="kanji-font" style={{ padding: "10px 10px", fontSize: 17 }}>{r.a}</td>
+              <td style={{ padding: "10px 10px" }}>
+                <span className="kanji-font" style={{ fontSize: 17 }}>{r.a}</span>
+              </td>
               <td className="jp-font" style={{ padding: "10px 10px", fontSize: 13, color: C.textMuted }}>{r.b}</td>
               <td style={{ padding: "10px 10px", textAlign: "center", fontSize: 13, color: C.textMuted }}>{r.errors}</td>
+              <td style={{ padding: "10px 6px", textAlign: "center", fontSize: 13, color: C.textDim }}>{r.usedMeaning ? "👁" : "–"}</td>
               <td style={{ padding: "10px 10px", textAlign: "center" }}>
-                <span style={{ display: "inline-block", padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: r.result === "Exitoso" ? C.correctBg : C.wrongBg, color: r.result === "Exitoso" ? C.mintDeep : C.pinkDark }}>{r.result}</span>
+                <span style={{ display: "inline-block", padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: neutral ? C.bgDeep : (ok ? C.correctBg : C.wrongBg), color: neutral ? C.textMuted : (ok ? C.mintDeep : C.pinkDark) }}>{r.result}</span>
               </td>
             </tr>
-          ))}
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -270,6 +284,7 @@ function ResultsTable({ rows }) {
 }
 
 function Summary({ rows, onNew }) {
+  const unanswered = rows.filter(r => r.result === "Sin respuesta").length;
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
       <Top title="字 Kanji Builder · Resultado" />
@@ -277,7 +292,10 @@ function Summary({ rows, onNew }) {
         <section style={{ textAlign: "center" }}>
           <div style={{ fontSize: 36 }}>字</div>
           <h1 style={{ fontSize: 21, color: C.text }}>Resumen de la sesión</h1>
-          <p style={{ fontSize: 12, color: C.textMuted, marginTop: 5 }}>Practicaste {rows.length} palabra{rows.length === 1 ? "" : "s"}.</p>
+          <p style={{ fontSize: 12, color: C.textMuted, marginTop: 5 }}>
+            Practicaste {rows.length} palabra{rows.length === 1 ? "" : "s"}.
+            {unanswered > 0 && ` ${unanswered} ${unanswered === 1 ? "quedó" : "quedaron"} sin respuesta.`}
+          </p>
         </section>
         <CopyButton rows={rows} />
         <ResultsTable rows={rows} />
@@ -307,7 +325,7 @@ function App() {
     if (readyIdx !== -1) {
       const item = repeatsArr[readyIdx];
       setPendingRepeats(repeatsArr.filter((_, i) => i !== readyIdx));
-      setCurrent({ word: item.word, attempt: 2, firstErrors: item.firstErrors });
+      setCurrent({ word: item.word, attempt: 2, firstErrors: item.firstErrors, firstMeaning: item.firstMeaning });
       return;
     }
     if (remainingArr.length > 0) {
@@ -320,7 +338,7 @@ function App() {
       // no quedan palabras nuevas: toma la repetición más próxima aunque no se haya cumplido el umbral
       const item = repeatsArr[0];
       setPendingRepeats(repeatsArr.slice(1));
-      setCurrent({ word: item.word, attempt: 2, firstErrors: item.firstErrors });
+      setCurrent({ word: item.word, attempt: 2, firstErrors: item.firstErrors, firstMeaning: item.firstMeaning });
       return;
     }
     setCurrent(null);
@@ -340,31 +358,56 @@ function App() {
     pickNext(shuffled, [], 0);
   }
 
-  function handleDone(errorCount) {
-    const { word, attempt, firstErrors } = current;
+  function handleDone(errorCount, usedMeaning) {
+    const { word, attempt, firstErrors, firstMeaning } = current;
     if (attempt === 1) {
       if (errorCount === 0) {
         const newSuccess = successCount + 1;
-        setResults(r => [...r, { ...word, errors: 0, result: "Exitoso" }]);
+        setResults(r => [...r, { ...word, errors: 0, usedMeaning: !!usedMeaning, result: "Exitoso" }]);
         setSuccessCount(newSuccess);
         pickNext(remaining, pendingRepeats, newSuccess);
       } else {
-        const newRepeats = [...pendingRepeats, { word, firstErrors: errorCount, triggerAt: successCount + 3 }];
+        const newRepeats = [...pendingRepeats, { word, firstErrors: errorCount, firstMeaning: !!usedMeaning, triggerAt: successCount + 3 }];
         setPendingRepeats(newRepeats);
         pickNext(remaining, newRepeats, successCount);
       }
     } else {
       const total = firstErrors + errorCount;
+      const meaning = !!firstMeaning || !!usedMeaning;
       if (errorCount === 0) {
         const newSuccess = successCount + 1;
-        setResults(r => [...r, { ...word, errors: total, result: "Exitoso" }]);
+        setResults(r => [...r, { ...word, errors: total, usedMeaning: meaning, result: "Exitoso" }]);
         setSuccessCount(newSuccess);
         pickNext(remaining, pendingRepeats, newSuccess);
       } else {
-        setResults(r => [...r, { ...word, errors: total, result: "Error" }]);
+        setResults(r => [...r, { ...word, errors: total, usedMeaning: meaning, result: "Error" }]);
         pickNext(remaining, pendingRepeats, successCount);
       }
     }
+  }
+
+  // Termina la sesión antes de tiempo: lo respondido se conserva y el resto
+  // (palabra actual, repeticiones pendientes y palabras no vistas) queda "Sin respuesta".
+  function finishEarly(currentErrors, currentMeaning) {
+    const pending = [];
+    if (current) {
+      pending.push({
+        ...current.word,
+        errors: (current.firstErrors || 0) + (currentErrors || 0),
+        usedMeaning: !!current.firstMeaning || !!currentMeaning,
+        result: "Sin respuesta",
+      });
+    }
+    pendingRepeats.forEach(r => {
+      if (current && r.word.id === current.word.id) return;
+      pending.push({ ...r.word, errors: r.firstErrors, usedMeaning: !!r.firstMeaning, result: "Sin respuesta" });
+    });
+    remaining.forEach(w => pending.push({ ...w, errors: 0, usedMeaning: false, result: "Sin respuesta" }));
+    setResults(r => [...r, ...pending]);
+    setRemaining([]);
+    setPendingRepeats([]);
+    setCurrent(null);
+    setScreen("summary");
   }
 
   function exit() { setScreen("config"); }
@@ -379,7 +422,7 @@ function App() {
     <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
       <Top onExit={exit} />
       <Progress done={finishedCount} total={totalWords} />
-      <ConstruccionEx key={`${current.word.id}-${current.attempt}`} word={current.word} kanjiPool={kanjiPool} onDone={handleDone} />
+      <ConstruccionEx key={`${current.word.id}-${current.attempt}`} word={current.word} kanjiPool={kanjiPool} onDone={handleDone} onFinish={finishEarly} />
     </div>
   );
 }
