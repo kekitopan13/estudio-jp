@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Revisión global</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<style>
+:root{
+  --color-primary:#e5808c;
+  --color-dark:#c4596b;
+  --bg-main:#ffeeec;
+  --soft:#ffdcd9;
+  --line:#f4bcbc;
+  --ink:#4a2a2e;
+  --radius:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  color:var(--ink);background:var(--bg-main);line-height:1.4;overflow-x:hidden;
+}
+.nav-back{display:inline-block;padding:10px 15px;text-decoration:none;color:var(--color-dark);font-size:.9rem;font-weight:500}
+.screen{padding:5px 15px calc(24px + env(safe-area-inset-bottom));max-width:600px;margin:0 auto}
+h1{font-size:28px;font-weight:700;color:var(--ink);margin-bottom:8px}
+.sub{font-size:.82rem;color:#8c6468;margin-bottom:16px;line-height:1.6}
+code{background:var(--soft);padding:1px 6px;border-radius:6px}
+textarea{
+  width:100%;font-size:16px;padding:12px;border:1px solid var(--line);
+  border-radius:var(--radius);background:#fff;color:var(--ink);font-family:inherit;resize:vertical
+}
+textarea:focus{outline:2px solid var(--color-primary);border-color:var(--color-primary)}
+.item-count{font-size:12px;color:#8c6468;margin:8px 0 4px}
+.err-box{background:#fff;border:1px solid #d96a6a;border-radius:var(--radius);padding:10px 14px;margin-top:10px;font-size:14px;line-height:1.6;color:#a32d2d}
+
+button{font-family:inherit;cursor:pointer}
+button:focus-visible,.reveal:focus-visible,.nav-back:focus-visible{outline:3px solid var(--color-dark);outline-offset:2px}
+.primary,.secondary{
+  width:100%;padding:16px;border-radius:var(--radius);font-size:1.05rem;font-weight:600;margin-top:10px;
+  border:2px solid var(--color-primary);
+}
+.primary{background:var(--color-primary);color:#fff;box-shadow:0 4px 6px rgba(229,128,140,.25)}
+.secondary{background:#fff;color:var(--color-dark)}
+.small-row{display:flex;gap:8px;margin-top:18px}
+.small-row button{
+  flex:1;padding:12px 6px;border-radius:var(--radius);font-size:.9rem;font-weight:600;
+  border:1px solid var(--line);background:#fff;color:var(--color-dark)
+}
+.small-row button:disabled{opacity:.4}
+
+.progress-bar{height:6px;background:var(--soft);border-radius:3px;margin-bottom:8px}
+.progress-fill{height:100%;background:var(--color-primary);border-radius:3px;transition:width .3s}
+.progress-txt{font-size:12px;color:#8c6468;margin-bottom:12px}
+
+.word{
+  background:#fff;border-radius:var(--radius);box-shadow:0 2px 8px rgba(0,0,0,.05);
+  text-align:center;padding:22px 10px;font-size:clamp(2.6rem,15vw,4.6rem);line-height:1.15;
+  font-family:'Noto Serif JP',serif;font-weight:700;color:var(--ink);word-break:break-all
+}
+.reveals{margin:10px 0 14px;display:flex;flex-direction:column;gap:8px}
+.reveal{
+  min-height:70px;background:#fff;border:2px dashed var(--line);
+  border-radius:var(--radius);padding:12px;text-align:center;cursor:pointer;user-select:none;
+  display:flex;flex-direction:column;justify-content:center
+}
+.reveal.on{border-style:solid;border-color:var(--color-primary)}
+.read{font-size:1.7rem;font-weight:700;font-family:'Noto Serif JP',serif;color:var(--color-dark)}
+.mean{font-size:1.15rem;color:#6b4a4e}
+
+.opts{display:flex;flex-direction:column;gap:6px}
+.opt{
+  width:100%;padding:14px;border-radius:var(--radius);font-size:1rem;font-weight:700;
+  color:#3a1d20;border:3px solid transparent
+}
+.opt.sel{border-color:var(--ink)}
+
+.tw{background:#fff;border-radius:var(--radius);box-shadow:0 1px 4px rgba(0,0,0,.05);overflow:hidden;margin-top:14px}
+table{border-collapse:collapse;width:100%}
+th{background:var(--soft);font-size:.78rem;text-align:left;padding:8px 10px;color:#6b4a4e}
+td{padding:9px 10px;border-top:1px solid var(--soft);font-size:.9rem;vertical-align:middle}
+td.kj{font-family:'Noto Serif JP',serif;font-size:1.3rem;font-weight:700}
+td.yn{text-align:center;font-weight:600;padding:9px 4px}
+.pill{display:inline-block;padding:3px 10px;border-radius:999px;color:#3a1d20;font-weight:700;font-size:.8rem}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect}=React;
+const KEY="revision_global_texto";
+const MENU="https://kekitopan13.github.io/estudio-jp/";
+const OPTS=[
+  {id:"Todo bien",bg:"#8fcb93"},
+  {id:"Todo CASI bien",bg:"#cde08c"},
+  {id:"Kanji débil",bg:"#f7dc7a"},
+  {id:"Significado débil",bg:"#f5a97b"},
+  {id:"Todo débil",bg:"#ec6b6b"}
+];
+const COLOR=Object.fromEntries(OPTS.map(o=>[o.id,o.bg]));
+
+function parse(text){
+  const words=[],errors=[];
+  text.split(/\r?\n/).forEach((raw,i)=>{
+    const l=raw.trim(); if(!l) return;
+    const p=l.split(/[;；]/).map(s=>s.trim());
+    const m=p.slice(2).join(";").trim();
+    if(p.length<3||!p[0]||!p[1]||!m){errors.push("Línea "+(i+1)+": se esperaba palabra;lectura;significado");return;}
+    words.push({w:p[0],r:p[1],m});
+  });
+  return {words,errors};
+}
+function shuffle(a){
+  a=a.slice();
+  for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+  return a;
+}
+function copyText(t){
+  const fb=()=>{const ta=document.createElement("textarea");ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand("copy")}catch(e){}document.body.removeChild(ta);};
+  if(navigator.clipboard&&navigator.clipboard.writeText) return navigator.clipboard.writeText(t).catch(fb);
+  fb();return Promise.resolve();
+}
+
+function App(){
+  const [screen,setScreen]=useState("setup");
+  const [text,setText]=useState(()=>{try{return localStorage.getItem(KEY)||""}catch(e){return ""}});
+  const [errors,setErrors]=useState([]);
+  const [list,setList]=useState([]);
+  const [idx,setIdx]=useState(0);
+  const [open,setOpen]=useState({r:false,m:false});
+  const [seen,setSeen]=useState({});
+  const [rate,setRate]=useState({});
+  const [copied,setCopied]=useState(false);
+
+  useEffect(()=>{try{localStorage.setItem(KEY,text)}catch(e){}},[text]);
+
+  function start(random){
+    const {words,errors}=parse(text);
+    if(!errors.length&&!words.length) errors.push("Pega al menos una palabra.");
+    setErrors(errors);
+    if(errors.length) return;
+    setList(random?shuffle(words):words);
+    setIdx(0);setOpen({r:false,m:false});setSeen({});setRate({});setCopied(false);
+    setScreen("session");
+  }
+  function home(){
+    if(screen==="session"&&!window.confirm("¿Volver al inicio? Se descartará la sesión en curso.")) return;
+    setScreen("setup");
+  }
+  function toggle(k){ if(!open[k]) setSeen({...seen,[idx]:{...(seen[idx]||{}),[k]:true}}); setOpen({...open,[k]:!open[k]}); }
+  function choose(id){
+    setRate({...rate,[idx]:id});
+    if(idx+1>=list.length) setScreen("results");
+    else {setIdx(idx+1);setOpen({r:false,m:false});}
+  }
+  function back(){ if(idx>0){setIdx(idx-1);setOpen({r:false,m:false});} }
+  const nav=<a className="nav-back" href={MENU}>← メニュー</a>;
+
+  if(screen==="setup"){
+    const n=parse(text).words.length;
+    return (<>{nav}<div className="screen">
+      <h1>Revisión global</h1>
+      <p className="sub">Pega las palabras que llevas estudiando, una por línea.<br/>Formato: <code>palabra;lectura;significado</code></p>
+      <textarea rows="9" value={text} onChange={e=>setText(e.target.value)} spellCheck={false}
+        placeholder={"学校;がっこう;escuela\n食べる;たべる;comer"}/>
+      <div className="item-count">{n} {n===1?"palabra":"palabras"}</div>
+      {errors.length>0&&<div className="err-box">{errors.map((e,i)=><div key={i}>{e}</div>)}</div>}
+      <button className="primary" onClick={()=>start(true)}>Modo aleatorio</button>
+      <button className="secondary" onClick={()=>start(false)}>Orden original</button>
+    </div></>);
+  }
+
+  if(screen==="session"){
+    const cur=list[idx];
+    return (<>{nav}<div className="screen">
+      <div className="progress-bar"><div className="progress-fill" style={{width:(idx/list.length*100)+"%"}}/></div>
+      <div className="progress-txt">Palabra {idx+1} de {list.length}. Evaluadas: {Object.keys(rate).length}</div>
+      <div className="word" lang="ja">{cur.w}</div>
+      <div className="reveals">
+        {[["r","lectura"],["m","significado"]].map(([k,label])=>(
+          <div key={k} className={"reveal"+(open[k]?" on":"")} role="button" tabIndex={0} aria-pressed={open[k]}
+               aria-label={"Mostrar u ocultar "+label} onClick={()=>toggle(k)}
+               onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();toggle(k);}}}>
+            {open[k]&&(k==="r"?<div className="read" lang="ja">{cur.r}</div>:<div className="mean">{cur.m}</div>)}
+          </div>
+        ))}
+      </div>
+      <div className="opts">
+        {OPTS.map(o=>(
+          <button key={o.id} className={"opt"+(rate[idx]===o.id?" sel":"")} style={{background:o.bg}} onClick={()=>choose(o.id)}>{o.id}</button>
+        ))}
+      </div>
+      <div className="small-row">
+        <button onClick={back} disabled={idx===0}>Anterior</button>
+        <button onClick={home}>Inicio</button>
+        <button onClick={()=>setScreen("results")}>Terminar sesión</button>
+      </div>
+    </div></>);
+  }
+
+  const rows=list.map((x,i)=>({n:i+1,w:x.w,opt:rate[i],sr:!!(seen[i]&&seen[i].r),sm:!!(seen[i]&&seen[i].m)})).filter(r=>r.opt);
+  const tsv=rows.map(r=>[r.w,r.opt,r.sr?"Sí":"No",r.sm?"Sí":"No"].join("\t")).join("\n");
+  return (<>{nav}<div className="screen">
+    <h1>Resultados</h1>
+    <p className="sub">Palabras evaluadas: {rows.length} de {list.length}</p>
+    {rows.length>0&&<button className="primary" style={{marginTop:0}} onClick={()=>copyText(tsv).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),2000);})}>{copied?"¡Copiado!":"Copiar TSV"}</button>}
+    <button className="secondary" onClick={home}>Inicio</button>
+    {rows.length===0?<p className="sub" style={{marginTop:16}}>No alcanzaste a evaluar ninguna palabra.</p>:(
+      <div className="tw"><table>
+        <thead><tr><th>Palabra</th><th>Opción elegida</th><th style={{textAlign:"center"}}>¿Vi lectura?</th><th style={{textAlign:"center"}}>¿Vi signif.?</th></tr></thead>
+        <tbody>{rows.map(r=>(
+          <tr key={r.n}>
+            <td className="kj" lang="ja">{r.w}</td>
+            <td><span className="pill" style={{background:COLOR[r.opt]}}>{r.opt}</span></td>
+            <td className="yn">{r.sr?"Sí":"No"}</td>
+            <td className="yn">{r.sm?"Sí":"No"}</td>
+          </tr>
+        ))}</tbody>
+      </table></div>
+    )}
+  </div></>);
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
