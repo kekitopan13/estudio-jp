@@ -1,246 +1,233 @@
 <!DOCTYPE html>
-
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mis Apps de Japonés</title>
-<link rel="apple-touch-icon" sizes="180x180" href="iconov2.png">
-<link rel="icon" type="image/png" href="iconov2.png">
+    <title>Japanese Study Tools</title>
+    <link rel="apple-touch-icon" sizes="180x180" href="iconov2.png">
+    <link rel="icon" type="image/png" href="iconov2.png">
 
-<meta name="apple-mobile-web-app-title" content="Japonés">
-<meta name="application-name" content="Japonés">
-<meta name="theme-color" content="#f5f5f7">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Japanese">
+    <meta name="application-name" content="Japanese">
+    <meta name="theme-color" content="#f5f5f7">
 
-<style>
-    * {
-        box-sizing: border-box;
-    }
+    <style>
+        * {
+            box-sizing: border-box;
+        }
 
-    body {
-        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        background-color: #f5f5f7;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        min-height: 100vh;
-        margin: 0;
-        padding: 24px 20px;
-        color: #1d1d1f;
-    }
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background-color: #f5f5f7;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 24px 20px;
+            color: #1d1d1f;
+        }
 
-    h1 {
-        font-size: 1.5rem;
-        margin: 0 0 6px;
-        color: #5b21b6;
-        text-align: center;
-    }
+        h1 {
+            font-size: 1.5rem;
+            margin: 0 0 6px;
+            color: #5b21b6;
+            text-align: center;
+        }
 
-    .subtitle {
-        margin: 0 0 22px;
-        font-size: 0.9rem;
-        color: #666;
-        text-align: center;
-    }
+        .subtitle {
+            margin: 0 0 22px;
+            font-size: 0.9rem;
+            color: #666;
+            text-align: center;
+        }
 
-    .menu-container {
-        width: 100%;
-        max-width: 420px;
-        display: flex;
-        flex-direction: column;
-        gap: 14px;
-    }
+        .menu-container {
+            width: 100%;
+            max-width: 420px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
 
-    .section-title {
-        font-size: 0.85rem;
-        font-weight: 700;
-        letter-spacing: 0.04em;
-        margin: 10px 4px -4px;
-    }
+        .section-title {
+            font-size: 0.85rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            margin: 10px 4px -4px;
+            color: #5b21b6;
+        }
 
-    .active-section {
-        color: #5b21b6;
-    }
+        .app-card {
+            background: #fff;
+            padding: 18px 20px;
+            border-radius: 15px;
+            text-decoration: none;
+            color: inherit;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            display: flex;
+            align-items: flex-start;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            border: 1px solid rgba(91, 33, 182, 0.08);
+        }
 
-    .old-section {
-        color: #999;
-    }
+        .app-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+        }
 
-    .app-card {
-        background: white;
-        padding: 18px 20px;
-        border-radius: 15px;
-        text-decoration: none;
-        color: inherit;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-        display: flex;
-        align-items: center;
-        transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
-        border: 1px solid rgba(91, 33, 182, 0.08);
-    }
+        .app-card:active {
+            transform: scale(0.98);
+            background: #f0f0f0;
+        }
 
-    .app-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 16px rgba(0,0,0,0.08);
-    }
+        .icon {
+            font-size: 2rem;
+            margin-right: 15px;
+            flex-shrink: 0;
+        }
 
-    .app-card:active {
-        transform: scale(0.98);
-        background: #f0f0f0;
-    }
+        .details b {
+            display: block;
+            font-size: 1.08rem;
+            margin-bottom: 4px;
+        }
 
-    .old-card {
-        opacity: 0.72;
-    }
+        .details span {
+            display: block;
+            font-size: 0.85rem;
+            color: #666;
+            line-height: 1.4;
+        }
 
-    .old-card:hover {
-        opacity: 1;
-    }
+        .details strong {
+            color: #444;
+        }
 
-    .icon {
-        font-size: 2rem;
-        margin-right: 15px;
-        flex-shrink: 0;
-    }
-
-    .details b {
-        display: block;
-        font-size: 1.08rem;
-        margin-bottom: 4px;
-    }
-
-    .details span {
-        display: block;
-        font-size: 0.85rem;
-        color: #666;
-        line-height: 1.35;
-    }
-</style>
+        .details code {
+            font-size: 0.82em;
+            overflow-wrap: anywhere;
+        }
+    </style>
 </head>
 <body>
-<h1>学習メニュー</h1>
-<p class="subtitle">Ejercicios de japonés</p>
+    <h1>学習メニュー</h1>
+    <p class="subtitle">Japanese study tools</p>
 
-<div class="menu-container">
+    <main class="menu-container">
+        <div class="section-title">🧱 Apps for Building Knowledge</div>
 
-    <!-- EN USO -->
-    <div class="section-title active-section">
-        ✨ Ejercicios en uso
-    </div>
+        <a href="https://kekitopan13.github.io/estudio-jp/matchup_inline.html" class="app-card">
+            <div class="icon">🔗</div>
+            <div class="details">
+                <b>Match Up</b>
+                <span>
+                    Build associations through quick matching rounds. Connect related vocabulary, kanji, readings, or concepts and strengthen recognition through active recall.
+                    <br><strong>Input:</strong> Two related fields per line, separated by a tab or semicolon. Example: <code>強調;きょうちょう</code>
+                </span>
+            </div>
+        </a>
 
-    <a href="https://kekitopan13.github.io/estudio-jp/matchup_inline.html" class="app-card">
-        <div class="icon">🔗</div>
-        <div class="details">
-            <b>Match Up</b>
-            <span>
-                Match related pairs, such as kanji and readings, in short rounds. Builds quick recognition and strengthens links between two pieces of information.
-                <br><strong>Input:</strong> Two fields per line, separated by a tab or semicolon. Example: <code>強調;きょうちょう</code>
-            </span>
-        </div>
-    </a>
+        <a href="https://kekitopan13.github.io/estudio-jp/deep_vocab.html" class="app-card">
+            <div class="icon">🌊</div>
+            <div class="details">
+                <b>Deep Recall</b>
+                <span>
+                    Build stronger vocabulary recall with multiple-choice and writing in both directions. Follow-up rounds revisit mistakes to reinforce readings, written forms, and meanings.
+                    <br><strong>Input:</strong> <code>word;reading;meaning</code>, one entry per line.
+                </span>
+            </div>
+        </a>
 
-    <a href="https://kekitopan13.github.io/estudio-jp/revision_global.html" class="app-card">
-        <div class="icon">👾</div>
-        <div class="details">
-            <b>Revisión global</b>
-            <span>
-                Review a full vocabulary list and self-rate each word’s reading and meaning. Identify what you know well and what needs more study.
-                <br><strong>Input:</strong> <code>word;reading;meaning</code>, one entry per line.
-            </span>
-        </div>
-    </a>
+        <a href="https://kekitopan13.github.io/estudio-jp/word_forge.html" class="app-card">
+            <div class="icon">🔭</div>
+            <div class="details">
+                <b>Word Forge</b>
+                <span>
+                    Build vocabulary step by step: recognize readings, assemble words kana by kana, then write them from memory. Especially useful for hiragana-focused study.
+                    <br><strong>Input:</strong> <code>reading;meaning</code>, one entry per line.
+                </span>
+            </div>
+        </a>
 
-    <a href="https://kekitopan13.github.io/estudio-jp/deep_vocab.html" class="app-card">
-        <div class="icon">🌊</div>
-        <div class="details">
-            <b>Deep Recall</b>
-            <span>
-                Practice vocabulary in both directions with multiple-choice and writing questions. Review incorrect answers in follow-up rounds to reinforce reading, written form, and meaning.
-                <br><strong>Input:</strong> <code>word;reading;meaning</code>, one entry per line.
-            </span>
-        </div>
-    </a>
+        <a href="https://kekitopan13.github.io/estudio-jp/falsi_quizlet_ver2.html" class="app-card">
+            <div class="icon">✨</div>
+            <div class="details">
+                <b>Falsi Quizlet V2</b>
+                <span>
+                    Build vocabulary recall with configurable multiple-choice and writing practice. Choose what each column represents, which direction to practice, and whether to use two or three fields.
+                    <br><strong>Input:</strong> Two or three fields per line, separated by semicolons; assign each column to A, B, or C.
+                </span>
+            </div>
+        </a>
 
-    <a href="https://kekitopan13.github.io/estudio-jp/word_forge.html" class="app-card">
-        <div class="icon">🔭</div>
-        <div class="details">
-            <b>Word Forge</b>
-            <span>
-                Learn from meaning cues by recognizing readings, building words kana by kana, and writing them from memory. Especially useful for hiragana vocabulary. It's useful for BUILDING knowledge, in contrast with "Word check", which EVALUATES the knowledge you acquired.
-                <br><strong>Input:</strong> <code>reading;meaning</code>, one entry per line.
-            </span>
-        </div>
-    </a>
+        <a href="https://kekitopan13.github.io/estudio-jp/kanji/kanji_learning_v2.html" class="app-card">
+            <div class="icon">🌱</div>
+            <div class="details">
+                <b>Kanji Vocabulary Learning v.2</b>
+                <span>
+                    Build kanji vocabulary through guided exposure, word construction, reading, and meaning checks. Cumulative challenge rounds reinforce words and reveal what needs review.
+                    <br><strong>Input:</strong> <code>word [tab] furigana [tab] meaning</code>, one entry per line.
+                </span>
+            </div>
+        </a>
 
-    <a href="https://kekitopan13.github.io/estudio-jp/word_check.html" class="app-card">
-        <div class="icon">☑️</div>
-        <div class="details">
-            <b>Word Check</b>
-            <span>
-                Check whether you can recall a word’s reading from its meaning. Words correct on the first try are set aside; missed words get more practice. This is mostly an ASSESSING tool.
-                <br><strong>Input:</strong> <code>reading;meaning</code>, one entry per line. Uses kana readings.
-            </span>
-        </div>
-    </a>
+        <a href="https://kekitopan13.github.io/estudio-jp/kanji/kanji_builder.html" class="app-card">
+            <div class="icon">🔨</div>
+            <div class="details">
+                <b>Kanji Builder</b>
+                <span>
+                    Build written vocabulary by assembling each word’s kanji in order, using its reading and optional meaning as clues.
+                    <br><strong>Input:</strong> <code>word;reading;meaning</code>, one entry per line. The word must contain at least one kanji.
+                </span>
+            </div>
+        </a>
 
-    <a href="https://kekitopan13.github.io/estudio-jp/flashcard_review.html" class="app-card">
-        <div class="icon">📇</div>
-        <div class="details">
-            <b>Flashcard review</b>
-            <span>
-                Review pairs with flashcards: recall the hidden item, reveal it, then rate how easy or difficult it was. Supports spaced review.
-                <br><strong>Input:</strong> Two fields per line, separated by a semicolon. Example: <code>猫;ねこ</code>
-            </span>
-        </div>
-    </a>
+        <div class="section-title">🔎 Apps for Evaluating Knowledge</div>
 
-    <a href="https://kekitopan13.github.io/estudio-jp/falsi_quizlet_ver2.html" class="app-card">
-        <div class="icon">✨</div>
-        <div class="details">
-            <b>Falsi Quizlet V2</b>
-            <span>
-                Practice with multiple choice and optional writing. Choose what each column represents, which direction to test, and whether to use two or three data fields.
-                <br><strong>Input:</strong> Two or three fields per line, separated by semicolons; assign each column to A, B, or C.
-            </span>
-        </div>
-    </a>
+        <a href="https://kekitopan13.github.io/estudio-jp/revision_global.html" class="app-card">
+            <div class="icon">👾</div>
+            <div class="details">
+                <b>Revisión global</b>
+                <span>
+                    Evaluate a full vocabulary list by self-rating each word’s reading and meaning. Use the results to identify strengths and gaps for future study.
+                    <br><strong>Input:</strong> <code>word;reading;meaning</code>, one entry per line.
+                </span>
+            </div>
+        </a>
 
-    <a href="https://kekitopan13.github.io/estudio-jp/kanji/kanji_learning_v2.html" class="app-card">
-        <div class="icon">🌱</div>
-        <div class="details">
-            <b>Kanji vocabulary learning v.2.</b>
-            <span>
-                Study kanji vocabulary through guided exposure, word building, reading, and meaning checks. Cumulative challenge rounds help reveal what needs review.
-                <br><strong>Input:</strong> <code>word [tab] furigana [tab] meaning</code>, one entry per line.
-            </span>
-        </div>
-    </a>
+        <a href="https://kekitopan13.github.io/estudio-jp/word_check.html" class="app-card">
+            <div class="icon">☑️</div>
+            <div class="details">
+                <b>Word Check</b>
+                <span>
+                    Assess whether you can recall a reading from its meaning. First-try correct items are set aside; missed words receive targeted follow-up practice.
+                    <br><strong>Input:</strong> <code>reading;meaning</code>, one entry per line. Uses kana readings.
+                </span>
+            </div>
+        </a>
 
-    <a href="https://kekitopan13.github.io/estudio-jp/kanji/distinguir_kanjis.html" class="app-card">
-        <div class="icon">🌀</div>
-        <div class="details">
-            <b>Kanjis Confusos v.2</b>
-            <span>
-                Identify the hidden kanji in a word using its reading and meaning as clues. Choose practice with multiple attempts or a one-try assessment.
-                <br><strong>Input:</strong> <code>kanji;group;word;reading;meaning</code>, one entry per line.
-            </span>
-        </div>
-    </a>
+        <a href="https://kekitopan13.github.io/estudio-jp/flashcard_review.html" class="app-card">
+            <div class="icon">📇</div>
+            <div class="details">
+                <b>Flashcard Review</b>
+                <span>
+                    Evaluate recall with flashcards: retrieve the hidden item, reveal it, then rate difficulty. Your ratings guide spaced review.
+                    <br><strong>Input:</strong> Two fields per line, separated by a semicolon. Example: <code>猫;ねこ</code>
+                </span>
+            </div>
+        </a>
 
-    <a href="https://kekitopan13.github.io/estudio-jp/kanji/kanji_builder.html" class="app-card">
-        <div class="icon">🔨</div>
-        <div class="details">
-            <b>Kanji builder</b>
-            <span>
-                Build each vocabulary word by selecting its kanji in order, using the reading and optional meaning as clues. Practice written word composition.
-                <br><strong>Input:</strong> <code>word;reading;meaning</code>, one entry per line. The word must contain at least one kanji.
-            </span>
-        </div>
-    </a>
-
-</div>
-
+        <a href="https://kekitopan13.github.io/estudio-jp/kanji/distinguir_kanjis.html" class="app-card">
+            <div class="icon">😵‍💫</div>
+            <div class="details">
+                <b>Kanjis Confusos 2</b>
+                <span>
+                    Evaluate whether you can distinguish a target kanji from similar alternatives, using its word, reading, and meaning as clues. Includes practice and one-try assessment modes.
+                    <br><strong>Input:</strong> <code>kanji;group;word;reading;meaning</code>, one entry per line.
+                </span>
+            </div>
+        </a>
+    </main>
 </body>
 </html>
