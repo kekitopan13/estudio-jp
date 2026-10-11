@@ -25,7 +25,7 @@ body{
   color:var(--ink);background:var(--bg-main);line-height:1.4;overflow-x:hidden;
 }
 .nav-back{display:inline-block;padding:10px 15px;text-decoration:none;color:var(--color-dark);font-size:.9rem;font-weight:500}
-.screen{padding:5px 15px calc(24px + env(safe-area-inset-bottom));max-width:600px;margin:0 auto}
+.screen{width:100%;padding:5px 15px calc(24px + env(safe-area-inset-bottom));max-width:500px;margin:0 auto}
 h1{font-size:28px;font-weight:700;color:var(--ink);margin-bottom:8px}
 .sub{font-size:.82rem;color:#8c6468;margin-bottom:16px;line-height:1.6}
 code{background:var(--soft);padding:1px 6px;border-radius:6px}
@@ -51,6 +51,8 @@ button:focus-visible,.reveal:focus-visible,.nav-back:focus-visible{outline:3px s
   border:1px solid var(--line);background:#fff;color:var(--color-dark)
 }
 .small-row button:disabled{opacity:.4}
+.clear-btn{display:block;margin:2px 0 6px auto;padding:8px 12px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--color-dark);font-weight:600}
+.clear-btn:disabled{opacity:.4}
 
 .progress-bar{height:6px;background:var(--soft);border-radius:3px;margin-bottom:8px}
 .progress-fill{height:100%;background:var(--color-primary);border-radius:3px;transition:width .3s}
@@ -68,6 +70,8 @@ button:focus-visible,.reveal:focus-visible,.nav-back:focus-visible{outline:3px s
   display:flex;flex-direction:column;justify-content:center
 }
 .reveal.on{border-style:solid;border-color:var(--color-primary)}
+.reveal-label{font-size:.8rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#8c6468;margin-bottom:3px}
+.reveal:not(.on) .reveal-label{margin-bottom:0}
 .read{font-size:1.7rem;font-weight:700;font-family:'Noto Serif JP',serif;color:var(--color-dark)}
 .mean{font-size:1.15rem;color:#6b4a4e}
 
@@ -85,6 +89,17 @@ td{padding:9px 10px;border-top:1px solid var(--soft);font-size:.9rem;vertical-al
 td.kj{font-family:'Noto Serif JP',serif;font-size:1.3rem;font-weight:700}
 td.yn{text-align:center;font-weight:600;padding:9px 4px}
 .pill{display:inline-block;padding:3px 10px;border-radius:999px;color:#3a1d20;font-weight:700;font-size:.8rem}
+@media(max-width:420px){
+  .screen{padding-left:12px;padding-right:12px}
+  h1{font-size:26px}
+  .word{font-size:clamp(2.4rem,18vw,4rem);padding:18px 8px}
+  .opt{padding:12px 10px;font-size:.96rem}
+  .small-row{gap:6px}
+  .small-row button{font-size:.82rem;padding:10px 4px}
+  th{font-size:.7rem;padding:7px 6px}
+  td{font-size:.8rem;padding:8px 6px}
+  .pill{font-size:.7rem;padding:3px 7px}
+}
 </style>
 </head>
 <body>
@@ -96,8 +111,9 @@ const MENU="https://kekitopan13.github.io/estudio-jp/";
 const OPTS=[
   {id:"Todo bien",bg:"#8fcb93"},
   {id:"Todo CASI bien",bg:"#cde08c"},
-  {id:"Kanji débil",bg:"#f7dc7a"},
-  {id:"Significado débil",bg:"#f5a97b"},
+  {id:"Todo más o menos",bg:"#f7dc7a"},
+  {id:"Me cuesta la lectura",bg:"#f5a97b"},
+  {id:"Me cuesta el significado",bg:"#ee8b79"},
   {id:"Todo débil",bg:"#ec6b6b"}
 ];
 const COLOR=Object.fromEntries(OPTS.map(o=>[o.id,o.bg]));
@@ -137,6 +153,9 @@ function App(){
 
   useEffect(()=>{try{localStorage.setItem(KEY,text)}catch(e){}},[text]);
 
+  function clearAll(){
+    setText("");setErrors([]);
+  }
   function start(random){
     const {words,errors}=parse(text);
     if(!errors.length&&!words.length) errors.push("Pega al menos una palabra.");
@@ -167,6 +186,7 @@ function App(){
       <textarea rows="9" value={text} onChange={e=>setText(e.target.value)} spellCheck={false}
         placeholder={"学校;がっこう;escuela\n食べる;たべる;comer"}/>
       <div className="item-count">{n} {n===1?"palabra":"palabras"}</div>
+      <button className="clear-btn" onClick={clearAll} disabled={!text}>Borrar todo</button>
       {errors.length>0&&<div className="err-box">{errors.map((e,i)=><div key={i}>{e}</div>)}</div>}
       <button className="primary" onClick={()=>start(true)}>Modo aleatorio</button>
       <button className="secondary" onClick={()=>start(false)}>Orden original</button>
@@ -184,6 +204,7 @@ function App(){
           <div key={k} className={"reveal"+(open[k]?" on":"")} role="button" tabIndex={0} aria-pressed={open[k]}
                aria-label={"Mostrar u ocultar "+label} onClick={()=>toggle(k)}
                onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();toggle(k);}}}>
+            <span className="reveal-label">{label}</span>
             {open[k]&&(k==="r"?<div className="read" lang="ja">{cur.r}</div>:<div className="mean">{cur.m}</div>)}
           </div>
         ))}
@@ -202,7 +223,7 @@ function App(){
   }
 
   const rows=list.map((x,i)=>({n:i+1,w:x.w,opt:rate[i],sr:!!(seen[i]&&seen[i].r),sm:!!(seen[i]&&seen[i].m)})).filter(r=>r.opt);
-  const tsv=rows.map(r=>[r.w,r.opt,r.sr?"Sí":"No",r.sm?"Sí":"No"].join("\t")).join("\n");
+  const tsv=[["Palabra","Opción elegida","¿Vi lectura?","¿Vi significado?"],...rows.map(r=>[r.w,r.opt,r.sr?"Sí":"No",r.sm?"Sí":"No"])].map(row=>row.join("\t")).join("\n");
   return (<>{nav}<div className="screen">
     <h1>Resultados</h1>
     <p className="sub">Palabras evaluadas: {rows.length} de {list.length}</p>
