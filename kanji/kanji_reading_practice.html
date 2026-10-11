@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Lectura de kanji</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&family=Noto+Sans+JP:wght@400;500;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { min-height: 100%; background: #e6f2fa; }
+  body { display: flex; justify-content: center; font-family: 'DM Sans', sans-serif; color: #17324a; }
+  #root { width: 100%; max-width: 430px; min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; background: #f7fbfd; }
+  button, input, textarea { font: inherit; }
+  button { -webkit-appearance: none; appearance: none; cursor: pointer; }
+  button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visible { outline: 2px solid #3f9fd1; outline-offset: 2px; }
+  .jp { font-family: 'Noto Sans JP', sans-serif; }
+  .kanji { font-family: 'Noto Serif JP', serif; }
+  header { min-height: 54px; padding: 10px 15px; display: flex; align-items: center; justify-content: space-between; gap: 8px; background: #fff; border-bottom: 1px solid #dceaf6; }
+  .brand { font-size: 14px; font-weight: 700; white-space: nowrap; }
+  .header-actions { display: flex; gap: 7px; align-items: center; }
+  .header-link, .header-button { padding: 7px 9px; border: 1px solid #c3ddf0; border-radius: 9px; background: #eef6fc; color: #5a7890; font-size: 11px; font-weight: 600; text-decoration: none; white-space: nowrap; }
+  .header-button { cursor: pointer; }
+  main { flex: 1; padding: 22px 18px 32px; }
+  .screen-title { margin-bottom: 6px; font-size: 22px; font-weight: 700; letter-spacing: -.035em; }
+  .sub { margin-bottom: 18px; color: #5a7890; font-size: 13px; line-height: 1.5; }
+  .panel { margin-bottom: 14px; padding: 15px; border: 1px solid #dceaf6; border-radius: 15px; background: #fff; box-shadow: 0 1px 5px rgba(23,50,74,.05); }
+  .panel-title { margin-bottom: 7px; font-size: 13px; font-weight: 700; }
+  .hint { color: #6d899d; font-size: 11px; line-height: 1.5; }
+  textarea { width: 100%; min-height: 165px; margin-top: 10px; padding: 11px 12px; resize: vertical; border: 1.5px solid #c3ddf0; border-radius: 11px; background: #f7fbfd; color: #17324a; font-size: 13px; line-height: 1.65; }
+  textarea::placeholder, input::placeholder { color: #9cb9cc; }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .count { margin-top: 7px; color: #7895a8; font-size: 11px; }
+  .small-button { padding: 7px 10px; border: 1px solid #c3ddf0; border-radius: 9px; background: #fff; color: #5a7890; font-size: 11px; font-weight: 600; }
+  .error-box { margin-top: 10px; padding: 10px; border-radius: 10px; background: #fff0f4; color: #b84268; font-size: 12px; line-height: 1.45; }
+  .mode-option { display: flex; align-items: flex-start; gap: 10px; padding: 12px; border: 1.5px solid #dceaf6; border-radius: 12px; cursor: pointer; }
+  .mode-option + .mode-option { margin-top: 8px; }
+  .mode-option:has(input:checked) { border-color: #3f9fd1; background: #f0f8fc; }
+  .mode-option input { margin-top: 3px; accent-color: #3f9fd1; }
+  .mode-option strong { display: block; font-size: 13px; }
+  .mode-option span { display: block; margin-top: 2px; color: #6d899d; font-size: 11px; line-height: 1.4; }
+  .primary { width: 100%; min-height: 52px; padding: 14px 18px; border: 0; border-radius: 14px; background: linear-gradient(110deg, #6653cf 0%, #9282ed 100%); color: #fff; font-size: 15px; font-weight: 700; box-shadow: 0 5px 12px rgba(91,72,190,.2); transition: transform .12s ease, box-shadow .12s ease; }
+  .primary:hover { box-shadow: 0 7px 16px rgba(91,72,190,.25); }
+  .primary:active:not(:disabled) { transform: scale(.98); }
+  .primary:disabled { opacity: .48; cursor: not-allowed; }
+  .secondary { min-height: 42px; padding: 10px 13px; border: 1px solid #c3ddf0; border-radius: 11px; background: #fff; color: #426d89; font-size: 12px; font-weight: 650; }
+  .button-row { display: flex; gap: 9px; margin-top: 12px; }
+  .button-row > button { flex: 1; }
+  .progress-wrap { margin: 0 0 17px; }
+  .progress-label { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 6px; color: #6d899d; font-size: 11px; }
+  .progress-track { height: 6px; overflow: hidden; border-radius: 99px; background: #dfeefa; }
+  .progress-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg,#6ec3e8,#3f9fd1); transition: width .25s ease; }
+  .word-card { padding: 21px 15px; border: 1px solid #dceaf6; border-radius: 16px; background: #fff; text-align: center; box-shadow: 0 2px 10px rgba(63,159,209,.08); }
+  .word-label { margin-bottom: 9px; color: #8ba7ba; font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+  .word-display { color: #17324a; font-size: clamp(38px, 12vw, 54px); line-height: 1.25; overflow-wrap: anywhere; }
+  .meaning-toggle { display: block; margin: 14px auto 0; padding: 7px 12px; border: 1px solid #c3ddf0; border-radius: 99px; background: #eef6fc; color: #5a7890; font-size: 11px; font-weight: 650; }
+  .meaning-text { margin-top: 11px; padding: 10px 12px; border-radius: 11px; background: #f3f8fc; color: #385d76; font-size: 14px; line-height: 1.45; }
+  .task-prompt { margin: 17px 0 10px; color: #5a7890; font-size: 13px; text-align: center; }
+  .slots { display: flex; flex-wrap: wrap; justify-content: center; gap: 7px; min-height: 54px; margin: 14px 0; }
+  .slot { min-width: 42px; min-height: 48px; padding: 5px 9px; border: 1.5px dashed #b7d4e7; border-radius: 10px; background: #fff; color: #17324a; font-size: 22px; }
+  .slot.filled { border-style: solid; }
+  .slot.wrong { border-color: #e783a5; background: #fff0f4; color: #b84268; }
+  .mora-bank { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 14px 0; }
+  .mora-tile { min-width: 48px; min-height: 48px; padding: 8px 12px; border: 1px solid #c3ddf0; border-radius: 12px; background: #eef6fc; color: #285875; font-size: 21px; box-shadow: 0 1px 3px rgba(23,50,74,.05); }
+  .mora-tile.used { opacity: .32; }
+  .feedback { margin-top: 12px; padding: 11px 12px; border-radius: 11px; font-size: 12px; line-height: 1.5; text-align: center; }
+  .feedback.good { background: #eaf7f2; color: #28745e; }
+  .feedback.bad { background: #fff0f4; color: #a63b5e; }
+  .answer-input { width: 100%; min-height: 56px; margin: 8px 0 10px; padding: 12px; border: 1.5px solid #c3ddf0; border-radius: 12px; background: #fff; color: #17324a; font-size: 22px; text-align: center; }
+  .correction { margin: 10px 0; padding: 13px; border: 1px solid #f0bfd0; border-radius: 12px; background: #fff4f7; color: #94405b; text-align: center; }
+  .correction .correct-reading { display: block; margin-top: 4px; color: #17324a; font-size: 24px; }
+  .muted { color: #7895a8; font-size: 11px; line-height: 1.45; text-align: center; }
+  .stats { display: grid; grid-template-columns: repeat(2,1fr); gap: 8px; margin: 14px 0; }
+  .stat { padding: 11px; border: 1px solid #dceaf6; border-radius: 12px; background: #fff; text-align: center; }
+  .stat strong { display: block; color: #285875; font-size: 19px; }
+  .stat span { color: #6d899d; font-size: 10px; }
+  .table-wrap { width: 100%; overflow-x: auto; border: 1px solid #dceaf6; border-radius: 12px; background: #fff; }
+  table { width: 100%; border-collapse: collapse; min-width: 710px; }
+  th, td { padding: 9px 8px; border-bottom: 1px solid #edf3f8; text-align: left; vertical-align: top; font-size: 11px; }
+  th { background: #eef6fc; color: #426d89; font-size: 10px; white-space: nowrap; }
+  td { color: #385d76; }
+  tr:last-child td { border-bottom: 0; }
+  .status-good { color: #28745e; font-weight: 700; }
+  .status-warn { color: #a86320; font-weight: 700; }
+  .status-off { color: #91a3b0; }
+  .summary-actions { display: grid; gap: 9px; margin-top: 14px; }
+  .notice { margin: 10px 0 0; color: #7895a8; font-size: 10px; line-height: 1.45; }
+  @media (max-width: 360px) {
+    main { padding-right: 14px; padding-left: 14px; }
+    .header-link, .header-button { padding: 6px 7px; font-size: 10px; }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+(() => {
+  const MENU_URL = 'https://kekitopan13.github.io/estudio-jp/';
+  const STORAGE_KEY = 'kanji_reading_practice_input_v1';
+  const MODE_KEY = 'kanji_reading_practice_mode_v1';
+  const SMALL_KANA = new Set(Array.from('ゃゅょぁぃぅぇぉゎャュョァィゥェォヮ'));
+  const root = document.getElementById('root');
+
+  let dbText = '';
+  let mode = 'evaluation';
+  let entries = [];
+  let index = 0;
+  let phase = 'setup';
+  let meaningOpen = false;
+  let tiles = [];
+  let selectedTiles = [];
+  let practiceFeedback = null;
+  let practiceAttempts = 0;
+  let correctionLocked = false;
+  let correctionTimer = null;
+  let earlyEnd = false;
+
+  try {
+    dbText = localStorage.getItem(STORAGE_KEY) || '';
+    mode = localStorage.getItem(MODE_KEY) === 'practice' ? 'practice' : 'evaluation';
+  } catch (_) {}
+
+  function esc(value) {
+    return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  }
+
+  function normalize(value) {
+    return String(value || '').normalize('NFC').replace(/\s+/g, '').trim();
+  }
+
+  function parseInput(text) {
+    const words = [];
+    const errors = [];
+    text.split(/\r?\n/).forEach((raw, i) => {
+      if (!raw.trim()) return;
+      const parts = raw.split(';');
+      const word = (parts[0] || '').trim();
+      const reading = (parts[1] || '').trim();
+      const meaning = parts.slice(2).join(';').trim();
+      const hasKanji = /[\u4e00-\u9faf\u3400-\u4dbf]/.test(word);
+      if (!word || !reading || !meaning || !hasKanji) {
+        errors.push('Línea ' + (i + 1) + ': se esperaba palabra;lectura;significado, y la palabra debe contener al menos un kanji.');
+        return;
+      }
+      words.push({ word, reading, meaning });
+    });
+    return { words, errors };
+  }
+
+  function splitMoras(text) {
+    const result = [];
+    for (const ch of Array.from(normalize(text))) {
+      if (SMALL_KANA.has(ch) && result.length) result[result.length - 1] += ch;
+      else result.push(ch);
+    }
+    return result;
+  }
+
+  function shuffle(items) {
+    const out = items.slice();
+    for (let i = out.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [out[i], out[j]] = [out[j], out[i]];
+    }
+    return out;
+  }
+
+  function saveConfig() {
+    try {
+      localStorage.setItem(STORAGE_KEY, dbText);
+      localStorage.setItem(MODE_KEY, mode);
+    } catch (_) {}
+  }
+
+  function header(showExit) {
+    return '<header><div class="brand">Lectura de kanji</div><div class="header-actions">' +
+      '<a class="header-link" href="' + MENU_URL + '">Menú principal</a>' +
+      (showExit ? '<button class="header-button" onclick="endSession()">Terminar sesión</button>' : '') +
+      '</div></header>';
+  }
+
+  function getCurrent() { return entries[index]; }
+
+  function progressLabel() {
+    const label = phase === 'practice' ? 'Práctica de moras' : 'Evaluación de lectura';
+    const pct = Math.round((index / Math.max(entries.length, 1)) * 100);
+    return '<div class="progress-wrap"><div class="progress-label"><span>' + label + '</span><span>' +
+      (index + 1) + ' / ' + entries.length + '</span></div><div class="progress-track"><div class="progress-fill" style="width:' + pct + '%"></div></div></div>';
+  }
+
+  function wordCard(record, taskLabel, revealKey) {
+    const isOpen = meaningOpen;
+    const seen = revealKey === 'practice' ? record.practiceMeaningSeen : record.evaluationMeaningSeen;
+    return '<section class="word-card"><div class="word-label">' + taskLabel + '</div>' +
+      '<div class="word-display kanji">' + esc(record.word) + '</div>' +
+      '<button class="meaning-toggle" onclick="toggleMeaning()">' + (isOpen ? 'Ocultar significado' : 'Ver significado') + '</button>' +
+      (isOpen ? '<div class="meaning-text">' + esc(record.meaning) + '</div>' : '') +
+      '<span hidden>' + seen + '</span></section>';
+  }
+
+  function renderSetup(errors) {
+    const parsed = parseInput(dbText);
+    const errorList = errors && errors.length ? '<div class="error-box">' + errors.map(esc).join('<br>') + '</div>' : '';
+    root.innerHTML = header(false) + '<main>' +
+      '<h1 class="screen-title">Lectura de kanji</h1>' +
+      '<p class="sub">Observa la palabra en kanji y escribe su lectura completa en kana de memoria. El significado permanece oculto, salvo que decidas verlo.</p>' +
+      '<section class="panel"><div class="row"><div><div class="panel-title">Tu vocabulario</div><p class="hint">Una entrada por línea: <code>word;reading;meaning</code>. La lectura debe corresponder a la palabra completa.</p></div>' +
+      '<button class="small-button" onclick="clearInput()" ' + (dbText ? '' : 'disabled') + '>Limpiar input</button></div>' +
+      '<textarea id="db-input" spellcheck="false" placeholder="学校;がっこう;school&#10;食べる;たべる;to eat&#10;電車;でんしゃ;train">' + esc(dbText) + '</textarea>' +
+      '<div class="count">' + parsed.words.length + (parsed.words.length === 1 ? ' palabra válida' : ' palabras válidas') + '</div>' + errorList + '</section>' +
+      '<section class="panel"><div class="panel-title">Tipo de sesión</div>' +
+      '<label class="mode-option"><input type="radio" name="mode" value="evaluation" ' + (mode === 'evaluation' ? 'checked' : '') + ' onchange="setMode(this.value)"><span><strong>Solo evaluación</strong><span>Escribe cada lectura de memoria y revisa tus resultados.</span></span></label>' +
+      '<label class="mode-option"><input type="radio" name="mode" value="practice" ' + (mode === 'practice' ? 'checked' : '') + ' onchange="setMode(this.value)"><span><strong>Práctica + evaluación</strong><span>Construye cada lectura mora por mora y luego completa la misma evaluación escrita.</span></span></label></section>' +
+      '<button class="primary" onclick="startSession()">Empezar sesión →</button>' +
+      '<p class="notice">El input y el tipo de sesión se guardan en este navegador. Las palabras aparecen en el orden de tu lista.</p>' +
+      '</main>';
+    const input = document.getElementById('db-input');
+    input.addEventListener('input', () => {
+      dbText = input.value;
+      saveConfig();
+      const cursor = input.selectionStart;
+      renderSetup();
+      const replacement = document.getElementById('db-input');
+      replacement.focus();
+      replacement.setSelectionRange(cursor, cursor);
+    });
+  }
+
+  function renderSession() {
+    const record = getCurrent();
+    if (!record) return renderSummary();
+    const inPractice = phase === 'practice';
+    root.innerHTML = header(true) + '<main>' + progressLabel() +
+      wordCard(record, inPractice ? 'Construye la lectura' : 'Escribe la lectura de memoria', inPractice ? 'practice' : 'evaluation') +
+      (inPractice ? renderPracticeTask(record) : renderEvaluationTask(record)) +
+      '</main>';
+    if (!inPractice && !correctionLocked) {
+      const input = document.getElementById('reading-answer');
+      if (input && !input.value) input.focus({ preventScroll: true });
+    }
+  }
+
+  function renderPracticeTask(record) {
+    const moras = splitMoras(record.reading);
+    if (tiles.length === 0) tiles = shuffle(moras.map((mora, id) => ({ mora, id })));
+    const slots = moras.map((_, slotIndex) => {
+      const selected = selectedTiles[slotIndex];
+      if (selected === undefined) return '<button class="slot" aria-label="Empty mora slot">·</button>';
+      const tile = tiles.find(item => item.id === selected);
+      const wrong = practiceFeedback && practiceFeedback.type === 'bad' && tile && tile.mora !== moras[slotIndex];
+      return '<button class="slot filled ' + (wrong ? 'wrong' : '') + '" onclick="removeMora(' + slotIndex + ')">' + esc(tile ? tile.mora : '') + '</button>';
+    }).join('');
+    const bank = tiles.map((tile, i) => '<button class="mora-tile ' + (selectedTiles.includes(tile.id) ? 'used' : '') + '" onclick="chooseMora(' + i + ')" ' + (selectedTiles.includes(tile.id) ? 'disabled' : '') + '>' + esc(tile.mora) + '</button>').join('');
+    let feedback = '';
+    if (practiceFeedback) {
+      feedback = '<div class="feedback ' + (practiceFeedback.type === 'good' ? 'good' : 'bad') + '">' +
+        esc(practiceFeedback.text) + (practiceFeedback.type === 'bad' ? '<br><span class="jp">Lectura correcta: ' + esc(record.reading) + '</span>' : '') + '</div>';
+    }
+    let actions = '';
+    if (practiceFeedback && practiceFeedback.type === 'good') {
+      actions = '<button class="primary" onclick="advanceWord()">Siguiente palabra →</button>';
+    } else if (practiceFeedback && practiceFeedback.type === 'bad') {
+      actions = '<button class="primary" onclick="resetMoras()">Intentar de nuevo</button>';
+    } else {
+      actions = '<div class="button-row"><button class="secondary" onclick="resetMoras()">Limpiar</button><button class="primary" onclick="checkMoras()" ' + (selectedTiles.length === moras.length ? '' : 'disabled') + '>Comprobar lectura</button></div>';
+    }
+    return '<p class="task-prompt">Toca las moras en el orden correcto.</p><div class="slots">' + slots + '</div><div class="mora-bank">' + bank + '</div>' + feedback + actions;
+  }
+
+  function renderEvaluationTask(record) {
+    const correction = correctionLocked ? '<div class="correction">Lectura correcta<span class="correct-reading jp">' + esc(record.reading) + '</span><span class="muted">Recuérdala. Tendrás que escribirla correctamente para continuar.</span></div>' : '';
+    const disabled = correctionLocked ? 'disabled' : '';
+    const feedback = correctionLocked ? '<p class="muted">La lectura volverá a ocultarse en un momento.</p>' :
+      (record.evaluationFirstTry === false ? '<p class="muted">Hubo un error de escritura. Escribe la lectura completa correctamente para continuar.</p>' : '<p class="muted">Escribe la lectura completa en kana.</p>');
+    return '<p class="task-prompt">Escribe la lectura de esta palabra.</p>' + correction +
+      '<form onsubmit="submitReading(event)"><input id="reading-answer" class="answer-input jp" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Lectura en kana" ' + disabled + '>' +
+      '<button class="primary" type="submit" ' + disabled + '>Comprobar lectura</button></form>' + feedback;
+  }
+
+  function resetMoras() {
+    selectedTiles = [];
+    practiceFeedback = null;
+    renderSession();
+  }
+
+  function chooseMora(tileIndex) {
+    if (practiceFeedback) return;
+    const tile = tiles[tileIndex];
+    if (!tile || selectedTiles.includes(tile.id)) return;
+    selectedTiles.push(tile.id);
+    renderSession();
+  }
+
+  function removeMora(slotIndex) {
+    if (practiceFeedback) return;
+    selectedTiles.splice(slotIndex, 1);
+    renderSession();
+  }
+
+  function checkMoras() {
+    const record = getCurrent();
+    const expected = splitMoras(record.reading);
+    if (selectedTiles.length !== expected.length) return;
+    const answer = selectedTiles.map(id => tiles.find(tile => tile.id === id).mora);
+    const wrongCount = answer.reduce((count, mora, i) => count + (mora === expected[i] ? 0 : 1), 0);
+    record.practiceAttempts += 1;
+    if (wrongCount === 0) {
+      if (record.practiceFirstTry === null) record.practiceFirstTry = true;
+      record.practiceDone = true;
+      practiceFeedback = { type: 'good', text: '¡Correcto! Construiste la lectura en el orden adecuado.' };
+    } else {
+      if (record.practiceFirstTry === null) record.practiceFirstTry = false;
+      record.practiceErrors += wrongCount;
+      practiceFeedback = { type: 'bad', text: 'No del todo. Revisa el orden de las moras e inténtalo otra vez.' };
+    }
+    renderSession();
+  }
+
+  function toggleMeaning() {
+    meaningOpen = !meaningOpen;
+    if (meaningOpen) {
+      const record = getCurrent();
+      if (phase === 'practice') record.practiceMeaningSeen = true;
+      else record.evaluationMeaningSeen = true;
+    }
+    renderSession();
+  }
+
+  function submitReading(event) {
+    event.preventDefault();
+    if (correctionLocked) return;
+    const input = document.getElementById('reading-answer');
+    const value = normalize(input.value);
+    if (!value) {
+      input.focus();
+      return;
+    }
+    const record = getCurrent();
+    if (value === normalize(record.reading)) {
+      if (record.evaluationFirstTry === null) record.evaluationFirstTry = true;
+      record.evaluationDone = true;
+      advanceWord();
+      return;
+    }
+    if (record.evaluationFirstTry === null) record.evaluationFirstTry = false;
+    record.writingErrors += 1;
+    correctionLocked = true;
+    renderSession();
+    correctionTimer = setTimeout(() => {
+      correctionLocked = false;
+      renderSession();
+      const nextInput = document.getElementById('reading-answer');
+      if (nextInput) nextInput.focus({ preventScroll: true });
+    }, 2400);
+  }
+
+  function advanceWord() {
+    meaningOpen = false;
+    practiceFeedback = null;
+    selectedTiles = [];
+    tiles = [];
+    correctionLocked = false;
+    if (correctionTimer) clearTimeout(correctionTimer);
+    index += 1;
+    if (index < entries.length) return renderSession();
+    if (phase === 'practice') {
+      phase = 'practiceDone';
+      return renderPracticeDone();
+    }
+    renderSummary();
+  }
+
+  function renderPracticeDone() {
+    root.innerHTML = header(true) + '<main><div class="word-label">Práctica completada</div>' +
+      '<h1 class="screen-title">Ahora evalúa cuánto recuerdas</h1>' +
+      '<p class="sub">Ya construiste cada lectura mora por mora. Ahora verás las mismas palabras en kanji y escribirás cada lectura completa de memoria.</p>' +
+      '<div class="stats"><div class="stat"><strong>' + entries.length + '</strong><span>palabras practicadas</span></div>' +
+      '<div class="stat"><strong>' + entries.filter(item => item.practiceFirstTry === true).length + '</strong><span>correctas al primer intento</span></div></div>' +
+      '<button class="primary" onclick="startEvaluation()">Empezar evaluación →</button></main>';
+  }
+
+  function startEvaluation() {
+    phase = 'evaluation';
+    index = 0;
+    meaningOpen = false;
+    correctionLocked = false;
+    renderSession();
+  }
+
+  function startSession() {
+    const input = document.getElementById('db-input');
+    if (input) dbText = input.value;
+    saveConfig();
+    const parsed = parseInput(dbText);
+    if (!parsed.words.length || parsed.errors.length) {
+      renderSetup(parsed.errors.length ? parsed.errors : ['Añade al menos una entrada válida.']);
+      return;
+    }
+    mode = document.querySelector('input[name="mode"]:checked')?.value || mode;
+    saveConfig();
+    entries = parsed.words.map(item => ({
+      ...item,
+      practiceFirstTry: null,
+      practiceAttempts: 0,
+      practiceErrors: 0,
+      practiceDone: false,
+      practiceMeaningSeen: false,
+      evaluationFirstTry: null,
+      writingErrors: 0,
+      evaluationDone: false,
+      evaluationMeaningSeen: false
+    }));
+    index = 0;
+    earlyEnd = false;
+    meaningOpen = false;
+    correctionLocked = false;
+    phase = mode === 'practice' ? 'practice' : 'evaluation';
+    tiles = [];
+    selectedTiles = [];
+    practiceFeedback = null;
+    renderSession();
+  }
+
+  function endSession() {
+    if (!confirm('¿Terminar la sesión y mostrar los resultados de las palabras completadas?')) return;
+    earlyEnd = true;
+    correctionLocked = false;
+    if (correctionTimer) clearTimeout(correctionTimer);
+    renderSummary();
+  }
+
+  function statusCell(firstTry, done) {
+    if (!done) return '<span class="status-off">Sin completar</span>';
+    return firstTry ? '<span class="status-good">Correcta al primer intento</span>' : '<span class="status-warn">Requirió corrección</span>';
+  }
+
+  function renderSummary() {
+    phase = 'summary';
+    const completed = entries.filter(item => item.evaluationDone).length;
+    const firstTry = entries.filter(item => item.evaluationDone && item.evaluationFirstTry === true).length;
+    const corrected = entries.filter(item => item.evaluationDone && item.evaluationFirstTry === false).length;
+    const practiceFirst = entries.filter(item => item.practiceDone && item.practiceFirstTry === true).length;
+    const seenMeaningEval = entries.filter(item => item.evaluationMeaningSeen).length;
+    const seenMeaningPractice = entries.filter(item => item.practiceMeaningSeen).length;
+    const rows = entries.map((item, i) => {
+      const practiceStatus = mode === 'practice' ? statusCell(item.practiceFirstTry, item.practiceDone) : '<span class="status-off">No incluida</span>';
+      const practiceErr = mode === 'practice' ? item.practiceErrors : '—';
+      const evalStatus = statusCell(item.evaluationFirstTry, item.evaluationDone);
+      return '<tr><td>' + (i + 1) + '</td><td class="kanji">' + esc(item.word) + '</td><td class="jp">' + esc(item.reading) + '</td>' +
+        '<td>' + practiceStatus + '</td><td>' + practiceErr + '</td><td>' + (item.practiceMeaningSeen ? 'Sí' : 'No') + '</td>' +
+        '<td>' + evalStatus + '</td><td>' + item.writingErrors + '</td><td>' + (item.evaluationMeaningSeen ? 'Sí' : 'No') + '</td></tr>';
+    }).join('');
+    root.innerHTML = header(false) + '<main><div class="word-label">Resultados de la sesión</div>' +
+      '<h1 class="screen-title">Tu resumen</h1>' +
+      '<p class="sub">La corrección obligatoria también cuenta como error de escritura. “Correcta al primer intento” indica si recordaste la lectura antes de ver la respuesta.</p>' +
+      '<div class="stats"><div class="stat"><strong>' + completed + ' / ' + entries.length + '</strong><span>evaluaciones completadas</span></div>' +
+      '<div class="stat"><strong>' + firstTry + '</strong><span>correctas al primer intento</span></div>' +
+      '<div class="stat"><strong>' + corrected + '</strong><span>requirieron corrección</span></div>' +
+      '<div class="stat"><strong>' + seenMeaningEval + '</strong><span>vieron el significado en evaluación</span></div>' +
+      (mode === 'practice' ? '<div class="stat"><strong>' + practiceFirst + '</strong><span>correctas en práctica al primer intento</span></div><div class="stat"><strong>' + seenMeaningPractice + '</strong><span>vieron el significado en práctica</span></div>' : '') +
+      '</div><div class="table-wrap"><table><thead><tr><th>N.º</th><th>Palabra</th><th>Lectura</th>' +
+      '<th>Resultado de práctica</th><th>Errores de práctica</th><th>Significado visto en práctica</th><th>Resultado de evaluación</th><th>Errores de escritura</th><th>Significado visto en evaluación</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      '<div class="summary-actions"><button class="primary" onclick="copyResults()">Copiar resultados como TSV</button><button class="secondary" onclick="renderSetup()">Volver a la configuración</button></div>' +
+      (earlyEnd ? '<p class="notice">La sesión terminó antes de completar todas las palabras. Las pendientes aparecen indicadas en la tabla.</p>' : '') +
+      '</main>';
+  }
+
+  function copyResults() {
+    const headerRow = ['N.º','Palabra','Lectura','Resultado de práctica','Errores de práctica','Significado visto en práctica','Resultado de evaluación','Errores de escritura','Significado visto en evaluación'];
+    const lines = entries.map((item, i) => {
+      const pStatus = mode !== 'practice' ? 'No incluida' : (!item.practiceDone ? 'Sin completar' : (item.practiceFirstTry ? 'Correcta al primer intento' : 'Requirió corrección'));
+      const eStatus = !item.evaluationDone ? 'Sin completar' : (item.evaluationFirstTry ? 'Correcta al primer intento' : 'Requirió corrección');
+      return [i + 1, item.word, item.reading, pStatus, mode === 'practice' ? item.practiceErrors : '—', item.practiceMeaningSeen ? 'Sí' : 'No', eStatus, item.writingErrors, item.evaluationMeaningSeen ? 'Sí' : 'No'].join('\t');
+    });
+    const text = '\ufeff' + [headerRow.join('\t'), ...lines].join('\n');
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(showCopied).catch(() => fallbackCopy(text));
+    } else fallbackCopy(text);
+  }
+
+  function fallbackCopy(text) {
+    const area = document.createElement('textarea');
+    area.value = text;
+    area.style.position = 'fixed';
+    area.style.opacity = '0';
+    document.body.appendChild(area);
+    area.select();
+    try { document.execCommand('copy'); showCopied(); }
+    catch (_) { alert('No se pudo copiar automáticamente.'); }
+    area.remove();
+  }
+
+  function showCopied() {
+    const button = document.querySelector('.summary-actions .primary');
+    if (!button) return;
+    const old = button.textContent;
+    button.textContent = '¡Copiado!';
+    setTimeout(() => { if (button.isConnected) button.textContent = old; }, 1600);
+  }
+
+  function clearInput() {
+    dbText = '';
+    saveConfig();
+    renderSetup();
+  }
+
+  function setMode(value) {
+    mode = value === 'practice' ? 'practice' : 'evaluation';
+    saveConfig();
+  }
+
+  window.startSession = startSession;
+  window.clearInput = clearInput;
+  window.setMode = setMode;
+  window.chooseMora = chooseMora;
+  window.removeMora = removeMora;
+  window.resetMoras = resetMoras;
+  window.checkMoras = checkMoras;
+  window.toggleMeaning = toggleMeaning;
+  window.submitReading = submitReading;
+  window.advanceWord = advanceWord;
+  window.startEvaluation = startEvaluation;
+  window.endSession = endSession;
+  window.copyResults = copyResults;
+  window.renderSetup = () => renderSetup();
+
+  renderSetup();
+})();
+</script>
+</body>
+</html>
