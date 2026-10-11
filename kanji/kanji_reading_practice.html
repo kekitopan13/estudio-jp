@@ -99,11 +99,13 @@
   const MENU_URL = 'https://kekitopan13.github.io/estudio-jp/';
   const STORAGE_KEY = 'kanji_reading_practice_input_v1';
   const MODE_KEY = 'kanji_reading_practice_mode_v1';
+  const ORDER_KEY = 'kanji_reading_practice_order_v1';
   const SMALL_KANA = new Set(Array.from('ゃゅょぁぃぅぇぉゎャュョァィゥェォヮ'));
   const root = document.getElementById('root');
 
   let dbText = '';
   let mode = 'evaluation';
+  let wordOrder = 'as-entered';
   let entries = [];
   let index = 0;
   let phase = 'setup';
@@ -119,6 +121,7 @@
   try {
     dbText = localStorage.getItem(STORAGE_KEY) || '';
     mode = localStorage.getItem(MODE_KEY) === 'practice' ? 'practice' : 'evaluation';
+    wordOrder = localStorage.getItem(ORDER_KEY) === 'random' ? 'random' : 'as-entered';
   } catch (_) {}
 
   function esc(value) {
@@ -170,6 +173,7 @@
     try {
       localStorage.setItem(STORAGE_KEY, dbText);
       localStorage.setItem(MODE_KEY, mode);
+      localStorage.setItem(ORDER_KEY, wordOrder);
     } catch (_) {}
   }
 
@@ -212,8 +216,11 @@
       '<section class="panel"><div class="panel-title">Tipo de sesión</div>' +
       '<label class="mode-option"><input type="radio" name="mode" value="evaluation" ' + (mode === 'evaluation' ? 'checked' : '') + ' onchange="setMode(this.value)"><span><strong>Solo evaluación</strong><span>Escribe cada lectura de memoria y revisa tus resultados.</span></span></label>' +
       '<label class="mode-option"><input type="radio" name="mode" value="practice" ' + (mode === 'practice' ? 'checked' : '') + ' onchange="setMode(this.value)"><span><strong>Práctica + evaluación</strong><span>Construye cada lectura mora por mora y luego completa la misma evaluación escrita.</span></span></label></section>' +
+      '<section class="panel"><div class="panel-title">Orden de las palabras</div>' +
+      '<label class="mode-option"><input type="radio" name="word-order" value="as-entered" ' + (wordOrder === 'as-entered' ? 'checked' : '') + ' onchange="setWordOrder(this.value)"><span><strong>En el orden ingresado</strong><span>Sigue la secuencia de tu lista.</span></span></label>' +
+      '<label class="mode-option"><input type="radio" name="word-order" value="random" ' + (wordOrder === 'random' ? 'checked' : '') + ' onchange="setWordOrder(this.value)"><span><strong>Aleatorio</strong><span>Mezcla las palabras al comenzar cada sesión.</span></span></label></section>' +
       '<button class="primary" onclick="startSession()">Empezar sesión →</button>' +
-      '<p class="notice">El input y el tipo de sesión se guardan en este navegador. Las palabras aparecen en el orden de tu lista.</p>' +
+      '<p class="notice">El input y tus preferencias se guardan en este navegador. La evaluación mantiene el orden elegido para la sesión.</p>' +
       '</main>';
     const input = document.getElementById('db-input');
     input.addEventListener('input', () => {
@@ -399,7 +406,8 @@
     }
     mode = document.querySelector('input[name="mode"]:checked')?.value || mode;
     saveConfig();
-    entries = parsed.words.map(item => ({
+    const sessionWords = wordOrder === 'random' ? shuffle(parsed.words) : parsed.words;
+    entries = sessionWords.map(item => ({
       ...item,
       practiceFirstTry: null,
       practiceAttempts: 0,
@@ -510,9 +518,15 @@
     saveConfig();
   }
 
+  function setWordOrder(value) {
+    wordOrder = value === 'random' ? 'random' : 'as-entered';
+    saveConfig();
+  }
+
   window.startSession = startSession;
   window.clearInput = clearInput;
   window.setMode = setMode;
+  window.setWordOrder = setWordOrder;
   window.chooseMora = chooseMora;
   window.removeMora = removeMora;
   window.resetMoras = resetMoras;
