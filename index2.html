@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Japanese Study Tools — Full Index</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 32px 20px 56px;
+      color: #252525;
+      background: #f7f7f8;
+      font: 15px/1.55 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    h1 { margin-bottom: 4px; font-size: 1.7rem; }
+    .intro { margin: 0 0 28px; color: #666; }
+
+    h2 {
+      margin: 30px 0 10px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #ddd;
+      font-size: 1.05rem;
+    }
+
+    ol {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    li {
+      margin: 0;
+      padding: 14px 0;
+      border-bottom: 1px solid #e5e5e7;
+    }
+
+    .title-row {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .title-row a {
+      color: #4937a5;
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    .title-row a:hover { text-decoration: underline; }
+
+    .status {
+      padding: 2px 8px;
+      border-radius: 99px;
+      background: #e8e8eb;
+      color: #555;
+      font-size: 0.72rem;
+      font-weight: 650;
+    }
+
+    .public { background: #e5f2e8; color: #28643a; }
+    .internal { background: #eee9fb; color: #59438f; }
+    .older { background: #f1eeee; color: #706767; }
+
+    .description { margin: 5px 0 2px; }
+    .input { margin: 0; color: #666; font-size: 0.88rem; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+    .back { display: inline-block; margin-top: 30px; color: #4937a5; }
+  </style>
+</head>
+<body>
+  <h1>Japanese Study Tools</h1>
+  <p class="intro">Full index of the mini apps in this repository.</p>
+
+  <h2>Public menu</h2>
+  <ol>
+    <li>
+      <div class="title-row">
+        <a href="https://kekitopan13.github.io/estudio-jp/matchup_inline.html">Match Up</a>
+        <span class="status public">Public</span>
+      </div>
+      <p class="description">Match related pairs, such as kanji and readings, in short rounds. Builds quick recognition and strengthens links between two pieces of information.</p>
+      <p class="input"><strong>Input:</strong> Two fields per line, separated by a tab or semicolon. Example: <code>強調;きょうちょう</code></p>
+    </li>
+
+    <li>
+      <div class="title-row">
+        <a href="https://kekitopan13.github.io/estudio-jp/revision_global.html">Revisión global</a>
+        <span class="status public">Public</span>
+      </div>
+      <p class="description">Review a full vocabulary list and self-rate each word’s reading and meaning. Identify what you know well and what needs more study.</p>
+      <p class="input"><strong>Input:</strong> <code>word;reading;meaning</code>, one entry per line.</p>
+    </li>
+
+    <li>
+      <div class="title-row">
+        <a href="https://kekitopan13.github.io/estudio-jp/deep_vocab.html">Deep Recall</a>
+        <span class="status public">Public</span>
+      </div>
+      <p class="description">Practice vocabulary in both directions with multiple-choice and writing questions. Review incorrect answers in follow-up rounds to reinforce reading, written form, and meaning.</p>
+      <p class="input"><strong>Input:</strong> <code>word;reading;meaning</code>, one entry per line.</p>
+    </li>
+
+    <li>
+      <div class="title-row">
+        <a href="https://kekitopan13.github.io/estudio-jp/word_forge.html">Word Forge</a>
+        <span class="status public">Public</span>
+      </div>
+      <p class="description">Learn from meaning cues by recognizing readings, building words kana by kana, and writing them from memory. Especially useful for hiragana vocabulary.</p>
+      <p class="input"><strong>Input:</strong> <code>reading;meaning</code>, one entry per line.</p>
+    </li>
+
+    <li>
+      <div class="title-row">
+        <a href="https://kekitopan13.github.io/estudio-jp/word_check.html">Word Check</a>
+        <span class="status public">Public</span>
+      </div>
+      <p class="description">Check whether you can recall a word’s reading from its meaning. Words correct on the first try are set aside; missed words get more practice.</p>
+      <p class="input"><strong>Input:</strong> <code>reading;meaning</code>, one entry per line. Uses kana readings.</p>
+    </li>
+
+    <li>
+      <div class="title-row">
+        <a href="https://kekitopan13.github.io/estudio-jp/flashcard_review.html">Flashcard review</a>
+        <span class="status public">Public</span>
+      </div>
+      <p class="description">Review pairs with flashcards: recall the hidden item, reveal it, then rate how easy or difficult it was. Supports spaced review.</p>
+      <p class="input"><strong>Input:</strong> Two fields per line, separated by a semicolon. Example: <code>猫;ねこ</code></p>
+    </li>
+
+    <li>
+      <div class="title-row">
+        <a href="https://kekitopan13.github.io/estudio-jp/falsi_quizlet_ver2.html">Falsi Quizlet V2</a>
+        <span class="status public">Public</span>
+      </div>
+      <p class="description">Practice with multiple choice and optional writing. Choose what each column represents, which direction to test, and whether to use two or three data fields.</p>
+      <p class="input"><strong>Input:</strong> Two or three fields per line, separated by semicolons; assign each column to A, B, or C.</p>
+    </li>
+
+    <li>
+      <div class="title-row">
+        <a href="https://kekitopan13.github.io/estudio-jp/kanji/kanji_learning_v2.html">Kanji vocabulary learning v.2</a>
+        <span class="status public">Public</span>
+      </div>
+      <p class="description">Study kanji vocabulary through guided exposure, word building, reading, and meaning checks. Cumulative challenge rounds help reveal what needs review.</p>
+      <p class="input"><strong>Input:</strong> <code>word [tab] furigana [tab] meaning</code>, one entry per line.</p>
+    </li>
+
+    <li>
+      <div class="title-row">
+        <a href="https://kekitopan13.github.io/estudio-jp/kanji/distinguir_kanjis.html">Kanjis Confusos 2</a>
+        <span class="status public">Public</span>
+      </div>
+      <p class="description">Identify the hidden kanji in a word using its reading and meaning as clues. Choose practice with multiple attempts or a one-try assessment.</p>
+      <p class="input"><strong>Input:</strong> <code>kanji;group;word;reading;meaning</code>, one entry per line.</p>
+    </li>
+
+    <li>
+      <div class="title-row">
+        <a href="https://kekitopan13.github.io/estudio-jp/kanji/kanji_builder.html">Kanji Builder</a>
+        <span class="status public">Public</span>
+      </div>
+      <p class="description">Build each vocabulary word by selecting its kanji in order, using the reading and optional meaning as clues. Practice written word composition.</p>
+      <p class="input"><strong>Input:</strong> <code>word;reading;meaning</code>, one entry per line. The word must contain at least one kanji.</p>
+    </li>
+  </ol>
+
+  <h2>Internal index only</h2>
+  <ol>
+    <li>
+      <div class="title-row">
+        <a href="https://kekitopan13.github.io/estudio-jp/kanji/kanjis_confusos.html">Kanjis Confusos</a>
+        <span class="status internal">Internal</span>
+      </div>
+      <p class="description">Practice distinguishing easily confused kanji by matching each character to its concept within similarity groups. Optional challenge rounds reinforce the differences.</p>
+      <p class="input"><strong>Input:</strong> <code>kanji;group;concept</code>, one entry per line. The group number identifies kanji to compare.</p>
+    </li>
+
+    <li>
+      <div class="title-row">
+        <a href="https://kekitopan13.github.io/estudio-jp/kanji/aprendizaje.html">Kanji vocabulary learning</a>
+        <span class="status older">Older version</span>
+      </div>
+      <p class="description">Earlier version of the progressive kanji-vocabulary study app, with exposure, word building, reading, and meaning exercises.</p>
+      <p class="input"><strong>Input:</strong> Three tab-separated fields per line: <code>word [tab] furigana [tab] meaning</code>.</p>
+    </li>
+
+    <li>
+      <div class="title-row">
+        <a href="https://kekitopan13.github.io/estudio-jp/word_forgev2.html">Word Forge v2</a>
+        <span class="status older">Older version</span>
+      </div>
+      <p class="description">Earlier version of Word Forge for recognizing readings, building words kana by kana, and writing vocabulary from memory.</p>
+      <p class="input"><strong>Input:</strong> <code>reading;meaning</code>, one entry per line.</p>
+    </li>
+  </ol>
+
+  <a class="back" href="https://kekitopan13.github.io/estudio-jp/">← Back to the public menu</a>
+</body>
+</html>
