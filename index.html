@@ -134,16 +134,21 @@
         <div class="icon">🔗</div>
         <div class="details">
             <b>Match Up</b>
-            <span>Ejercicio rápido de asociación para practicar pares relacionados mediante matching interactivo. Ideal para vocabulario, kanji, lecturas o conceptos que necesiten reconocimiento y memoria activa.
-            <br>Requiere 2 campos.</span>
+            <span>
+                Match related pairs, such as kanji and readings, in short rounds. Builds quick recognition and strengthens links between two pieces of information.
+                <br><strong>Input:</strong> Two fields per line, separated by a tab or semicolon. Example: <code>強調;きょうちょう</code>
+            </span>
         </div>
     </a>
 
-      <a href="https://kekitopan13.github.io/estudio-jp/revision_global.html" class="app-card">
+    <a href="https://kekitopan13.github.io/estudio-jp/revision_global.html" class="app-card">
         <div class="icon">👾</div>
         <div class="details">
             <b>Revisión global</b>
-            <span>Ejercicio para revisar todo.</span>
+            <span>
+                Review a full vocabulary list and self-rate each word’s reading and meaning. Identify what you know well and what needs more study.
+                <br><strong>Input:</strong> <code>word;reading;meaning</code>, one entry per line.
+            </span>
         </div>
     </a>
 
@@ -151,17 +156,21 @@
         <div class="icon">🌊</div>
         <div class="details">
             <b>Deep Recall</b>
-            <span>Entrena vocabulario japonés en múltiples direcciones: lectura, escritura y significado. El ejercicio adapta repasos según tus fallos y te ayuda a consolidar palabras de forma profunda.
-            <br>Requiere 3 campos.</span>
+            <span>
+                Practice vocabulary in both directions with multiple-choice and writing questions. Review incorrect answers in follow-up rounds to reinforce reading, written form, and meaning.
+                <br><strong>Input:</strong> <code>word;reading;meaning</code>, one entry per line.
+            </span>
         </div>
     </a>
-   
 
-       <a href="https://kekitopan13.github.io/estudio-jp/word_forge.html" class="app-card">
+    <a href="https://kekitopan13.github.io/estudio-jp/word_forge.html" class="app-card">
         <div class="icon">🔭</div>
         <div class="details">
             <b>Word Forge</b>
-            <span>Principalmente para aprender vocabulario en hiragana.</span>
+            <span>
+                Learn from meaning cues by recognizing readings, building words kana by kana, and writing them from memory. Especially useful for hiragana vocabulary.
+                <br><strong>Input:</strong> <code>reading;meaning</code>, one entry per line.
+            </span>
         </div>
     </a>
 
@@ -169,7 +178,10 @@
         <div class="icon">☑️</div>
         <div class="details">
             <b>Word Check</b>
-            <span>Para revisar y potencialmente reforzar vocabulario (no sirve para estudiar kanjis, sólo sirve con furigana).</span>
+            <span>
+                Check whether you can recall a word’s reading from its meaning. Words correct on the first try are set aside; missed words get more practice.
+                <br><strong>Input:</strong> <code>reading;meaning</code>, one entry per line. Uses kana readings.
+            </span>
         </div>
     </a>
 
@@ -177,7 +189,10 @@
         <div class="icon">📇</div>
         <div class="details">
             <b>Flashcard review</b>
-            <span>Sistema de revisión de 2 datos, estilo flashcard con SRS.</span>
+            <span>
+                Review pairs with flashcards: recall the hidden item, reveal it, then rate how easy or difficult it was. Supports spaced review.
+                <br><strong>Input:</strong> Two fields per line, separated by a semicolon. Example: <code>猫;ねこ</code>
+            </span>
         </div>
     </a>
 
@@ -185,7 +200,10 @@
         <div class="icon">✨</div>
         <div class="details">
             <b>Falsi Quizlet V2</b>
-            <span>Parecido a Quizlet. Para practicar con alternativas y luego escritura. Con 2 y 3 datos. La versión de 3 datos está outdated.</span>
+            <span>
+                Practice with multiple choice and optional writing. Choose what each column represents, which direction to test, and whether to use two or three data fields.
+                <br><strong>Input:</strong> Two or three fields per line, separated by semicolons; assign each column to A, B, or C.
+            </span>
         </div>
     </a>
 
@@ -193,17 +211,21 @@
         <div class="icon">🌱</div>
         <div class="details">
             <b>Kanji vocabulary learning v.2.</b>
-            <span>Sistema de aprendizaje progresivo para vocabulario japonés que combina exposición, construcción, lectura y comprensión. Evalúa familiaridad real y refuerza palabras difíciles mediante rondas y desafíos acumulativos. 
-            <br>Requiere 3 campos.</span>
+            <span>
+                Study kanji vocabulary through guided exposure, word building, reading, and meaning checks. Cumulative challenge rounds help reveal what needs review.
+                <br><strong>Input:</strong> <code>word [tab] furigana [tab] meaning</code>, one entry per line.
+            </span>
         </div>
     </a>
 
-     <a href="https://kekitopan13.github.io/estudio-jp/kanji/kanjis_confusos.html" class="app-card">
+    <a href="https://kekitopan13.github.io/estudio-jp/kanji/kanjis_confusos.html" class="app-card">
         <div class="icon">🌀</div>
         <div class="details">
             <b>Kanjis Confusos</b>
-            <span>Ejercicio de discriminación visual para practicar kanjis similares entre sí. Agrupa familias de confusión y te obliga a distinguir significado, forma y pequeños detalles bajo presión.
-            <br>Sólo funciona con kanjis confusos. Requiere 3 campos.</span>
+            <span>
+                Practice distinguishing easily confused kanji by matching each character to its concept within similarity groups. Optional challenge rounds reinforce the differences.
+                <br><strong>Input:</strong> <code>kanji;group;concept</code>, one entry per line. The group number identifies kanji to compare.
+            </span>
         </div>
     </a>
 
@@ -211,15 +233,21 @@
         <div class="icon">😵‍💫</div>
         <div class="details">
             <b>Kanjis Confusos 2</b>
-            <span>Requiere 5 campos.</span>
+            <span>
+                Identify the hidden kanji in a word using its reading and meaning as clues. Choose practice with multiple attempts or a one-try assessment.
+                <br><strong>Input:</strong> <code>kanji;group;word;reading;meaning</code>, one entry per line.
+            </span>
         </div>
     </a>
 
-     <a href="https://kekitopan13.github.io/estudio-jp/kanji/kanji_builder.html" class="app-card">
+    <a href="https://kekitopan13.github.io/estudio-jp/kanji/kanji_builder.html" class="app-card">
         <div class="icon">🔨</div>
         <div class="details">
             <b>Kanji builder</b>
-            <span>Armar palabras con sus kanjis.</span>
+            <span>
+                Build each vocabulary word by selecting its kanji in order, using the reading and optional meaning as clues. Practice written word composition.
+                <br><strong>Input:</strong> <code>word;reading;meaning</code>, one entry per line. The word must contain at least one kanji.
+            </span>
         </div>
     </a>
 
