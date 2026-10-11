@@ -117,6 +117,9 @@
   let correctionLocked = false;
   let correctionTimer = null;
   let earlyEnd = false;
+  let draftAnswer = '';
+  let correctFlash = false;
+  const CORRECT_FLASH_MS = 800;
 
   try {
     dbText = localStorage.getItem(STORAGE_KEY) || '';
@@ -242,9 +245,12 @@
       wordCard(record, inPractice ? 'Construye la lectura' : 'Escribe la lectura de memoria', inPractice ? 'practice' : 'evaluation') +
       (inPractice ? renderPracticeTask(record) : renderEvaluationTask(record)) +
       '</main>';
-    if (!inPractice && !correctionLocked) {
+    if (!inPractice && !correctionLocked && !correctFlash) {
       const input = document.getElementById('reading-answer');
-      if (input && !input.value) input.focus({ preventScroll: true });
+      if (input) {
+        input.focus({ preventScroll: true });
+        input.setSelectionRange(input.value.length, input.value.length);
+      }
     }
   }
 
@@ -277,12 +283,13 @@
 
   function renderEvaluationTask(record) {
     const correction = correctionLocked ? '<div class="correction">Lectura correcta<span class="correct-reading jp">' + esc(record.reading) + '</span><span class="muted">Recuérdala. Tendrás que escribirla correctamente para continuar.</span></div>' : '';
-    const disabled = correctionLocked ? 'disabled' : '';
-    const feedback = correctionLocked ? '<p class="muted">La lectura volverá a ocultarse en un momento.</p>' :
+    const disabled = (correctionLocked || correctFlash) ? 'disabled' : '';
+    const feedback = correctFlash ? '<div class="feedback good">¡Correcto!</div>' : correctionLocked ? '<p class="muted">La lectura volverá a ocultarse en un momento.</p>' :
       (record.evaluationFirstTry === false ? '<p class="muted">Hubo un error de escritura. Escribe la lectura completa correctamente para continuar.</p>' : '<p class="muted">Escribe la lectura completa en kana.</p>');
     return '<p class="task-prompt">Escribe la lectura de esta palabra.</p>' + correction +
-      '<form onsubmit="submitReading(event)"><input id="reading-answer" class="answer-input jp" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Lectura en kana" ' + disabled + '>' +
-      '<button class="primary" type="submit" ' + disabled + '>Comprobar lectura</button></form>' + feedback;
+      '<form onsubmit="submitReading(event)"><input id="reading-answer" class="answer-input jp" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Lectura en kana" value="' + esc(draftAnswer) + '" ' + disabled + '>' +
+      '<div class="button-row"><button class="secondary" type="button" onclick="dontKnow()" ' + disabled + '>No sé</button>' +
+      '<button class="primary" type="submit" ' + disabled + '>Comprobar lectura</button></div></form>' + feedback;
   }
 
   function resetMoras() {
@@ -325,6 +332,9 @@
   }
 
   function toggleMeaning() {
+    if (correctFlash) return;
+    const draftInput = document.getElementById('reading-answer');
+    if (draftInput) draftAnswer = draftInput.value;
     meaningOpen = !meaningOpen;
     if (meaningOpen) {
       const record = getCurrent();
@@ -336,7 +346,7 @@
 
   function submitReading(event) {
     event.preventDefault();
-    if (correctionLocked) return;
+    if (correctionLocked || correctFlash) return;
     const input = document.getElementById('reading-answer');
     const value = normalize(input.value);
     if (!value) {
@@ -347,11 +357,24 @@
     if (value === normalize(record.reading)) {
       if (record.evaluationFirstTry === null) record.evaluationFirstTry = true;
       record.evaluationDone = true;
-      advanceWord();
+      draftAnswer = input.value;
+      correctFlash = true;
+      renderSession();
+      correctionTimer = setTimeout(advanceWord, CORRECT_FLASH_MS);
       return;
     }
+    markWrongReading(record);
+  }
+
+  function dontKnow() {
+    if (correctionLocked || correctFlash) return;
+    markWrongReading(getCurrent());
+  }
+
+  function markWrongReading(record) {
     if (record.evaluationFirstTry === null) record.evaluationFirstTry = false;
     record.writingErrors += 1;
+    draftAnswer = '';
     correctionLocked = true;
     renderSession();
     correctionTimer = setTimeout(() => {
@@ -363,6 +386,8 @@
   }
 
   function advanceWord() {
+    draftAnswer = '';
+    correctFlash = false;
     meaningOpen = false;
     practiceFeedback = null;
     selectedTiles = [];
@@ -421,6 +446,8 @@
     }));
     index = 0;
     earlyEnd = false;
+    draftAnswer = '';
+    correctFlash = false;
     meaningOpen = false;
     correctionLocked = false;
     phase = mode === 'practice' ? 'practice' : 'evaluation';
@@ -434,6 +461,8 @@
     if (!confirm('¿Terminar la sesión y mostrar los resultados de las palabras completadas?')) return;
     earlyEnd = true;
     correctionLocked = false;
+    correctFlash = false;
+    draftAnswer = '';
     if (correctionTimer) clearTimeout(correctionTimer);
     renderSummary();
   }
@@ -533,6 +562,7 @@
   window.checkMoras = checkMoras;
   window.toggleMeaning = toggleMeaning;
   window.submitReading = submitReading;
+  window.dontKnow = dontKnow;
   window.advanceWord = advanceWord;
   window.startEvaluation = startEvaluation;
   window.endSession = endSession;
