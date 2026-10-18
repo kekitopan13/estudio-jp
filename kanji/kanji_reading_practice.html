@@ -107,6 +107,7 @@
   let mode = 'evaluation';
   let wordOrder = 'as-entered';
   let entries = [];
+  let sessionEntries = [];
   let index = 0;
   let phase = 'setup';
   let meaningOpen = false;
@@ -243,6 +244,7 @@
     const inPractice = phase === 'practice';
     root.innerHTML = header(true) + '<main>' + progressLabel() +
       wordCard(record, inPractice ? 'Construye la lectura' : 'Escribe la lectura de memoria', inPractice ? 'practice' : 'evaluation') +
+      renderNotes(record) +
       (inPractice ? renderPracticeTask(record) : renderEvaluationTask(record)) +
       '</main>';
     if (!inPractice && !correctionLocked && !correctFlash) {
@@ -252,6 +254,25 @@
         input.setSelectionRange(input.value.length, input.value.length);
       }
     }
+  }
+
+  function renderNotes(record) {
+    const notes = record.notes || { reading: false, meaning: false, errors: false };
+    const options = [
+      ['reading', 'Lectura difícil', 'Sé perfectamente el significado, pero me cuesta leer el kanji.'],
+      ['meaning', 'Significado difícil', 'Me cuesta recordar el significado.'],
+      ['errors', 'Errores frecuentes', 'Hay errores que cometo siempre con esta palabra.']
+    ];
+    return '<section class="panel" style="margin-top:14px;padding:11px 12px"><div class="panel-title">Notas opcionales</div>' +
+      options.map(([key, label, description]) => '<label style="display:flex;align-items:flex-start;gap:8px;margin-top:8px;font-size:11px;color:#426d89"><input type="checkbox" ' + (notes[key] ? 'checked' : '') + ' onchange="setNote(\'' + key + '\',this.checked)" style="accent-color:#6653cf;margin-top:2px"><span><strong>' + label + '</strong> · ' + description + '</span></label>').join('') +
+      '</section>';
+  }
+
+  function setNote(key, value) {
+    const record = getCurrent();
+    if (!record) return;
+    record.notes = record.notes || { reading: false, meaning: false, errors: false };
+    record.notes[key] = value;
   }
 
   function renderPracticeTask(record) {
@@ -396,6 +417,17 @@
     if (correctionTimer) clearTimeout(correctionTimer);
     index += 1;
     if (index < entries.length) return renderSession();
+    if (phase === 'evaluation' && mode === 'practice') {
+      const failed = entries.filter(item => item.evaluationDone && item.evaluationFirstTry === false);
+      if (failed.length) {
+        entries = failed;
+        phase = 'practice';
+        index = 0;
+        return renderSession();
+      }
+      renderSummary();
+      return;
+    }
     if (phase === 'practice') {
       phase = 'practiceDone';
       return renderPracticeDone();
@@ -413,10 +445,21 @@
   }
 
   function startEvaluation() {
-    phase = 'evaluation';
+    const failed = entries.filter(item => item.practiceDone);
+    failed.forEach(item => {
+      item.initialEvaluationFirstTry = item.evaluationFirstTry;
+      item.initialWritingErrors = item.writingErrors;
+      item.evaluationFirstTry = null;
+      item.evaluationDone = false;
+      item.writingErrors = 0;
+      item.evaluationMeaningSeen = false;
+    });
+    if (failed.length) entries = failed;
+    phase = 'finalEvaluation';
     index = 0;
     meaningOpen = false;
     correctionLocked = false;
+    draftAnswer = '';
     renderSession();
   }
 
@@ -434,6 +477,9 @@
     const sessionWords = wordOrder === 'random' ? shuffle(parsed.words) : parsed.words;
     entries = sessionWords.map(item => ({
       ...item,
+      notes: { reading: false, meaning: false, errors: false },
+      initialEvaluationFirstTry: null,
+      initialWritingErrors: 0,
       practiceFirstTry: null,
       practiceAttempts: 0,
       practiceErrors: 0,
@@ -444,13 +490,14 @@
       evaluationDone: false,
       evaluationMeaningSeen: false
     }));
+    sessionEntries = entries;
     index = 0;
     earlyEnd = false;
     draftAnswer = '';
     correctFlash = false;
     meaningOpen = false;
     correctionLocked = false;
-    phase = mode === 'practice' ? 'practice' : 'evaluation';
+    phase = 'evaluation';
     tiles = [];
     selectedTiles = [];
     practiceFeedback = null;
@@ -474,41 +521,42 @@
 
   function renderSummary() {
     phase = 'summary';
-    const completed = entries.filter(item => item.evaluationDone).length;
-    const firstTry = entries.filter(item => item.evaluationDone && item.evaluationFirstTry === true).length;
-    const corrected = entries.filter(item => item.evaluationDone && item.evaluationFirstTry === false).length;
-    const practiceFirst = entries.filter(item => item.practiceDone && item.practiceFirstTry === true).length;
-    const seenMeaningEval = entries.filter(item => item.evaluationMeaningSeen).length;
-    const seenMeaningPractice = entries.filter(item => item.practiceMeaningSeen).length;
-    const rows = entries.map((item, i) => {
+    const completed = sessionEntries.filter(item => item.evaluationDone).length;
+    const firstTry = sessionEntries.filter(item => item.evaluationDone && item.evaluationFirstTry === true).length;
+    const corrected = sessionEntries.filter(item => item.evaluationDone && item.evaluationFirstTry === false).length;
+    const practiceFirst = sessionEntries.filter(item => item.practiceDone && item.practiceFirstTry === true).length;
+    const seenMeaningEval = sessionEntries.filter(item => item.evaluationMeaningSeen).length;
+    const seenMeaningPractice = sessionEntries.filter(item => item.practiceMeaningSeen).length;
+    const rows = sessionEntries.map((item, i) => {
       const practiceStatus = mode === 'practice' ? statusCell(item.practiceFirstTry, item.practiceDone) : '<span class="status-off">No incluida</span>';
       const practiceErr = mode === 'practice' ? item.practiceErrors : '—';
       const evalStatus = statusCell(item.evaluationFirstTry, item.evaluationDone);
       return '<tr><td>' + (i + 1) + '</td><td class="kanji">' + esc(item.word) + '</td><td class="jp">' + esc(item.reading) + '</td>' +
         '<td>' + practiceStatus + '</td><td>' + practiceErr + '</td><td>' + (item.practiceMeaningSeen ? 'Sí' : 'No') + '</td>' +
-        '<td>' + evalStatus + '</td><td>' + item.writingErrors + '</td><td>' + (item.evaluationMeaningSeen ? 'Sí' : 'No') + '</td></tr>';
+        '<td>' + evalStatus + '</td><td>' + item.writingErrors + '</td><td>' + (item.evaluationMeaningSeen ? 'Sí' : 'No') + '</td>' +
+        '<td>' + (item.notes?.reading ? 'Sí' : 'No') + '</td><td>' + (item.notes?.meaning ? 'Sí' : 'No') + '</td><td>' + (item.notes?.errors ? 'Sí' : 'No') + '</td></tr>';
     }).join('');
     root.innerHTML = header(false) + '<main><div class="word-label">Resultados de la sesión</div>' +
       '<h1 class="screen-title">Tu resumen</h1>' +
       '<p class="sub">La corrección obligatoria también cuenta como error de escritura. “Correcta al primer intento” indica si recordaste la lectura antes de ver la respuesta.</p>' +
-      '<div class="stats"><div class="stat"><strong>' + completed + ' / ' + entries.length + '</strong><span>evaluaciones completadas</span></div>' +
+      '<div class="stats"><div class="stat"><strong>' + completed + ' / ' + sessionEntries.length + '</strong><span>evaluaciones completadas</span></div>' +
       '<div class="stat"><strong>' + firstTry + '</strong><span>correctas al primer intento</span></div>' +
       '<div class="stat"><strong>' + corrected + '</strong><span>requirieron corrección</span></div>' +
       '<div class="stat"><strong>' + seenMeaningEval + '</strong><span>vieron el significado en evaluación</span></div>' +
       (mode === 'practice' ? '<div class="stat"><strong>' + practiceFirst + '</strong><span>correctas en práctica al primer intento</span></div><div class="stat"><strong>' + seenMeaningPractice + '</strong><span>vieron el significado en práctica</span></div>' : '') +
       '</div><div class="table-wrap"><table><thead><tr><th>N.º</th><th>Palabra</th><th>Lectura</th>' +
-      '<th>Resultado de práctica</th><th>Errores de práctica</th><th>Significado visto en práctica</th><th>Resultado de evaluación</th><th>Errores de escritura</th><th>Significado visto en evaluación</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      '<th>Resultado de práctica</th><th>Errores de práctica</th><th>Significado visto en práctica</th><th>Resultado de evaluación</th><th>Errores de escritura</th><th>Significado visto en evaluación</th><th>Lectura difícil</th><th>Significado difícil</th><th>Errores frecuentes</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
       '<div class="summary-actions"><button class="primary" onclick="copyResults()">Copiar resultados como TSV</button><button class="secondary" onclick="renderSetup()">Volver a la configuración</button></div>' +
       (earlyEnd ? '<p class="notice">La sesión terminó antes de completar todas las palabras. Las pendientes aparecen indicadas en la tabla.</p>' : '') +
       '</main>';
   }
 
   function copyResults() {
-    const headerRow = ['N.º','Palabra','Lectura','Resultado de práctica','Errores de práctica','Significado visto en práctica','Resultado de evaluación','Errores de escritura','Significado visto en evaluación'];
-    const lines = entries.map((item, i) => {
+    const headerRow = ['N.º','Palabra','Lectura','Resultado de práctica','Errores de práctica','Significado visto en práctica','Resultado de evaluación','Errores de escritura','Significado visto en evaluación','Lectura difícil','Significado difícil','Errores frecuentes'];
+    const lines = sessionEntries.map((item, i) => {
       const pStatus = mode !== 'practice' ? 'No incluida' : (!item.practiceDone ? 'Sin completar' : (item.practiceFirstTry ? 'Correcta al primer intento' : 'Requirió corrección'));
       const eStatus = !item.evaluationDone ? 'Sin completar' : (item.evaluationFirstTry ? 'Correcta al primer intento' : 'Requirió corrección');
-      return [i + 1, item.word, item.reading, pStatus, mode === 'practice' ? item.practiceErrors : '—', item.practiceMeaningSeen ? 'Sí' : 'No', eStatus, item.writingErrors, item.evaluationMeaningSeen ? 'Sí' : 'No'].join('\t');
+      return [i + 1, item.word, item.reading, pStatus, mode === 'practice' ? item.practiceErrors : '—', item.practiceMeaningSeen ? 'Sí' : 'No', eStatus, item.writingErrors, item.evaluationMeaningSeen ? 'Sí' : 'No', item.notes?.reading ? 'Sí' : 'No', item.notes?.meaning ? 'Sí' : 'No', item.notes?.errors ? 'Sí' : 'No'].join('\t');
     });
     const text = '\ufeff' + [headerRow.join('\t'), ...lines].join('\n');
     if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -561,6 +609,7 @@
   window.resetMoras = resetMoras;
   window.checkMoras = checkMoras;
   window.toggleMeaning = toggleMeaning;
+  window.setNote = setNote;
   window.submitReading = submitReading;
   window.dontKnow = dontKnow;
   window.advanceWord = advanceWord;
@@ -574,3 +623,4 @@
 </script>
 </body>
 </html>
+
