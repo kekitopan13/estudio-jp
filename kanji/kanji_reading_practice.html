@@ -84,6 +84,16 @@
   .status-good { color: #28745e; font-weight: 700; }
   .status-warn { color: #a86320; font-weight: 700; }
   .status-off { color: #91a3b0; }
+  .note-level-1 { color: #39835b; }
+  .note-level-2 { color: #5b8b52; }
+  .note-level-3 { color: #bd8135; }
+  .note-level-4 { color: #c65d42; }
+  .note-level-5 { color: #b83b43; }
+  .note-level-1 input { accent-color: #39835b !important; }
+  .note-level-2 input { accent-color: #5b8b52 !important; }
+  .note-level-3 input { accent-color: #bd8135 !important; }
+  .note-level-4 input { accent-color: #c65d42 !important; }
+  .note-level-5 input { accent-color: #b83b43 !important; }
   .summary-actions { display: grid; gap: 9px; margin-top: 14px; }
   .notice { margin: 10px 0 0; color: #7895a8; font-size: 10px; line-height: 1.45; }
   @media (max-width: 360px) {
@@ -257,21 +267,23 @@
   }
 
   function renderNotes(record) {
-    const notes = record.notes || { reading: false, meaning: false, errors: false };
+    const notes = record.notes || { meaningHelpsReading: false, meaningDoesNotHelp: false, inferReading: false, smallReadingErrors: false, errors: false };
     const options = [
-      ['reading', 'Lectura difícil', 'Sé perfectamente el significado, pero me cuesta leer el kanji.'],
-      ['meaning', 'Significado difícil', 'Me cuesta recordar el significado.'],
-      ['errors', 'Errores frecuentes', 'Hay errores que cometo siempre con esta palabra.']
+      ['smallReadingErrors', 'Pequeños errores en lectura', 1],
+      ['meaningHelpsReading', 'Recuerdo la lectura al ver el significado', 2],
+      ['inferReading', 'No recuerdo el significado pero deduzco la lectura', 3],
+      ['meaningDoesNotHelp', 'El significado no me ayuda a recordar la lectura', 4],
+      ['errors', 'Errores frecuentes', 5]
     ];
     return '<section class="panel" style="margin-top:14px;padding:11px 12px"><div class="panel-title">Notas opcionales</div>' +
-      options.map(([key, label, description]) => '<label style="display:flex;align-items:flex-start;gap:8px;margin-top:8px;font-size:11px;color:#426d89"><input type="checkbox" ' + (notes[key] ? 'checked' : '') + ' onchange="setNote(\'' + key + '\',this.checked)" style="accent-color:#6653cf;margin-top:2px"><span><strong>' + label + '</strong> · ' + description + '</span></label>').join('') +
+      options.map(([key, label, level]) => '<label class="note-level-' + level + '" style="display:flex;align-items:flex-start;gap:8px;margin-top:8px;font-size:11px;font-weight:700;cursor:pointer"><input type="checkbox" ' + (notes[key] ? 'checked' : '') + ' onchange="setNote(\'' + key + '\',this.checked)" style="margin-top:2px"><span><strong>' + label + '</strong></span></label>').join('') +
       '</section>';
   }
 
   function setNote(key, value) {
     const record = getCurrent();
     if (!record) return;
-    record.notes = record.notes || { reading: false, meaning: false, errors: false };
+    record.notes = record.notes || { meaningHelpsReading: false, meaningDoesNotHelp: false, inferReading: false, smallReadingErrors: false, errors: false };
     record.notes[key] = value;
   }
 
@@ -477,7 +489,7 @@
     const sessionWords = wordOrder === 'random' ? shuffle(parsed.words) : parsed.words;
     entries = sessionWords.map(item => ({
       ...item,
-      notes: { reading: false, meaning: false, errors: false },
+      notes: { meaningHelpsReading: false, meaningDoesNotHelp: false, inferReading: false, smallReadingErrors: false, errors: false },
       initialEvaluationFirstTry: null,
       initialWritingErrors: 0,
       practiceFirstTry: null,
@@ -534,7 +546,7 @@
       return '<tr><td>' + (i + 1) + '</td><td class="kanji">' + esc(item.word) + '</td><td class="jp">' + esc(item.reading) + '</td>' +
         '<td>' + practiceStatus + '</td><td>' + practiceErr + '</td><td>' + (item.practiceMeaningSeen ? 'Sí' : 'No') + '</td>' +
         '<td>' + evalStatus + '</td><td>' + item.writingErrors + '</td><td>' + (item.evaluationMeaningSeen ? 'Sí' : 'No') + '</td>' +
-        '<td>' + (item.notes?.reading ? 'Sí' : 'No') + '</td><td>' + (item.notes?.meaning ? 'Sí' : 'No') + '</td><td>' + (item.notes?.errors ? 'Sí' : 'No') + '</td></tr>';
+        '<td>' + (item.notes?.smallReadingErrors ? 'Sí' : 'No') + '</td><td>' + (item.notes?.meaningHelpsReading ? 'Sí' : 'No') + '</td><td>' + (item.notes?.inferReading ? 'Sí' : 'No') + '</td><td>' + (item.notes?.meaningDoesNotHelp ? 'Sí' : 'No') + '</td><td>' + (item.notes?.errors ? 'Sí' : 'No') + '</td></tr>'; 
     }).join('');
     root.innerHTML = header(false) + '<main><div class="word-label">Resultados de la sesión</div>' +
       '<h1 class="screen-title">Tu resumen</h1>' +
@@ -545,18 +557,18 @@
       '<div class="stat"><strong>' + seenMeaningEval + '</strong><span>vieron el significado en evaluación</span></div>' +
       (mode === 'practice' ? '<div class="stat"><strong>' + practiceFirst + '</strong><span>correctas en práctica al primer intento</span></div><div class="stat"><strong>' + seenMeaningPractice + '</strong><span>vieron el significado en práctica</span></div>' : '') +
       '</div><div class="table-wrap"><table><thead><tr><th>N.º</th><th>Palabra</th><th>Lectura</th>' +
-      '<th>Resultado de práctica</th><th>Errores de práctica</th><th>Significado visto en práctica</th><th>Resultado de evaluación</th><th>Errores de escritura</th><th>Significado visto en evaluación</th><th>Lectura difícil</th><th>Significado difícil</th><th>Errores frecuentes</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      '<th>Resultado de práctica</th><th>Errores de práctica</th><th>Significado visto en práctica</th><th>Resultado de evaluación</th><th>Errores de escritura</th><th>Significado visto en evaluación</th><th>Pequeños errores en lectura</th><th>Recuerdo la lectura al ver el significado</th><th>No recuerdo el significado pero deduzco la lectura</th><th>El significado no me ayuda a recordar la lectura</th><th>Errores frecuentes</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
       '<div class="summary-actions"><button class="primary" onclick="copyResults()">Copiar resultados como TSV</button><button class="secondary" onclick="renderSetup()">Volver a la configuración</button></div>' +
       (earlyEnd ? '<p class="notice">La sesión terminó antes de completar todas las palabras. Las pendientes aparecen indicadas en la tabla.</p>' : '') +
       '</main>';
   }
 
   function copyResults() {
-    const headerRow = ['N.º','Palabra','Lectura','Resultado de práctica','Errores de práctica','Significado visto en práctica','Resultado de evaluación','Errores de escritura','Significado visto en evaluación','Lectura difícil','Significado difícil','Errores frecuentes'];
+    const headerRow = ['N.º','Palabra','Lectura','Resultado de práctica','Errores de práctica','Significado visto en práctica','Resultado de evaluación','Errores de escritura','Significado visto en evaluación','Pequeños errores en lectura','Recuerdo la lectura al ver el significado','No recuerdo el significado pero deduzco la lectura','El significado no me ayuda a recordar la lectura','Errores frecuentes'];
     const lines = sessionEntries.map((item, i) => {
       const pStatus = mode !== 'practice' ? 'No incluida' : (!item.practiceDone ? 'Sin completar' : (item.practiceFirstTry ? 'Correcta al primer intento' : 'Requirió corrección'));
       const eStatus = !item.evaluationDone ? 'Sin completar' : (item.evaluationFirstTry ? 'Correcta al primer intento' : 'Requirió corrección');
-      return [i + 1, item.word, item.reading, pStatus, mode === 'practice' ? item.practiceErrors : '—', item.practiceMeaningSeen ? 'Sí' : 'No', eStatus, item.writingErrors, item.evaluationMeaningSeen ? 'Sí' : 'No', item.notes?.reading ? 'Sí' : 'No', item.notes?.meaning ? 'Sí' : 'No', item.notes?.errors ? 'Sí' : 'No'].join('\t');
+      return [i + 1, item.word, item.reading, pStatus, mode === 'practice' ? item.practiceErrors : '—', item.practiceMeaningSeen ? 'Sí' : 'No', eStatus, item.writingErrors, item.evaluationMeaningSeen ? 'Sí' : 'No', item.notes?.smallReadingErrors ? 'Sí' : 'No', item.notes?.meaningHelpsReading ? 'Sí' : 'No', item.notes?.inferReading ? 'Sí' : 'No', item.notes?.meaningDoesNotHelp ? 'Sí' : 'No', item.notes?.errors ? 'Sí' : 'No'].join('\t');
     });
     const text = '\ufeff' + [headerRow.join('\t'), ...lines].join('\n');
     if (navigator.clipboard && navigator.clipboard.writeText) {
