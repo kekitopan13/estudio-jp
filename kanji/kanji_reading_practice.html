@@ -94,6 +94,14 @@
   .note-level-3 input { accent-color: #bd8135 !important; }
   .note-level-4 input { accent-color: #c65d42 !important; }
   .note-level-5 input { accent-color: #b83b43 !important; }
+  .sensation-negative { color: #c47a32; }
+  .sensation-neutral { color: #3979a8; }
+  .sensation-positive { color: #39835b; }
+  .sensation-negative input { accent-color: #c47a32 !important; }
+  .sensation-danger { color: #c0393b; }
+  .sensation-danger input { accent-color: #c0393b !important; }
+  .sensation-neutral input { accent-color: #3979a8 !important; }
+  .sensation-positive input { accent-color: #39835b !important; }
   .summary-actions { display: grid; gap: 9px; margin-top: 14px; }
   .notice { margin: 10px 0 0; color: #7895a8; font-size: 10px; line-height: 1.45; }
   @media (max-width: 360px) {
@@ -110,6 +118,7 @@
   const STORAGE_KEY = 'kanji_reading_practice_input_v1';
   const MODE_KEY = 'kanji_reading_practice_mode_v1';
   const ORDER_KEY = 'kanji_reading_practice_order_v1';
+  const SESSION_KEY = 'kanji_reading_practice_session_v1';
   const SMALL_KANA = new Set(Array.from('ゃゅょぁぃぅぇぉゎャュョァィゥェォヮ'));
   const root = document.getElementById('root');
 
@@ -191,10 +200,62 @@
     } catch (_) {}
   }
 
+  function saveSession() {
+    if (!sessionEntries.length || phase === 'setup' || phase === 'summary') return;
+    try {
+      localStorage.setItem(SESSION_KEY, JSON.stringify({
+        entries, entryIndexes: entries.map(item => sessionEntries.indexOf(item)), sessionEntries, index, phase, mode, earlyEnd, draftAnswer,
+        meaningOpen, tiles, selectedTiles, practiceFeedback, practiceAttempts,
+        correctionLocked, correctFlash
+      }));
+    } catch (_) {}
+  }
+
+  function clearSavedSession() {
+    try { localStorage.removeItem(SESSION_KEY); } catch (_) {}
+  }
+
+  function restoreSession() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null');
+      if (!saved || !Array.isArray(saved.entries) || !saved.entries.length || !Array.isArray(saved.sessionEntries)) return false;
+      sessionEntries = saved.sessionEntries;
+      entries = Array.isArray(saved.entryIndexes)
+        ? saved.entryIndexes.map(i => sessionEntries[i]).filter(Boolean)
+        : saved.entries;
+      index = Math.max(0, Math.min(Number(saved.index) || 0, Math.max(entries.length - 1, 0)));
+      phase = ['evaluation', 'practice', 'finalEvaluation', 'practiceDone'].includes(saved.phase) ? saved.phase : 'evaluation';
+      mode = saved.mode === 'practice' ? 'practice' : 'evaluation';
+      earlyEnd = !!saved.earlyEnd;
+      draftAnswer = saved.draftAnswer || '';
+      meaningOpen = !!saved.meaningOpen;
+      tiles = Array.isArray(saved.tiles) ? saved.tiles : [];
+      selectedTiles = Array.isArray(saved.selectedTiles) ? saved.selectedTiles : [];
+      practiceFeedback = saved.practiceFeedback || null;
+      practiceAttempts = Number(saved.practiceAttempts) || 0;
+      correctionLocked = !!saved.correctionLocked;
+      correctFlash = !!saved.correctFlash;
+      return true;
+    } catch (_) { clearSavedSession(); return false; }
+  }
+
+  function resumeSessionView() {
+    if (phase === 'practiceDone') renderPracticeDone();
+    else renderSession();
+    if (correctFlash) correctionTimer = setTimeout(advanceWord, CORRECT_FLASH_MS);
+    else if (correctionLocked) correctionTimer = setTimeout(() => {
+      correctionLocked = false;
+      saveSession();
+      renderSession();
+      const input = document.getElementById('reading-answer');
+      if (input) input.focus({ preventScroll: true });
+    }, 2400);
+  }
+
   function header(showExit) {
     return '<header><div class="brand">Lectura de kanji</div><div class="header-actions">' +
       '<a class="header-link" href="' + MENU_URL + '">Menú principal</a>' +
-      (showExit ? '<button class="header-button" onclick="endSession()">Terminar sesión</button>' : '') +
+      (showExit ? '<button class="header-button" onclick="cancelSession()">Cancelar</button><button class="header-button" onclick="endSession()">Terminar sesión</button>' : '') +
       '</div></header>';
   }
 
@@ -234,7 +295,7 @@
       '<label class="mode-option"><input type="radio" name="word-order" value="as-entered" ' + (wordOrder === 'as-entered' ? 'checked' : '') + ' onchange="setWordOrder(this.value)"><span><strong>En el orden ingresado</strong><span>Sigue la secuencia de tu lista.</span></span></label>' +
       '<label class="mode-option"><input type="radio" name="word-order" value="random" ' + (wordOrder === 'random' ? 'checked' : '') + ' onchange="setWordOrder(this.value)"><span><strong>Aleatorio</strong><span>Mezcla las palabras al comenzar cada sesión.</span></span></label></section>' +
       '<button class="primary" onclick="startSession()">Empezar sesión →</button>' +
-      '<p class="notice">El input y tus preferencias se guardan en este navegador. La evaluación mantiene el orden elegido para la sesión.</p>' +
+      '<p class="notice">El vocabulario y tus preferencias se guardan en este navegador. La sesión activa también se guarda para que puedas retomarla al volver a abrir la app.</p>' +
       '</main>';
     const input = document.getElementById('db-input');
     input.addEventListener('input', () => {
@@ -257,9 +318,11 @@
       renderNotes(record) +
       (inPractice ? renderPracticeTask(record) : renderEvaluationTask(record)) +
       '</main>';
+    saveSession();
     if (!inPractice && !correctionLocked && !correctFlash) {
       const input = document.getElementById('reading-answer');
       if (input) {
+        input.addEventListener('input', () => { draftAnswer = input.value; saveSession(); });
         input.focus({ preventScroll: true });
         input.setSelectionRange(input.value.length, input.value.length);
       }
@@ -267,7 +330,7 @@
   }
 
   function renderNotes(record) {
-    const notes = record.notes || { meaningHelpsReading: false, meaningDoesNotHelp: false, inferReading: false, smallReadingErrors: false, errors: false };
+    const notes = record.notes || {};
     const options = [
       ['smallReadingErrors', 'Pequeños errores en lectura', 1],
       ['meaningHelpsReading', 'Recuerdo la lectura al ver el significado', 2],
@@ -275,16 +338,29 @@
       ['meaningDoesNotHelp', 'El significado no me ayuda a recordar la lectura', 4],
       ['errors', 'Errores frecuentes', 5]
     ];
+    const sensations = [
+      ['weakMeaning', 'Significado aún débil o confuso', 'danger'],
+      ['weakReading', 'Lectura aún débil o confusa', 'negative'],
+      ['feelsGood', 'La siento bien', 'positive'],
+      ['feelsSoSo', 'La siento más o menos', 'neutral'],
+      ['feelsDifficult', 'La siento difícil', 'danger']
+    ];
+    const renderOptions = (items, classPrefix) => items.map(([key, label, level]) => {
+      const colorClass = classPrefix === 'note-level-' ? classPrefix + level : classPrefix + level;
+      return '<label class="' + colorClass + '" style="display:flex;align-items:flex-start;gap:8px;margin-top:8px;font-size:11px;font-weight:700;cursor:pointer"><input type="checkbox" ' + (notes[key] ? 'checked' : '') + ' onchange="setNote(\'' + key + '\',this.checked)" style="margin-top:2px"><span><strong>' + label + '</strong></span></label>';
+    }).join('');
     return '<section class="panel" style="margin-top:14px;padding:11px 12px"><div class="panel-title">Notas opcionales</div>' +
-      options.map(([key, label, level]) => '<label class="note-level-' + level + '" style="display:flex;align-items:flex-start;gap:8px;margin-top:8px;font-size:11px;font-weight:700;cursor:pointer"><input type="checkbox" ' + (notes[key] ? 'checked' : '') + ' onchange="setNote(\'' + key + '\',this.checked)" style="margin-top:2px"><span><strong>' + label + '</strong></span></label>').join('') +
-      '</section>';
+      renderOptions(options, 'note-level-') + '</section>' +
+      '<section class="panel" style="margin-top:14px;padding:11px 12px"><div class="panel-title">Sensaciones</div>' +
+      sensations.map(([key, label, tone]) => '<label class="sensation-' + tone + '" style="display:flex;align-items:flex-start;gap:8px;margin-top:8px;font-size:11px;font-weight:700;cursor:pointer"><input type="checkbox" ' + (notes[key] ? 'checked' : '') + ' onchange="setNote(\'' + key + '\',this.checked)" style="margin-top:2px"><span><strong>' + label + '</strong></span></label>').join('') + '</section>';
   }
 
   function setNote(key, value) {
     const record = getCurrent();
     if (!record) return;
-    record.notes = record.notes || { meaningHelpsReading: false, meaningDoesNotHelp: false, inferReading: false, smallReadingErrors: false, errors: false };
+    record.notes = record.notes || { meaningHelpsReading: false, meaningDoesNotHelp: false, inferReading: false, smallReadingErrors: false, errors: false, weakMeaning: false, weakReading: false, feelsGood: false, feelsSoSo: false, feelsDifficult: false };
     record.notes[key] = value;
+    saveSession();
   }
 
   function renderPracticeTask(record) {
@@ -448,6 +524,7 @@
   }
 
   function renderPracticeDone() {
+    saveSession();
     root.innerHTML = header(true) + '<main><div class="word-label">Práctica completada</div>' +
       '<h1 class="screen-title">Ahora evalúa cuánto recuerdas</h1>' +
       '<p class="sub">Ya construiste cada lectura mora por mora. Ahora verás las mismas palabras en kanji y escribirás cada lectura completa de memoria.</p>' +
@@ -489,7 +566,7 @@
     const sessionWords = wordOrder === 'random' ? shuffle(parsed.words) : parsed.words;
     entries = sessionWords.map(item => ({
       ...item,
-      notes: { meaningHelpsReading: false, meaningDoesNotHelp: false, inferReading: false, smallReadingErrors: false, errors: false },
+      notes: { meaningHelpsReading: false, meaningDoesNotHelp: false, inferReading: false, smallReadingErrors: false, errors: false, weakMeaning: false, weakReading: false, feelsGood: false, feelsSoSo: false, feelsDifficult: false },
       initialEvaluationFirstTry: null,
       initialWritingErrors: 0,
       practiceFirstTry: null,
@@ -503,6 +580,7 @@
       evaluationMeaningSeen: false
     }));
     sessionEntries = entries;
+    clearSavedSession();
     index = 0;
     earlyEnd = false;
     draftAnswer = '';
@@ -518,12 +596,32 @@
 
   function endSession() {
     if (!confirm('¿Terminar la sesión y mostrar los resultados de las palabras completadas?')) return;
+    clearSavedSession();
     earlyEnd = true;
     correctionLocked = false;
     correctFlash = false;
     draftAnswer = '';
     if (correctionTimer) clearTimeout(correctionTimer);
     renderSummary();
+  }
+
+  function cancelSession() {
+    if (!confirm('¿Cancelar la sesión y descartar su progreso?')) return;
+    if (correctionTimer) clearTimeout(correctionTimer);
+    clearSavedSession();
+    entries = [];
+    sessionEntries = [];
+    index = 0;
+    phase = 'setup';
+    meaningOpen = false;
+    tiles = [];
+    selectedTiles = [];
+    practiceFeedback = null;
+    correctionLocked = false;
+    correctFlash = false;
+    draftAnswer = '';
+    earlyEnd = false;
+    renderSetup();
   }
 
   function statusCell(firstTry, done) {
@@ -533,6 +631,7 @@
 
   function renderSummary() {
     phase = 'summary';
+    clearSavedSession();
     const completed = sessionEntries.filter(item => item.evaluationDone).length;
     const firstTry = sessionEntries.filter(item => item.evaluationDone && item.evaluationFirstTry === true).length;
     const corrected = sessionEntries.filter(item => item.evaluationDone && item.evaluationFirstTry === false).length;
@@ -546,7 +645,8 @@
       return '<tr><td>' + (i + 1) + '</td><td class="kanji">' + esc(item.word) + '</td><td class="jp">' + esc(item.reading) + '</td>' +
         '<td>' + practiceStatus + '</td><td>' + practiceErr + '</td><td>' + (item.practiceMeaningSeen ? 'Sí' : 'No') + '</td>' +
         '<td>' + evalStatus + '</td><td>' + item.writingErrors + '</td><td>' + (item.evaluationMeaningSeen ? 'Sí' : 'No') + '</td>' +
-        '<td>' + (item.notes?.smallReadingErrors ? 'Sí' : 'No') + '</td><td>' + (item.notes?.meaningHelpsReading ? 'Sí' : 'No') + '</td><td>' + (item.notes?.inferReading ? 'Sí' : 'No') + '</td><td>' + (item.notes?.meaningDoesNotHelp ? 'Sí' : 'No') + '</td><td>' + (item.notes?.errors ? 'Sí' : 'No') + '</td></tr>'; 
+        '<td>' + (item.notes?.smallReadingErrors ? 'Sí' : 'No') + '</td><td>' + (item.notes?.meaningHelpsReading ? 'Sí' : 'No') + '</td><td>' + (item.notes?.inferReading ? 'Sí' : 'No') + '</td><td>' + (item.notes?.meaningDoesNotHelp ? 'Sí' : 'No') + '</td><td>' + (item.notes?.errors ? 'Sí' : 'No') + '</td>' +
+        '<td>' + (item.notes?.weakMeaning ? 'Sí' : 'No') + '</td><td>' + (item.notes?.weakReading ? 'Sí' : 'No') + '</td><td>' + (item.notes?.feelsGood ? 'Sí' : 'No') + '</td><td>' + (item.notes?.feelsSoSo ? 'Sí' : 'No') + '</td><td>' + (item.notes?.feelsDifficult ? 'Sí' : 'No') + '</td></tr>'; 
     }).join('');
     root.innerHTML = header(false) + '<main><div class="word-label">Resultados de la sesión</div>' +
       '<h1 class="screen-title">Tu resumen</h1>' +
@@ -557,18 +657,18 @@
       '<div class="stat"><strong>' + seenMeaningEval + '</strong><span>vieron el significado en evaluación</span></div>' +
       (mode === 'practice' ? '<div class="stat"><strong>' + practiceFirst + '</strong><span>correctas en práctica al primer intento</span></div><div class="stat"><strong>' + seenMeaningPractice + '</strong><span>vieron el significado en práctica</span></div>' : '') +
       '</div><div class="table-wrap"><table><thead><tr><th>N.º</th><th>Palabra</th><th>Lectura</th>' +
-      '<th>Resultado de práctica</th><th>Errores de práctica</th><th>Significado visto en práctica</th><th>Resultado de evaluación</th><th>Errores de escritura</th><th>Significado visto en evaluación</th><th>Pequeños errores en lectura</th><th>Recuerdo la lectura al ver el significado</th><th>No recuerdo el significado pero deduzco la lectura</th><th>El significado no me ayuda a recordar la lectura</th><th>Errores frecuentes</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      '<th>Resultado de práctica</th><th>Errores de práctica</th><th>Significado visto en práctica</th><th>Resultado de evaluación</th><th>Errores de escritura</th><th>Significado visto en evaluación</th><th>Pequeños errores en lectura</th><th>Recuerdo la lectura al ver el significado</th><th>No recuerdo el significado pero deduzco la lectura</th><th>El significado no me ayuda a recordar la lectura</th><th>Errores frecuentes</th><th>Sensaciones: Significado aún débil o confuso</th><th>Sensaciones: Lectura aún débil o confusa</th><th>Sensaciones: La siento bien</th><th>Sensaciones: La siento más o menos</th><th>Sensaciones: La siento difícil</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
       '<div class="summary-actions"><button class="primary" onclick="copyResults()">Copiar resultados como TSV</button><button class="secondary" onclick="renderSetup()">Volver a la configuración</button></div>' +
       (earlyEnd ? '<p class="notice">La sesión terminó antes de completar todas las palabras. Las pendientes aparecen indicadas en la tabla.</p>' : '') +
       '</main>';
   }
 
   function copyResults() {
-    const headerRow = ['N.º','Palabra','Lectura','Resultado de práctica','Errores de práctica','Significado visto en práctica','Resultado de evaluación','Errores de escritura','Significado visto en evaluación','Pequeños errores en lectura','Recuerdo la lectura al ver el significado','No recuerdo el significado pero deduzco la lectura','El significado no me ayuda a recordar la lectura','Errores frecuentes'];
+    const headerRow = ['N.º','Palabra','Lectura','Resultado de práctica','Errores de práctica','Significado visto en práctica','Resultado de evaluación','Errores de escritura','Significado visto en evaluación','Pequeños errores en lectura','Recuerdo la lectura al ver el significado','No recuerdo el significado pero deduzco la lectura','El significado no me ayuda a recordar la lectura','Errores frecuentes','Sensaciones: Significado aún débil o confuso','Sensaciones: Lectura aún débil o confusa','Sensaciones: La siento bien','Sensaciones: La siento más o menos','Sensaciones: La siento difícil'];
     const lines = sessionEntries.map((item, i) => {
       const pStatus = mode !== 'practice' ? 'No incluida' : (!item.practiceDone ? 'Sin completar' : (item.practiceFirstTry ? 'Correcta al primer intento' : 'Requirió corrección'));
       const eStatus = !item.evaluationDone ? 'Sin completar' : (item.evaluationFirstTry ? 'Correcta al primer intento' : 'Requirió corrección');
-      return [i + 1, item.word, item.reading, pStatus, mode === 'practice' ? item.practiceErrors : '—', item.practiceMeaningSeen ? 'Sí' : 'No', eStatus, item.writingErrors, item.evaluationMeaningSeen ? 'Sí' : 'No', item.notes?.smallReadingErrors ? 'Sí' : 'No', item.notes?.meaningHelpsReading ? 'Sí' : 'No', item.notes?.inferReading ? 'Sí' : 'No', item.notes?.meaningDoesNotHelp ? 'Sí' : 'No', item.notes?.errors ? 'Sí' : 'No'].join('\t');
+      return [i + 1, item.word, item.reading, pStatus, mode === 'practice' ? item.practiceErrors : '—', item.practiceMeaningSeen ? 'Sí' : 'No', eStatus, item.writingErrors, item.evaluationMeaningSeen ? 'Sí' : 'No', item.notes?.smallReadingErrors ? 'Sí' : 'No', item.notes?.meaningHelpsReading ? 'Sí' : 'No', item.notes?.inferReading ? 'Sí' : 'No', item.notes?.meaningDoesNotHelp ? 'Sí' : 'No', item.notes?.errors ? 'Sí' : 'No', item.notes?.weakMeaning ? 'Sí' : 'No', item.notes?.weakReading ? 'Sí' : 'No', item.notes?.feelsGood ? 'Sí' : 'No', item.notes?.feelsSoSo ? 'Sí' : 'No', item.notes?.feelsDifficult ? 'Sí' : 'No'].join('\t');
     });
     const text = '\ufeff' + [headerRow.join('\t'), ...lines].join('\n');
     if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -627,10 +727,12 @@
   window.advanceWord = advanceWord;
   window.startEvaluation = startEvaluation;
   window.endSession = endSession;
+  window.cancelSession = cancelSession;
   window.copyResults = copyResults;
   window.renderSetup = () => renderSetup();
 
-  renderSetup();
+  if (restoreSession()) resumeSessionView();
+  else renderSetup();
 })();
 </script>
 </body>
