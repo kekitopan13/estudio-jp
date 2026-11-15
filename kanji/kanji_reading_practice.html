@@ -84,24 +84,14 @@
   .status-good { color: #28745e; font-weight: 700; }
   .status-warn { color: #a86320; font-weight: 700; }
   .status-off { color: #91a3b0; }
-  .note-level-1 { color: #39835b; }
-  .note-level-2 { color: #5b8b52; }
-  .note-level-3 { color: #bd8135; }
-  .note-level-4 { color: #c65d42; }
-  .note-level-5 { color: #b83b43; }
-  .note-level-1 input { accent-color: #39835b !important; }
-  .note-level-2 input { accent-color: #5b8b52 !important; }
-  .note-level-3 input { accent-color: #bd8135 !important; }
-  .note-level-4 input { accent-color: #c65d42 !important; }
-  .note-level-5 input { accent-color: #b83b43 !important; }
-  .sensation-negative { color: #c47a32; }
-  .sensation-neutral { color: #3979a8; }
-  .sensation-positive { color: #39835b; }
-  .sensation-negative input { accent-color: #c47a32 !important; }
-  .sensation-danger { color: #c0393b; }
-  .sensation-danger input { accent-color: #c0393b !important; }
-  .sensation-neutral input { accent-color: #3979a8 !important; }
-  .sensation-positive input { accent-color: #39835b !important; }
+  .skill-status-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+  .skill-status-title { margin-bottom:7px; font-size:13px; font-weight:700; }
+  .skill-status-option { display:flex; align-items:center; gap:7px; margin-top:8px; font-size:12px; font-weight:700; cursor:pointer; }
+  .skill-status-option input { accent-color:#3f9fd1; }
+  .skill-status-good { color:#2F7D6D; } .skill-status-mid { color:#A87524; } .skill-status-hard { color:#B6534B; }
+  .notes-input { width:100%; min-height:72px; margin-top:8px; padding:10px; resize:vertical; border:1.5px solid #c3ddf0; border-radius:10px; background:#f7fbfd; color:#17324a; font-size:12px; line-height:1.5; }
+  .relevance-option { display:flex; align-items:center; gap:8px; font-size:12px; color:#426d89; cursor:pointer; }
+  .relevance-option input { accent-color:#3f9fd1; }
   .summary-actions { display: grid; gap: 9px; margin-top: 14px; }
   .notice { margin: 10px 0 0; color: #7895a8; font-size: 10px; line-height: 1.45; }
   @media (max-width: 360px) {
@@ -330,36 +320,35 @@
   }
 
   function renderNotes(record) {
-    const notes = record.notes || {};
-    const options = [
-      ['smallReadingErrors', 'Pequeños errores en lectura', 1],
-      ['meaningHelpsReading', 'Recuerdo la lectura al ver el significado', 2],
-      ['inferReading', 'No recuerdo el significado pero deduzco la lectura', 3],
-      ['meaningDoesNotHelp', 'El significado no me ayuda a recordar la lectura', 4],
-      ['errors', 'Errores frecuentes', 5]
-    ];
-    const sensations = [
-      ['weakMeaning', 'Significado aún débil o confuso', 'danger'],
-      ['weakReading', 'Lectura aún débil o confusa', 'negative'],
-      ['feelsGood', 'La siento bien', 'positive'],
-      ['feelsSoSo', 'La siento más o menos', 'neutral'],
-      ['feelsDifficult', 'La siento difícil', 'danger']
-    ];
-    const renderOptions = (items, classPrefix) => items.map(([key, label, level]) => {
-      const colorClass = classPrefix === 'note-level-' ? classPrefix + level : classPrefix + level;
-      return '<label class="' + colorClass + '" style="display:flex;align-items:flex-start;gap:8px;margin-top:8px;font-size:11px;font-weight:700;cursor:pointer"><input type="checkbox" ' + (notes[key] ? 'checked' : '') + ' onchange="setNote(\'' + key + '\',this.checked)" style="margin-top:2px"><span><strong>' + label + '</strong></span></label>';
-    }).join('');
-    return '<section class="panel" style="margin-top:14px;padding:11px 12px"><div class="panel-title">Notas opcionales</div>' +
-      renderOptions(options, 'note-level-') + '</section>' +
-      '<section class="panel" style="margin-top:14px;padding:11px 12px"><div class="panel-title">Sensaciones</div>' +
-      sensations.map(([key, label, tone]) => '<label class="sensation-' + tone + '" style="display:flex;align-items:flex-start;gap:8px;margin-top:8px;font-size:11px;font-weight:700;cursor:pointer"><input type="checkbox" ' + (notes[key] ? 'checked' : '') + ' onchange="setNote(\'' + key + '\',this.checked)" style="margin-top:2px"><span><strong>' + label + '</strong></span></label>').join('') + '</section>';
+    record.kanjiStatus = record.kanjiStatus || '';
+    record.vocabularyStatus = record.vocabularyStatus || '';
+    record.freeNotes = record.freeNotes || '';
+    record.reviewRelevance = !!record.reviewRelevance;
+    const options = [['Bien','good'],['Más o menos','mid'],['Difícil','hard']];
+    const column = (title, key) => '<div><div class="skill-status-title">' + title + '</div>' + options.map(([label,tone]) => '<label class="skill-status-option skill-status-' + tone + '"><input type="radio" name="' + key + '" value="' + label + '" ' + (record[key] === label ? 'checked' : '') + ' onchange="setSkillStatus(\'' + key + '\',this.value)"><span>' + label + '</span></label>').join('') + '</div>';
+    return '<section class="panel" style="margin-top:14px;padding:11px 12px"><div class="skill-status-grid">' + column('Kanji','kanjiStatus') + column('Vocabulario','vocabularyStatus') + '</div></section>' +
+      '<section class="panel" style="margin-top:14px;padding:11px 12px"><div class="panel-title">Notas</div><textarea class="notes-input" aria-label="Notas" placeholder="Escribe aquí cualquier nota (opcional)" oninput="setFreeNotes(this.value)">' + esc(record.freeNotes) + '</textarea></section>' +
+      '<section class="panel" style="margin-top:14px;padding:11px 12px"><label class="relevance-option"><input type="checkbox" ' + (record.reviewRelevance ? 'checked' : '') + ' onchange="setRelevanceReview(this.checked)"><span>Revisar relevancia de palabra</span></label></section>';
   }
 
-  function setNote(key, value) {
+  function setSkillStatus(key, value) {
     const record = getCurrent();
     if (!record) return;
-    record.notes = record.notes || { meaningHelpsReading: false, meaningDoesNotHelp: false, inferReading: false, smallReadingErrors: false, errors: false, weakMeaning: false, weakReading: false, feelsGood: false, feelsSoSo: false, feelsDifficult: false };
-    record.notes[key] = value;
+    record[key] = value;
+    saveSession();
+  }
+
+  function setFreeNotes(value) {
+    const record = getCurrent();
+    if (!record) return;
+    record.freeNotes = value;
+    saveSession();
+  }
+
+  function setRelevanceReview(value) {
+    const record = getCurrent();
+    if (!record) return;
+    record.reviewRelevance = !!value;
     saveSession();
   }
 
@@ -629,6 +618,30 @@
     return firstTry ? '<span class="status-good">Correcta al primer intento</span>' : '<span class="status-warn">Requirió corrección</span>';
   }
 
+  function suggestedStatus(item) {
+    if (mode !== 'evaluation') return '';
+    const kanji = item.kanjiStatus || '';
+    const vocabulary = item.vocabularyStatus || '';
+    if (!kanji && !vocabulary) {
+      if (!item.evaluationDone) return '';
+      return item.evaluationFirstTry ? 'Todo bien' : '¿Qué pasa con esta palabra? Error lógico';
+    }
+    const k = kanji || 'Bien';
+    const v = vocabulary || 'Bien';
+    if (k === 'Bien' && v === 'Bien') {
+      if (item.evaluationDone && item.evaluationFirstTry === false) return '¿Qué pasa con esta palabra? Error lógico';
+      return 'Todo bien';
+    }
+    if (k === 'Bien' && (v === 'Más o menos' || v === 'Difícil')) return 'Puedo leer la palabra pero no sé qué significa, reforzar vocabulario';
+    if (k === 'Más o menos' && v === 'Bien') return 'Casi, solo falta reforzar un poco más el kanji';
+    if (k === 'Más o menos' && v === 'Más o menos') return 'Todo más o menos, reforzar';
+    if (k === 'Más o menos' && v === 'Difícil') return 'Débil general, partir reforzando el vocabulario';
+    if (k === 'Difícil' && v === 'Bien') return 'Vocabulario consolidado, pero falta reforzar la lectura en kanji';
+    if (k === 'Difícil' && v === 'Más o menos') return 'Todo débil, partir con vocabulario';
+    if (k === 'Difícil' && v === 'Difícil') return 'Todo débil o desconocido, estudiar de 0';
+    return '';
+  }
+
   function renderSummary() {
     phase = 'summary';
     clearSavedSession();
@@ -645,8 +658,7 @@
       return '<tr><td>' + (i + 1) + '</td><td class="kanji">' + esc(item.word) + '</td><td class="jp">' + esc(item.reading) + '</td>' +
         '<td>' + practiceStatus + '</td><td>' + practiceErr + '</td><td>' + (item.practiceMeaningSeen ? 'Sí' : 'No') + '</td>' +
         '<td>' + evalStatus + '</td><td>' + item.writingErrors + '</td><td>' + (item.evaluationMeaningSeen ? 'Sí' : 'No') + '</td>' +
-        '<td>' + (item.notes?.smallReadingErrors ? 'Sí' : 'No') + '</td><td>' + (item.notes?.meaningHelpsReading ? 'Sí' : 'No') + '</td><td>' + (item.notes?.inferReading ? 'Sí' : 'No') + '</td><td>' + (item.notes?.meaningDoesNotHelp ? 'Sí' : 'No') + '</td><td>' + (item.notes?.errors ? 'Sí' : 'No') + '</td>' +
-        '<td>' + (item.notes?.weakMeaning ? 'Sí' : 'No') + '</td><td>' + (item.notes?.weakReading ? 'Sí' : 'No') + '</td><td>' + (item.notes?.feelsGood ? 'Sí' : 'No') + '</td><td>' + (item.notes?.feelsSoSo ? 'Sí' : 'No') + '</td><td>' + (item.notes?.feelsDifficult ? 'Sí' : 'No') + '</td></tr>'; 
+        '<td>' + esc(item.kanjiStatus || '') + '</td><td>' + esc(item.vocabularyStatus || '') + '</td><td>' + esc(item.freeNotes || '').replace(/\n/g, '<br>') + '</td><td>' + (item.reviewRelevance ? 'Sí' : 'No') + '</td><td>' + esc(suggestedStatus(item)) + '</td></tr>';
     }).join('');
     root.innerHTML = header(false) + '<main><div class="word-label">Resultados de la sesión</div>' +
       '<h1 class="screen-title">Tu resumen</h1>' +
@@ -657,18 +669,18 @@
       '<div class="stat"><strong>' + seenMeaningEval + '</strong><span>vieron el significado en evaluación</span></div>' +
       (mode === 'practice' ? '<div class="stat"><strong>' + practiceFirst + '</strong><span>correctas en práctica al primer intento</span></div><div class="stat"><strong>' + seenMeaningPractice + '</strong><span>vieron el significado en práctica</span></div>' : '') +
       '</div><div class="table-wrap"><table><thead><tr><th>N.º</th><th>Palabra</th><th>Lectura</th>' +
-      '<th>Resultado de práctica</th><th>Errores de práctica</th><th>Significado visto en práctica</th><th>Resultado de evaluación</th><th>Errores de escritura</th><th>Significado visto en evaluación</th><th>Pequeños errores en lectura</th><th>Recuerdo la lectura al ver el significado</th><th>No recuerdo el significado pero deduzco la lectura</th><th>El significado no me ayuda a recordar la lectura</th><th>Errores frecuentes</th><th>Sensaciones: Significado aún débil o confuso</th><th>Sensaciones: Lectura aún débil o confusa</th><th>Sensaciones: La siento bien</th><th>Sensaciones: La siento más o menos</th><th>Sensaciones: La siento difícil</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      '<th>Resultado de práctica</th><th>Errores de práctica</th><th>Significado visto en práctica</th><th>Resultado de evaluación</th><th>Errores de escritura</th><th>Significado visto en evaluación</th><th>Estado del kanji</th><th>Estado del vocabulario</th><th>Notas</th><th>Revisar relevancia de palabra</th><th>Estado sugerido</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
       '<div class="summary-actions"><button class="primary" onclick="copyResults()">Copiar resultados como TSV</button><button class="secondary" onclick="renderSetup()">Volver a la configuración</button></div>' +
       (earlyEnd ? '<p class="notice">La sesión terminó antes de completar todas las palabras. Las pendientes aparecen indicadas en la tabla.</p>' : '') +
       '</main>';
   }
 
   function copyResults() {
-    const headerRow = ['N.º','Palabra','Lectura','Resultado de práctica','Errores de práctica','Significado visto en práctica','Resultado de evaluación','Errores de escritura','Significado visto en evaluación','Pequeños errores en lectura','Recuerdo la lectura al ver el significado','No recuerdo el significado pero deduzco la lectura','El significado no me ayuda a recordar la lectura','Errores frecuentes','Sensaciones: Significado aún débil o confuso','Sensaciones: Lectura aún débil o confusa','Sensaciones: La siento bien','Sensaciones: La siento más o menos','Sensaciones: La siento difícil'];
+    const headerRow = ['N.º','Palabra','Lectura','Resultado de práctica','Errores de práctica','Significado visto en práctica','Resultado de evaluación','Errores de escritura','Significado visto en evaluación','Estado del kanji','Estado del vocabulario','Notas','Revisar relevancia de palabra','Estado sugerido'];
     const lines = sessionEntries.map((item, i) => {
       const pStatus = mode !== 'practice' ? 'No incluida' : (!item.practiceDone ? 'Sin completar' : (item.practiceFirstTry ? 'Correcta al primer intento' : 'Requirió corrección'));
       const eStatus = !item.evaluationDone ? 'Sin completar' : (item.evaluationFirstTry ? 'Correcta al primer intento' : 'Requirió corrección');
-      return [i + 1, item.word, item.reading, pStatus, mode === 'practice' ? item.practiceErrors : '—', item.practiceMeaningSeen ? 'Sí' : 'No', eStatus, item.writingErrors, item.evaluationMeaningSeen ? 'Sí' : 'No', item.notes?.smallReadingErrors ? 'Sí' : 'No', item.notes?.meaningHelpsReading ? 'Sí' : 'No', item.notes?.inferReading ? 'Sí' : 'No', item.notes?.meaningDoesNotHelp ? 'Sí' : 'No', item.notes?.errors ? 'Sí' : 'No', item.notes?.weakMeaning ? 'Sí' : 'No', item.notes?.weakReading ? 'Sí' : 'No', item.notes?.feelsGood ? 'Sí' : 'No', item.notes?.feelsSoSo ? 'Sí' : 'No', item.notes?.feelsDifficult ? 'Sí' : 'No'].join('\t');
+      return [i + 1, item.word, item.reading, pStatus, mode === 'practice' ? item.practiceErrors : '—', item.practiceMeaningSeen ? 'Sí' : 'No', eStatus, item.writingErrors, item.evaluationMeaningSeen ? 'Sí' : 'No', item.kanjiStatus || '', item.vocabularyStatus || '', (item.freeNotes || '').replace(/[\t\r\n]+/g, ' '), item.reviewRelevance ? 'Sí' : 'No', suggestedStatus(item)].join('\t');
     });
     const text = '\ufeff' + [headerRow.join('\t'), ...lines].join('\n');
     if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -721,7 +733,9 @@
   window.resetMoras = resetMoras;
   window.checkMoras = checkMoras;
   window.toggleMeaning = toggleMeaning;
-  window.setNote = setNote;
+  window.setSkillStatus = setSkillStatus;
+  window.setFreeNotes = setFreeNotes;
+  window.setRelevanceReview = setRelevanceReview;
   window.submitReading = submitReading;
   window.dontKnow = dontKnow;
   window.advanceWord = advanceWord;
