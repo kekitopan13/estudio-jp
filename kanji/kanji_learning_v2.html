@@ -12,14 +12,14 @@
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-  html, body { height: 100%; background: #f0faf6; }
+  html, body { height: 100%; background: #edf2f7; }
   body {
     font-family: 'DM Sans', sans-serif;
     display: flex;
     justify-content: center;
     align-items: flex-start;
     min-height: 100vh;
-    background: #e8f6f0;
+    background: #e8eef5;
   }
   #root {
     width: 100%;
@@ -28,7 +28,7 @@
     min-height: 100dvh;
     display: flex;
     flex-direction: column;
-    background: #f7fdfb;
+    background: #f5f8fb;
     position: relative;
   }
   .kanji-font { font-family: 'Noto Serif JP', serif; }
@@ -46,65 +46,91 @@ function isKanji(ch) {
   return /[\u4e00-\u9faf\u3400-\u4dbf]/.test(ch);
 }
 function wordToChars(w) { return [...w]; }
-function shuffle(arr) { return [...arr].sort(() => Math.random() - 0.5); }
+function shuffle(arr) {
+  const shuffled = [...arr];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
 
 // ─── COLORES ────────────────────────────────────────────────────────────────
 const C = {
-  bg:          "#f7fdfb",
-  bgAlt:       "#edf7f3",
+  bg:          "#f5f8fb",
+  bgAlt:       "#edf2f7",
   bgCard:      "#ffffff",
-  bgDeep:      "#e4f5ef",
-  text:        "#1a2e28",
-  textMuted:   "#5a7a72",
-  textDim:     "#9bbdb5",
-  mint:        "#B3EEE3",
-  mintDark:    "#7dd4c4",
-  mintDeep:    "#4fbfac",
-  pink:        "#FA7DB3",
-  pinkLight:   "rgba(250,125,179,0.15)",
-  pinkDark:    "#e8609a",
-  correct:     "#4fbfac",
-  correctBg:   "rgba(79,191,172,0.12)",
-  wrong:       "#FA7DB3",
-  wrongBg:     "rgba(250,125,179,0.15)",
-  border:      "#c8e8e0",
-  borderLight: "#dff2ed",
+  bgDeep:      "#e3ebf3",
+  text:        "#26384a",
+  textMuted:   "#5f7183",
+  textDim:     "#91a0af",
+  mint:        "#dce8e1",
+  mintDark:    "#abc2b4",
+  mintDeep:    "#527b68",
+  pink:        "#b97782",
+  pinkLight:   "rgba(185,119,130,0.13)",
+  pinkDark:    "#9c5865",
+  correct:     "#527b68",
+  correctBg:   "rgba(82,123,104,0.12)",
+  wrong:       "#b97782",
+  wrongBg:     "rgba(185,119,130,0.13)",
+  border:      "#ccd7e2",
+  borderLight: "#e0e7ee",
   white:       "#ffffff",
-  shadow:      "0 2px 12px rgba(79,191,172,0.12)",
-  shadowCard:  "0 1px 4px rgba(0,0,0,0.06)",
-  yellow:      "#fffbe6",
-  yellowBorder:"#f0d060",
-  yellowText:  "#8a7020",
-  challenge:   "#fff3e0",
-  challengeBorder: "#ffb74d",
-  challengeText: "#e65100",
-  challengeDeep: "#f57c00",
+  shadow:      "0 2px 12px rgba(50,74,100,0.08)",
+  shadowCard:  "0 1px 4px rgba(38,56,74,0.06)",
+  yellow:      "#f5f1e6",
+  yellowBorder:"#d8c99d",
+  yellowText:  "#786a43",
+  challenge:   "#eaf0f6",
+  challengeBorder: "#bdcbd8",
+  challengeText: "#506579",
+  challengeDeep: "#456987",
+  blue:        "#4f7194",
+  blueLight:   "#eaf0f6",
 };
 
 // ─── VOCABULARIO POR DEFECTO ─────────────────────────────────────────────────
-const DEFAULT_DB = `必要な\tひつような\tNecesario
-空の箱\tからのはこ\tcaja vacía
-製造\tせいぞう\tFabricación, Producción industrial.
-音声\tおんせい\tSonido de voz (como la que emite la TV)
-缶詰\tかんづめ\tEnlatado. Comida conservada en lata.`;
+const DEFAULT_DB = `必要な;ひつような;Necesario
+空の箱;からのはこ;caja vacía
+製造;せいぞう;Fabricación, Producción industrial.
+音声;おんせい;Sonido de voz (como la que emite la TV)
+缶詰;かんづめ;Enlatado. Comida conservada en lata.`;
+
+const DB_STORAGE_KEY = "kanji_learning_v2_vocabulary";
+function loadDBText() {
+  try {
+    const saved = localStorage.getItem(DB_STORAGE_KEY);
+    return saved === null ? DEFAULT_DB : saved;
+  } catch (_) { return DEFAULT_DB; }
+}
 
 function parseDB(text) {
-  const lines = text.trim().split("\n").filter(l => l.trim());
+  const lines = (text || "").split(/\r?\n/);
   const byKanji = {};
   const words = [];
-  for (const line of lines) {
-    const parts = line.split("\t");
-    if (parts.length < 3) continue;
-    const [kanjiWord, furigana, es] = parts.map(p => p.trim());
-    if (!kanjiWord || !furigana || !es) continue;
+  const errors = [];
+  const kanjiLines = new Map();
+  for (const [idx, line] of lines.entries()) {
+    if (!line.trim()) continue;
+    const parts = line.split(";");
+    if (parts.length < 3) { errors.push(idx + 1); continue; }
+    const kanjiWord = parts[0].trim().normalize("NFC");
+    const furigana = parts[1].trim();
+    const es = parts.slice(2).join(";").trim();
+    if (!kanjiWord || !furigana || !es) { errors.push(idx + 1); continue; }
     const kanjiClave = kanjiWord;
     const chars = wordToChars(kanjiWord);
     const word = { kanjiClave, kanji: kanjiWord, furigana, es, chars };
     words.push(word);
     if (!byKanji[kanjiClave]) byKanji[kanjiClave] = [];
     byKanji[kanjiClave].push(word);
+    kanjiLines.set(kanjiWord, [...(kanjiLines.get(kanjiWord) || []), idx + 1]);
   }
-  return { words, byKanji, kanjiKeys: Object.keys(byKanji) };
+  const duplicates = [...kanjiLines.entries()]
+    .filter(([, duplicateLines]) => duplicateLines.length > 1)
+    .map(([kanji, duplicateLines]) => ({ kanji, lines: duplicateLines }));
+  return { words, byKanji, kanjiKeys: Object.keys(byKanji), errors, duplicates };
 }
 
 function buildKanjiPool(words) {
@@ -141,14 +167,14 @@ function familiaridadLabel(pct) {
 
 function familiaridadColor(pct) {
   if (pct >= 0.85) return C.mintDeep;
-  if (pct >= 0.65) return "#5aab94";
+  if (pct >= 0.65) return "#688878";
   if (pct >= 0.40) return C.yellowText;
   return C.pinkDark;
 }
 
 function familiaridadBg(pct) {
   if (pct >= 0.85) return C.correctBg;
-  if (pct >= 0.65) return "rgba(90,171,148,0.10)";
+  if (pct >= 0.65) return "rgba(104,136,120,0.10)";
   if (pct >= 0.40) return C.yellow;
   return C.wrongBg;
 }
@@ -333,9 +359,13 @@ function KanjiDisplay({ word, showFurigana = true, size = 88 }) {
   );
 }
 
-function PrimaryBtn({ onClick, children, disabled }) {
+function PrimaryBtn({ onClick, children, disabled, autoFocus = false }) {
+  const buttonRef = useRef(null);
+  useEffect(() => {
+    if (autoFocus) buttonRef.current?.focus();
+  }, [autoFocus]);
   return (
-    <button onClick={onClick} disabled={disabled} style={{
+    <button ref={buttonRef} onClick={onClick} disabled={disabled} style={{
       width: "100%", padding: "17px",
       background: disabled ? C.bgDeep : `linear-gradient(135deg, ${C.mintDeep}, ${C.mintDark})`,
       border: "none", borderRadius: 14,
@@ -503,21 +533,25 @@ function ConstruccionEx({ word, onNext, recordAttempt, roundIdx, isChallenge = f
         })}
       </div>}
 
-      {done && <PrimaryBtn onClick={handleContinue}>Continuar →</PrimaryBtn>}
+      {done && <PrimaryBtn onClick={handleContinue} autoFocus={isChallenge}>Continuar →</PrimaryBtn>}
       {!done && !gaveUp && isChallenge && <button onClick={handleGiveUp} style={{ padding: "10px", borderRadius: 10, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMuted, cursor: "pointer", fontSize: 13 }}>No lo sé</button>}
       {gaveUp && <div style={{ textAlign: "center", padding: 12, borderRadius: 12, background: C.wrongBg, color: C.pinkDark, fontSize: 13 }}>
         La respuesta era <span className="kanji-font" style={{ fontSize: 22, marginLeft: 5 }}>{word.kanji}</span>
-        <div style={{ marginTop: 10 }}><PrimaryBtn onClick={onNext}>Continuar →</PrimaryBtn></div>
+        <div style={{ marginTop: 10 }}><PrimaryBtn onClick={onNext} autoFocus={isChallenge}>Continuar →</PrimaryBtn></div>
       </div>}
     </div>
   );
 }
 
 // ─── EJERCICIO 3: LECTURA ────────────────────────────────────────────────────
-function LecturaEx({ word, allWords, onNext, recordAttempt, roundIdx }) {
+function learningOptions(correct, allWords, field, distractorCount) {
+  const candidates = [...new Set(allWords.map(w => w[field]).filter(value => value && value !== correct))];
+  return shuffle([correct, ...shuffle(candidates).slice(0, Math.max(0, distractorCount - 1))]);
+}
+
+function LecturaEx({ word, allWords, onNext, recordAttempt, roundIdx, distractorCount = 2 }) {
   const correct = word.furigana;
-  const distractors = allWords.filter(w => w.furigana !== correct).sort(() => Math.random() - 0.5).slice(0, 1).map(w => w.furigana);
-  const [options] = useState(() => shuffle([correct, ...distractors]));
+  const [options] = useState(() => learningOptions(correct, allWords, "furigana", distractorCount));
   const [chosen, setChosen] = useState(null);
   const [wrong, setWrong] = useState(new Set());
   const [errorCount, setErrorCount] = useState(0);
@@ -575,10 +609,9 @@ function LecturaEx({ word, allWords, onNext, recordAttempt, roundIdx }) {
 }
 
 // ─── EJERCICIO 4: COMPRENSIÓN ────────────────────────────────────────────────
-function ComprehensionEx({ word, allWords, onNext, recordAttempt, roundIdx }) {
+function ComprehensionEx({ word, allWords, onNext, recordAttempt, roundIdx, distractorCount = 2 }) {
   const correct = word.es;
-  const distractors = allWords.filter(w => w.es !== correct).sort(() => Math.random() - 0.5).slice(0, 1).map(w => w.es);
-  const [options] = useState(() => shuffle([correct, ...distractors]));
+  const [options] = useState(() => learningOptions(correct, allWords, "es", distractorCount));
   const [chosen, setChosen] = useState(null);
   const [wrong, setWrong] = useState(new Set());
   const [errorCount, setErrorCount] = useState(0);
@@ -692,7 +725,7 @@ function RoundTransitionScreen({ roundDone, roundTotal, wordsInRound, onContinue
             </div>
           </div>
         )}
-        <PrimaryBtn onClick={onContinue}>
+        <PrimaryBtn onClick={onContinue} autoFocus={isChallengeNext}>
           {isChallengeNext ? "Empezar challenge 🔥" : "Continuar →"}
         </PrimaryBtn>
       </div>
@@ -704,7 +737,7 @@ function RoundTransitionScreen({ roundDone, roundTotal, wordsInRound, onContinue
 const CHALLENGE_STATUS_STYLE = {
   directo:       { color: C.mintDeep, bg: C.correctBg },
   construccion:  { color: C.yellowText, bg: C.yellow },
-  alternativas:  { color: "#7a9eff", bg: "#edf1ff" },
+  alternativas:  { color: C.blue, bg: C.blueLight },
   sinResolver:   { color: C.pinkDark, bg: C.wrongBg },
 };
 
@@ -801,7 +834,7 @@ function FinScreen({ allSessionWords, sessionAttempts, challengingAttempts, star
         {/* Para seguir practicando */}
         {paraRepasar.length > 0 && (
           <div style={{ background: C.yellow, borderRadius: 14, overflow: "hidden", border: `1px solid ${C.yellowBorder}`, boxShadow: C.shadowCard }}>
-            <div style={{ padding: "10px 16px", borderBottom: `1px solid ${C.yellowBorder}`, background: "rgba(240,208,96,0.2)" }}>
+            <div style={{ padding: "10px 16px", borderBottom: `1px solid ${C.yellowBorder}`, background: "rgba(216,201,157,0.2)" }}>
               <div style={{ fontSize: 10, color: C.yellowText, letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600 }}>Para seguir practicando</div>
             </div>
             <div style={{ padding: "12px 16px", display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -845,21 +878,25 @@ function FinScreen({ allSessionWords, sessionAttempts, challengingAttempts, star
 }
 
 // ─── PANTALLA DE CONFIG ──────────────────────────────────────────────────────
-function ConfigScreen({ onStart, devMode, onToggleDevMode }) {
-  const [dbText, setDbText] = useState(DEFAULT_DB);
-  const [parsed, setParsed] = useState(() => parseDB(DEFAULT_DB));
-  const [wordDose, setWordDose] = useState(2);
+function ConfigScreen({ onStart, devMode, onToggleDevMode, wordOrder, setWordOrder, includeExposure, setIncludeExposure, learningDistractors, setLearningDistractors }) {
+  const [dbText, setDbText] = useState(loadDBText);
+  const [parsed, setParsed] = useState(() => parseDB(loadDBText()));
+  const [wordDose, setWordDose] = useState(3);
   const [parseError, setParseError] = useState(null);
-  const [showDB, setShowDB] = useState(false);
-
   function handleDBChange(val) {
     setDbText(val);
+    try { localStorage.setItem(DB_STORAGE_KEY, val); } catch (_) {}
     try {
       const p = parseDB(val);
-      if (p.words.length === 0) { setParseError("No se encontraron entradas válidas. Revisa el formato."); return; }
       setParsed(p);
-      setParseError(null);
-      setWordDose(d => Math.min(d, p.words.length));
+      if (!val.trim()) setParseError(null);
+      else if (p.errors.length) setParseError(`Formato incorrecto en la(s) línea(s) ${p.errors.join(", ")}. Usa palabra en kanji;lectura;significado.`);
+      else if (p.words.length === 0) setParseError("No se encontraron entradas válidas. Revisa el formato.");
+      else setParseError(null);
+      if (p.words.length) {
+        const minAllowed = p.words.length <= 10 ? Math.ceil(p.words.length / 2) : 2;
+        setWordDose(d => Math.max(minAllowed, Math.min(d, p.words.length)));
+      }
     } catch(e) { setParseError("Error al parsear el texto."); }
   }
 
@@ -870,8 +907,8 @@ function ConfigScreen({ onStart, devMode, onToggleDevMode }) {
   // doseOptions ya no se necesita para los botones; el dropdown genera sus opciones inline
 
   function handleStart() {
-    if (parseError || parsed.words.length === 0) return;
-    onStart(parsed, wordDose);
+    if (parseError || parsed.words.length === 0 || parsed.duplicates.length > 0) return;
+    onStart(parsed, wordDose, wordOrder, { includeExposure, learningDistractors });
   }
 
   return (
@@ -884,7 +921,7 @@ function ConfigScreen({ onStart, devMode, onToggleDevMode }) {
         <div style={{ background: C.bgCard, borderRadius: 14, border: `1px solid ${C.borderLight}`, boxShadow: C.shadowCard, overflow: "hidden" }}>
           <div style={{ padding: "12px 16px", background: C.bgAlt, borderBottom: `1px solid ${C.borderLight}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: C.text }}>Base de datos</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: C.text }}>Vocabulario</div>
               {!parseError && parsed.words.length > 0 && (
                 <div style={{ fontSize: 11, color: C.textMuted, marginTop: 1 }}>{parsed.kanjiKeys.length} kanjis · {parsed.words.length} palabras</div>
               )}
@@ -895,38 +932,37 @@ function ConfigScreen({ onStart, devMode, onToggleDevMode }) {
                 color: C.pinkDark, fontSize: 11, cursor: "pointer",
                 padding: "3px 10px", fontFamily: "'DM Sans', sans-serif",
               }}>Borrar todo</button>
-              <button onClick={() => setShowDB(v => !v)} style={{
-                background: "none", border: `1px solid ${C.border}`, borderRadius: 7,
-                color: C.mintDeep, fontSize: 11, cursor: "pointer",
-                padding: "3px 10px", fontFamily: "'DM Sans', sans-serif",
-              }}>{showDB ? "Cerrar ↑" : "Editar ↓"}</button>
             </div>
           </div>
 
-          {showDB && (
-            <div style={{ padding: "12px 16px" }}>
-              <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 8, lineHeight: 1.5 }}>
-                Formato: <span style={{ color: C.mintDeep, fontFamily: "monospace", fontSize: 10 }}>palabra [tab] furigana [tab] significado</span>
-              </div>
-              <textarea
-                value={dbText}
-                onChange={e => handleDBChange(e.target.value)}
-                spellCheck={false}
-                style={{
-                  width: "100%", minHeight: 160,
-                  background: C.bgDeep,
-                  border: `1.5px solid ${parseError ? C.pink : C.border}`,
-                  borderRadius: 10, padding: "12px 14px",
-                  color: C.text, fontSize: 12,
-                  fontFamily: "'Noto Sans JP', monospace",
-                  lineHeight: 1.8, resize: "vertical", outline: "none",
-                }}
-              />
-              {parseError && <div style={{ fontSize: 11, color: C.pinkDark, marginTop: 4 }}>{parseError}</div>}
+          <div style={{ padding: "12px 16px" }}>
+            <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 8, lineHeight: 1.5 }}>
+              Una palabra por línea, con este formato: <span style={{ color: C.mintDeep, fontFamily: "monospace", fontSize: 10 }}>palabra en kanji;lectura;significado</span>
             </div>
-          )}
+            <textarea
+              value={dbText}
+              onChange={e => handleDBChange(e.target.value)}
+              spellCheck={false}
+              placeholder={"必要な;ひつような;Necesario\n空の箱;からのはこ;caja vacía"}
+              style={{
+                width: "100%", minHeight: 180,
+                background: C.bgDeep,
+                border: `1.5px solid ${parseError ? C.pink : C.border}`,
+                borderRadius: 10, padding: "12px 14px",
+                color: C.text, fontSize: 12,
+                fontFamily: "'Noto Sans JP', monospace",
+                lineHeight: 1.8, resize: "vertical", outline: "none",
+              }}
+            />
+            {parseError && <div style={{ fontSize: 11, color: C.pinkDark, marginTop: 6 }}>{parseError}</div>}
+            {parsed.duplicates.length > 0 && <div style={{ marginTop: 10, padding: "10px 12px", background: C.challenge, border: `1px solid ${C.challengeBorder}`, borderRadius: 10, color: C.challengeText, fontSize: 11, lineHeight: 1.55 }}>
+              <strong>⚠ Hay palabras con la misma forma en kanji:</strong>
+              {parsed.duplicates.map(item => <div key={item.kanji} style={{ marginTop: 4 }}><span className="kanji-font">{item.kanji}</span> · líneas {item.lines.join(", ")}</div>)}
+              <div style={{ marginTop: 6 }}>Elimina las entradas duplicadas para evitar que se mezclen sus resultados.</div>
+            </div>}
+          </div>
 
-          {!showDB && !parseError && parsed.words.length > 0 && (
+          {!parseError && parsed.words.length > 0 && (
             <div style={{ padding: "12px 16px", display: "flex", flexWrap: "wrap", gap: 6 }}>
               {parsed.kanjiKeys.map((k, i) => (
                 <div key={i} style={{
@@ -980,6 +1016,50 @@ function ConfigScreen({ onStart, devMode, onToggleDevMode }) {
           </div>
         )}
 
+        {!parseError && parsed.words.length > 0 && (
+          <div style={{ background: C.bgCard, borderRadius: 14, border: `1px solid ${C.borderLight}`, boxShadow: C.shadowCard, overflow: "hidden" }}>
+            <div style={{ padding: "12px 16px", background: C.bgAlt, borderBottom: `1px solid ${C.borderLight}` }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: C.text }}>Orden de aprendizaje</div>
+            </div>
+            <div style={{ padding: "12px 16px" }}>
+              <select value={wordOrder} onChange={e => setWordOrder(e.target.value)} style={{
+                width: "100%", padding: "11px 14px", background: C.bgDeep,
+                border: `1.5px solid ${C.border}`, borderRadius: 10, color: C.text,
+                fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
+              }}>
+                <option value="entered">En el orden ingresado</option>
+                <option value="random">Aleatorio</option>
+              </select>
+              <div style={{ fontSize: 10, color: C.textMuted, marginTop: 6 }}>El test y las etapas de repaso siempre mantienen el orden aleatorio.</div>
+            </div>
+          </div>
+        )}
+
+        {!parseError && parsed.words.length > 0 && (
+          <div style={{ background: C.bgCard, borderRadius: 14, border: `1px solid ${C.borderLight}`, boxShadow: C.shadowCard, overflow: "hidden" }}>
+            <div style={{ padding: "12px 16px", background: C.bgAlt, borderBottom: `1px solid ${C.borderLight}` }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: C.text }}>Opciones de aprendizaje</div>
+            </div>
+            <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 14 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 10, color: C.text, fontSize: 13, cursor: "pointer" }}>
+                <input type="checkbox" checked={includeExposure} onChange={e => setIncludeExposure(e.target.checked)} />
+                Incluir fase de exposición
+              </label>
+              <div>
+                <div style={{ fontSize: 12, color: C.text, marginBottom: 7 }}>Alternativas en preguntas de aprendizaje</div>
+                <select value={learningDistractors} onChange={e => setLearningDistractors(Number(e.target.value))} style={{
+                  width: "100%", padding: "11px 14px", background: C.bgDeep,
+                  border: `1.5px solid ${C.border}`, borderRadius: 10, color: C.text,
+                  fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
+                }}>
+                  {[2, 4, 6].map(n => <option key={n} value={n}>{n} alternativas</option>)}
+                </select>
+                <div style={{ fontSize: 10, color: C.textMuted, marginTop: 6 }}>Solo afecta el aprendizaje. En Challenging se mantienen 4 alternativas.</div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Modo revisión */}
         <button onClick={onToggleDevMode} style={{
           padding: "11px 16px", borderRadius: 12, cursor: "pointer",
@@ -995,7 +1075,7 @@ function ConfigScreen({ onStart, devMode, onToggleDevMode }) {
           <span style={{ color: C.textDim, fontSize: 10, marginLeft: "auto" }}>skip rápido</span>
         </button>
 
-        <PrimaryBtn onClick={handleStart} disabled={!!parseError || parsed.words.length === 0}>
+        <PrimaryBtn onClick={handleStart} disabled={!!parseError || parsed.words.length === 0 || parsed.duplicates.length > 0}>
           Empezar →
         </PrimaryBtn>
       </div>
@@ -1211,7 +1291,7 @@ function ChallengingChoicesEx({ word, allWords, onNext, recordAttempt, roundIdx 
       {!answered && <button onClick={() => { setGaveUp(true); finish(false, true); }} style={{ padding: "10px", borderRadius: 10, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMuted, cursor: "pointer", fontSize: 13 }}>No lo sé</button>}
       {answered && <div style={{ textAlign: "center", padding: 12, borderRadius: 12, background: picked?.kanji === word.kanji ? C.correctBg : C.wrongBg, color: picked?.kanji === word.kanji ? C.mintDeep : C.pinkDark, fontSize: 13 }}>
         {picked?.kanji === word.kanji ? "✓ Correcto" : <>La respuesta era <span className="kanji-font" style={{ fontSize: 22, marginLeft: 5 }}>{word.kanji}</span></>}
-        <div style={{ marginTop: 10 }}><PrimaryBtn onClick={onNext}>Continuar →</PrimaryBtn></div>
+        <div style={{ marginTop: 10 }}><PrimaryBtn onClick={onNext} autoFocus>Continuar →</PrimaryBtn></div>
       </div>}
     </div>
   );
@@ -1225,10 +1305,14 @@ function ChallengingWriteEx({ word, onNext, recordAttempt, roundIdx }) {
   const [gaveUp, setGaveUp] = useState(false);
   const reported = useRef(false);
   const inputRef = useRef(null);
+  const continueRef = useRef(null);
 
   useEffect(() => {
     setTimeout(() => inputRef.current?.focus(), 100);
   }, []);
+  useEffect(() => {
+    if (status === "correct") continueRef.current?.focus();
+  }, [status]);
 
   function handleSubmit() {
     if (status === "correct") { onNext(); return; }
@@ -1318,6 +1402,8 @@ function ChallengingWriteEx({ word, onNext, recordAttempt, roundIdx }) {
           <div style={{ textAlign: "center", fontSize: 12, color: C.mintDeep, fontWeight: 600 }}>✓ Correcto</div>
         )}
         {!gaveUp && <button
+          ref={continueRef}
+          autoFocus={status === "correct"}
           onClick={handleSubmit}
           style={{
             padding: "15px", borderRadius: 13,
@@ -1334,26 +1420,26 @@ function ChallengingWriteEx({ word, onNext, recordAttempt, roundIdx }) {
           {status === "correct" ? "Continuar →" : "Verificar"}
         </button>}
         {!gaveUp && status !== "correct" && <button onClick={handleGiveUp} style={{ padding: "10px", borderRadius: 10, border: `1px solid ${C.border}`, background: C.bgCard, color: C.textMuted, cursor: "pointer", fontSize: 13 }}>No lo sé</button>}
-        {gaveUp && <PrimaryBtn onClick={onNext}>Continuar →</PrimaryBtn>}
+        {gaveUp && <PrimaryBtn onClick={onNext} autoFocus>Continuar →</PrimaryBtn>}
       </div>
     </div>
   );
 }
 
 // ─── GENERADOR DE SECUENCIA ──────────────────────────────────────────────────
-function buildSequence(words) {
+function buildSequence(words, { includeExposure = true, learningDistractors = 2 } = {}) {
   const steps = [];
   words.forEach(w => {
-    steps.push({ type: "exposicion", word: w });
+    if (includeExposure) steps.push({ type: "exposicion", word: w });
     if (getKanjiChars(w).length > 0) steps.push({ type: "construccion", word: w });
-    steps.push({ type: "lectura", word: w });
-    steps.push({ type: "comprension", word: w });
+    steps.push({ type: "lectura", word: w, distractorCount: learningDistractors });
+    steps.push({ type: "comprension", word: w, distractorCount: learningDistractors });
   });
   return steps;
 }
 
 const TYPE_LABELS = { exposicion: "Memoriza", construccion: "Construye", lectura: "Lectura", comprension: "Comprensión" };
-const TYPE_COLORS = { exposicion: C.textDim, construccion: "#7a9eff", lectura: C.pinkDark, comprension: C.mintDeep };
+const TYPE_COLORS = { exposicion: C.textDim, construccion: C.blue, lectura: C.pinkDark, comprension: C.mintDeep };
 
 // ─── PERSISTENCIA DE SESIÓN ─────────────────────────────────────────────────
 const STORAGE_KEY = "learning_phase_progress";
@@ -1386,6 +1472,9 @@ function clearProgress() {
 function App() {
   const [phase, setPhase] = useState("config");
   const [allWords, setAllWords] = useState(CURRENT_DB.words);
+  const [wordOrder, setWordOrder] = useState("entered");
+  const [includeExposure, setIncludeExposure] = useState(true);
+  const [learningDistractors, setLearningDistractors] = useState(2);
   const [devMode, setDevMode] = useState(false);
   // rounds: array de grupos normales; challengingRounds: array de grupos challenging (1 por grupo normal)
   const [rounds, setRounds] = useState([]);
@@ -1409,6 +1498,8 @@ function App() {
     CURRENT_DB = { words: saved.allWords, byKanji: {}, kanjiKeys: [] };
     ALL_KANJI_POOL = buildKanjiPool(saved.allWords);
     setAllWords(saved.allWords);
+    setIncludeExposure(saved.includeExposure !== false);
+    setLearningDistractors([2, 4, 6].includes(saved.learningDistractors) ? saved.learningDistractors : 2);
     setRounds(saved.rounds);
     setRoundIdx(saved.roundIdx);
     setChallengingRounds(saved.challengingRounds);
@@ -1427,7 +1518,7 @@ function App() {
   // Helper interno para guardar: recibe el estado actualizado como parámetro
   function _save(patch) {
     saveProgress({
-      phase, allWords, rounds, roundIdx,
+      phase, allWords, rounds, roundIdx, includeExposure, learningDistractors,
       challengingRounds, challengingIdx, isChallenge,
       sequence, stepIdx, allSessionWords,
       sessionAttempts, challengingAttempts,
@@ -1462,14 +1553,18 @@ function App() {
     });
   }
 
-  function startSession(parsed, wordDose) {
+  function startSession(parsed, wordDose, selectedOrder, exerciseOptions = {}) {
+    const selectedExposure = exerciseOptions.includeExposure !== false;
+    const selectedDistractors = [2, 4, 6].includes(exerciseOptions.learningDistractors) ? exerciseOptions.learningDistractors : 2;
+    setIncludeExposure(selectedExposure);
+    setLearningDistractors(selectedDistractors);
     CURRENT_DB = parsed;
     ALL_KANJI_POOL = buildKanjiPool(parsed.words);
     setAllWords(parsed.words);
-    const shuffledWords = shuffle(parsed.words);
+    const orderedWords = selectedOrder === "random" ? shuffle(parsed.words) : [...parsed.words];
     const groups = [];
-    for (let i = 0; i < shuffledWords.length; i += wordDose) {
-      groups.push(shuffledWords.slice(i, i + wordDose));
+    for (let i = 0; i < orderedWords.length; i += wordDose) {
+      groups.push(orderedWords.slice(i, i + wordDose));
     }
     // Una ronda challenging por cada grupo
     const chalRounds = groups.map(g => g);
@@ -1483,12 +1578,13 @@ function App() {
     setChallengingAttempts([]);
     challengingAttemptsRef.current = [];
     setStarredWords(new Set());
-    const seq = buildSequence(groups[0]);
+    const seq = buildSequence(groups[0], { includeExposure: selectedExposure, learningDistractors: selectedDistractors });
     setSequence(seq);
     setStepIdx(0);
     setPhase("session");
     saveProgress({
       phase: "session", allWords: parsed.words,
+      includeExposure: selectedExposure, learningDistractors: selectedDistractors,
       rounds: groups, roundIdx: 0,
       challengingRounds: chalRounds, challengingIdx: 0,
       isChallenge: false, sequence: seq, stepIdx: 0,
@@ -1577,7 +1673,7 @@ function App() {
 
   if (phase === "config") return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg }}>
-      <ConfigScreen onStart={startSession} devMode={devMode} onToggleDevMode={() => setDevMode(v => !v)} />
+      <ConfigScreen onStart={startSession} devMode={devMode} onToggleDevMode={() => setDevMode(v => !v)} wordOrder={wordOrder} setWordOrder={setWordOrder} includeExposure={includeExposure} setIncludeExposure={setIncludeExposure} learningDistractors={learningDistractors} setLearningDistractors={setLearningDistractors} />
     </div>
   );
 
@@ -1649,8 +1745,8 @@ function App() {
               </div>
             </div>
           )}
-          <PrimaryBtn onClick={() => {
-            const nextSeq = buildSequence(rounds[roundIdx]);
+          <PrimaryBtn autoFocus onClick={() => {
+            const nextSeq = buildSequence(rounds[roundIdx], { includeExposure, learningDistractors });
             setIsChallenge(false);
             setSequence(nextSeq);
             setStepIdx(0);
@@ -1712,8 +1808,8 @@ function App() {
       <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
         {step.type === "exposicion" && <ExposicionEx key={`${roundIdx}-${stepIdx}`} word={word} onNext={nextStep} />}
         {step.type === "construccion" && <ConstruccionEx key={`${roundIdx}-${stepIdx}`} word={word} onNext={nextStep} recordAttempt={recordAttempt} roundIdx={roundIdx} />}
-        {step.type === "lectura" && <LecturaEx key={`${roundIdx}-${stepIdx}`} word={word} allWords={allWords} onNext={nextStep} recordAttempt={recordAttempt} roundIdx={roundIdx} />}
-        {step.type === "comprension" && <ComprehensionEx key={`${roundIdx}-${stepIdx}`} word={word} allWords={allWords} onNext={nextStep} recordAttempt={recordAttempt} roundIdx={roundIdx} />}
+        {step.type === "lectura" && <LecturaEx key={`${roundIdx}-${stepIdx}`} word={word} allWords={allWords} onNext={nextStep} recordAttempt={recordAttempt} roundIdx={roundIdx} distractorCount={step.distractorCount} />}
+        {step.type === "comprension" && <ComprehensionEx key={`${roundIdx}-${stepIdx}`} word={word} allWords={allWords} onNext={nextStep} recordAttempt={recordAttempt} roundIdx={roundIdx} distractorCount={step.distractorCount} />}
         {step.type === "challenging_lectura" && <ChallengingLecturaEx key={`ch-${stepIdx}`} word={word} allWords={allWords} onNext={nextStep} recordAttempt={recordAttempt} roundIdx={roundIdx} />}
         {step.type === "challenging_comprension" && <ChallengingComprehensionEx key={`ch-${stepIdx}`} word={word} allWords={allWords} onNext={nextStep} recordAttempt={recordAttempt} roundIdx={roundIdx} />}
         {step.type === "challenging_escritura" && <ChallengingWriteEx key={`ch-${stepIdx}`} word={word} onNext={nextStep} recordAttempt={recordAttempt} roundIdx={roundIdx} />}
