@@ -44,7 +44,14 @@
 const { useState, useEffect, useRef } = React;
 
 // ─── HELPERS ────────────────────────────────────────────────────────────────
-function shuffle(arr) { return [...arr].sort(() => Math.random() - 0.5); }
+function shuffle(arr) {
+  const out = [...arr];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
 
 const SMALL_KANA = new Set(['ゃ','ゅ','ょ','ぁ','ぃ','ぅ','ぇ','ぉ','ャ','ュ','ョ','ァ','ィ','ゥ','ェ','ォ']);
 
@@ -102,27 +109,33 @@ const C = {
 // ─── PARSEO DE ENTRADA ───────────────────────────────────────────────────────
 // Formato: furigana;significado (una pareja por línea)
 function parseInput(text) {
-  const lines = (text || "").split("\n").map(l => l.trim()).filter(Boolean);
+  const lines = (text || "").split(/\r?\n/);
   const words = [];
   const errors = [];
+  const furiganaLines = new Map();
   lines.forEach((line, idx) => {
+    if (!line.trim()) return;
     const parts = line.split(";");
     if (parts.length < 2) { errors.push(idx + 1); return; }
-    const furigana = parts[0].trim();
+    const furigana = parts[0].trim().normalize("NFC");
     const es = parts.slice(1).join(";").replace(/"/g, "").trim();
     if (!furigana || !es) { errors.push(idx + 1); return; }
     words.push({ furigana, es, moras: splitMoras(furigana) });
+    furiganaLines.set(furigana, [...(furiganaLines.get(furigana) || []), idx + 1]);
   });
-  return { words, errors };
+  const duplicates = [...furiganaLines.entries()]
+    .filter(([, duplicateLines]) => duplicateLines.length > 1)
+    .map(([furigana, duplicateLines]) => ({ furigana, lines: duplicateLines }));
+  return { words, errors, duplicates };
 }
 
 // ─── PERSISTENCIA ────────────────────────────────────────────────────────────
 const CONFIG_KEY = "word_forge_config";
 // Cada cambio grande de flujo debe usar una clave nueva. Así una sesión de una
 // versión anterior nunca puede dejar la app en un estado que ya no existe.
-const SESSION_VERSION = 3;
-const SESSION_KEY = "word_forge_session_v3";
-const LEGACY_SESSION_KEYS = ["word_forge_session", "word_forge_session_v2"];
+const SESSION_VERSION = 4;
+const SESSION_KEY = "word_forge_session_v4";
+const LEGACY_SESSION_KEYS = ["word_forge_session", "word_forge_session_v2", "word_forge_session_v3"];
 
 function saveConfig(cfg) { try { localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg)); } catch(e) {} }
 function loadConfig() { try { const raw = localStorage.getItem(CONFIG_KEY); return raw ? JSON.parse(raw) : null; } catch(e) { return null; } }
@@ -283,16 +296,17 @@ function ExposicionEx({ word, onNext }) {
 }
 
 // ─── FASE 2: RECONOCIMIENTO ──────────────────────────────────────────────────
-function ReconocimientoEx({ word, blockWords, globalWords, onNext }) {
+function ReconocimientoEx({ word, blockWords, globalWords, distractorCount, onNext }) {
   const [options] = useState(() => {
-    const others = blockWords.filter(w => w.furigana !== word.furigana);
-    let distractor;
-    if (others.length) distractor = shuffle(others)[0];
-    else {
-      const globalOthers = (globalWords || []).filter(w => w.furigana !== word.furigana);
-      distractor = globalOthers.length ? shuffle(globalOthers)[0] : word;
-    }
-    return shuffle([word, distractor]);
+    const candidates = [...shuffle(blockWords), ...shuffle(globalWords || [])];
+    const picked = [];
+    const seen = new Set([word.furigana]);
+    candidates.forEach(candidate => {
+      if (picked.length >= distractorCount || seen.has(candidate.furigana)) return;
+      seen.add(candidate.furigana);
+      picked.push(candidate);
+    });
+    return shuffle([word, ...picked]);
   });
   const [chosen, setChosen] = useState(null);
   const [wrong, setWrong] = useState(false);
@@ -451,25 +465,29 @@ function EscrituraEx({ word, onNext }) {
 
 // ─── RONDA RECALL: generación de preguntas ─────────────────────────────────
 function buildDistractors(w, key, blockWords, seenPool, count) {
-  const primary = shuffle(blockWords.filter(x => x.furigana !== w.furigana && x[key] !== w[key]));
-  let result = primary.slice(0, count);
-  if (result.length < count) {
-    const extra = shuffle(seenPool.filter(x =>
-      x.furigana !== w.furigana && x[key] !== w[key] && !result.some(r => r[key] === x[key])
-    ));
-    result = result.concat(extra.slice(0, count - result.length));
-  }
-  return result.slice(0, count).map(x => x[key]);
+  const result = [];
+  const seenValues = new Set([w[key]]);
+  const addFrom = pool => {
+    for (const item of shuffle(pool)) {
+      if (result.length >= count) break;
+      if (item.furigana === w.furigana || seenValues.has(item[key])) continue;
+      seenValues.add(item[key]);
+      result.push(item);
+    }
+  };
+  addFrom(blockWords);
+  if (result.length < count) addFrom(seenPool);
+  return result.map(x => x[key]);
 }
 
 function buildFinalChoiceQueue(failedWords, allWords) {
   const jpToEs = shuffle(failedWords).map(w => ({
     type: 'word2sig', word: w,
-    options: shuffle([w.es, ...buildDistractors(w, 'es', allWords, allWords, 3)]),
+    options: shuffle([w.es, ...buildDistractors(w, 'es', allWords, allWords, 4)]),
   }));
   const esToJp = shuffle(failedWords).map(w => ({
     type: 'sig2wordChoice', word: w,
-    options: shuffle([w.furigana, ...buildDistractors(w, 'furigana', allWords, allWords, 3)]),
+    options: shuffle([w.furigana, ...buildDistractors(w, 'furigana', allWords, allWords, 4)]),
   }));
   return [...jpToEs, ...esToJp];
 }
@@ -524,8 +542,10 @@ function TestWrite({ word, onNext }) {
   const [input, setInput] = useState("");
   const [status, setStatus] = useState("idle"); // idle | correct | wrong
   const inputRef = useRef(null);
+  const continueRef = useRef(null);
 
   useEffect(() => { setTimeout(() => inputRef.current?.focus(), 100); }, []);
+  useEffect(() => { if (status === "wrong") continueRef.current?.focus(); }, [status]);
 
   function submit() {
     if (status === "correct" || status === "wrong") return;
@@ -548,7 +568,7 @@ function TestWrite({ word, onNext }) {
       {status === "correct" && <div style={{ textAlign: "center", color: C.mintDeep, fontWeight: 700 }}>✓ Correct<br /><span className="jp-font" style={{ fontSize: 20, letterSpacing: "0.12em" }}>{word.furigana}</span></div>}
       {status === "wrong" ? <>
         <div style={{ textAlign: "center", color: C.pinkDark, fontWeight: 700 }}>✗ No fue correcta</div>
-        <PrimaryBtn onClick={() => onNext(false)}>Continuar</PrimaryBtn>
+        <button ref={continueRef} onClick={() => onNext(false)} style={{ width: "100%", padding: "17px", background: `linear-gradient(135deg, ${C.mintDeep}, ${C.mintDark})`, border: "none", borderRadius: 14, color: C.white, fontSize: 17, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", boxShadow: C.shadow }}>Continuar</button>
       </> : <>
         <input
           ref={inputRef}
@@ -578,9 +598,9 @@ function TestChoiceEx({ question, onNext }) {
 }
 
 // ─── PANTALLA DE CONFIGURACIÓN ───────────────────────────────────────────────
-function ConfigScreen({ dbText, setDbText, wordDose, setWordDose, onStart, onReset }) {
+function ConfigScreen({ dbText, setDbText, wordDose, setWordDose, distractorCount, setDistractorCount, includeConstruction, setIncludeConstruction, onStart, onReset }) {
   const parsed = parseInput(dbText);
-  const canStart = parsed.words.length > 0;
+  const canStart = parsed.words.length > 0 && parsed.duplicates.length === 0;
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
@@ -611,6 +631,11 @@ function ConfigScreen({ dbText, setDbText, wordDose, setWordDose, onStart, onRes
                 resize: "vertical", outline: "none",
               }}
             />
+            {parsed.duplicates.length > 0 && <div style={{ marginTop: 10, padding: "10px 12px", background: C.challenge, border: `1px solid ${C.challengeBorder}`, borderRadius: 10, color: C.challengeText, fontSize: 11, lineHeight: 1.55 }}>
+              <strong>⚠ Hay lecturas en furigana repetidas:</strong>
+              {parsed.duplicates.map(item => <div key={item.furigana} style={{ marginTop: 4 }}><span className="jp-font">{item.furigana}</span> · líneas {item.lines.join(", ")}</div>)}
+              <div style={{ marginTop: 6 }}>Elimina las entradas repetidas para empezar y evitar que se mezclen sus resultados.</div>
+            </div>}
           </div>
         </div>
 
@@ -643,6 +668,23 @@ function ConfigScreen({ dbText, setDbText, wordDose, setWordDose, onStart, onRes
             </select>
           </div>
         </div>
+
+        <div style={{ background: C.bgCard, borderRadius: 14, border: `1px solid ${C.borderLight}`, boxShadow: C.shadowCard, overflow: "hidden" }}>
+          <div style={{ padding: "12px 16px", background: C.bgAlt, borderBottom: `1px solid ${C.borderLight}` }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: C.text }}>Distractores en aprendizaje</div>
+            <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>Cantidad de opciones incorrectas en la fase de reconocimiento</div>
+          </div>
+          <div style={{ padding: "12px 16px" }}>
+            <select value={distractorCount} onChange={e => setDistractorCount(Number(e.target.value))} style={{ width: "100%", padding: "11px 14px", background: C.bgDeep, border: `1.5px solid ${C.border}`, borderRadius: 10, color: C.text, fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans', sans-serif" }}>
+              <option value={2}>2 distractores</option><option value={4}>4 distractores</option><option value={6}>6 distractores</option>
+            </select>
+          </div>
+        </div>
+
+        <label style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "14px 16px", background: C.bgCard, border: `1px solid ${C.borderLight}`, borderRadius: 14, boxShadow: C.shadowCard, cursor: "pointer" }}>
+          <input type="checkbox" checked={includeConstruction} onChange={e => setIncludeConstruction(e.target.checked)} style={{ marginTop: 2, accentColor: C.mintDeep }} />
+          <span><span style={{ display: "block", fontSize: 12, fontWeight: 600, color: C.text }}>Incluir construcción de moras</span><span style={{ display: "block", marginTop: 3, fontSize: 11, color: C.textMuted }}>Desactívala para omitir esta fase durante el aprendizaje.</span></span>
+        </label>
 
         <PrimaryBtn onClick={onStart} disabled={!canStart}>Empezar →</PrimaryBtn>
 
@@ -714,6 +756,7 @@ function WordListCard({ title, items, accent }) {
 
 // ─── RESULTADOS DEL TEST FINAL ──────────────────────────────────────────────
 function ResultScreen({ words, wordStats, testResults, onNewSession, onExit }) {
+  const [copied, setCopied] = useState(false);
   const sortedWords = sortJapanese(words);
   const counts = { mastered: 0, recognized: 0, pending: 0, difficult: 0 };
   const rows = sortedWords.map(w => {
@@ -730,6 +773,27 @@ function ResultScreen({ words, wordStats, testResults, onNewSession, onExit }) {
     pending: { title: 'Pendiente', color: C.pinkDark, icon: '✗' },
   };
 
+  function copyResults() {
+    const header = ['Palabra', 'Significado', 'Estado', 'Tuvo dificultades durante el aprendizaje'];
+    const lines = rows.map(({ w, status, hadDifficulty }) => [w.furigana, w.es, labels[status].title, hadDifficulty ? 'Sí' : 'No'].join('\t'));
+    const text = '\ufeff' + [header.join('\t'), ...lines].join('\n');
+    const markCopied = () => { setCopied(true); setTimeout(() => setCopied(false), 1800); };
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).then(markCopied).catch(() => fallbackCopy(text));
+    } else fallbackCopy(text);
+    function fallbackCopy(value) {
+      const area = document.createElement('textarea');
+      area.value = value;
+      area.style.position = 'fixed';
+      area.style.opacity = '0';
+      document.body.appendChild(area);
+      area.select();
+      try { document.execCommand('copy'); markCopied(); }
+      catch (_) { setCopied(false); }
+      area.remove();
+    }
+  }
+
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
       <TopBar onExit={onExit} />
@@ -745,6 +809,7 @@ function ResultScreen({ words, wordStats, testResults, onNewSession, onExit }) {
           <StatCard label="Pendientes" value={counts.pending} color={C.pinkDark} />
           <StatCard label="Costaron al aprender" value={counts.difficult} color={C.textMuted} />
         </div>
+        <button onClick={copyResults} style={{ padding: "12px 16px", borderRadius: 12, cursor: "pointer", background: C.bgCard, border: `1.5px solid ${C.border}`, color: C.textMuted, fontSize: 13, fontWeight: 600, fontFamily: "'DM Sans', sans-serif" }}>{copied ? '✓ Resultados copiados' : 'Copiar resultados como TSV'}</button>
         <div style={{ background: C.bgCard, borderRadius: 14, overflow: "hidden", border: `1px solid ${C.borderLight}`, boxShadow: C.shadowCard }}>
           {rows.map(({ w, status, hadDifficulty }, i) => {
             const meta = labels[status];
@@ -771,6 +836,8 @@ function App() {
   const [screen, setScreen] = useState('config');
   const [dbText, setDbText] = useState("");
   const [wordDose, setWordDose] = useState(10);
+  const [distractorCount, setDistractorCount] = useState(2);
+  const [includeConstruction, setIncludeConstruction] = useState(true);
   const [words, setWords] = useState([]);
   const [blocks, setBlocks] = useState([]);
   const [blockIdx, setBlockIdx] = useState(0);
@@ -791,9 +858,11 @@ function App() {
     if (cfg) {
       setDbText(cfg.dbText || "");
       if (cfg.wordDose !== undefined) setWordDose(cfg.wordDose);
+      if ([2, 4, 6].includes(Number(cfg.distractorCount))) setDistractorCount(Number(cfg.distractorCount));
+      if (cfg.includeConstruction !== undefined) setIncludeConstruction(cfg.includeConstruction !== false);
     }
     // Las versiones anteriores pueden haber guardado una pantalla que ya no
-    // existe. No se reanudan: la nueva sesión v3 empieza de forma segura.
+    // existe. No se reanudan: la nueva sesión v4 empieza de forma segura.
     clearLegacySessions();
     const sess = loadSession();
     if (isResumableSession(sess)) {
@@ -809,6 +878,8 @@ function App() {
       setChoiceIdx(sess.choiceIdx || 0);
       setTestResults(sess.testResults || {});
       setWordStats(sess.wordStats || {});
+      if ([2, 4, 6].includes(Number(sess.distractorCount))) setDistractorCount(Number(sess.distractorCount));
+      if (sess.includeConstruction !== undefined) setIncludeConstruction(sess.includeConstruction !== false);
       setScreen(sess.screen);
     } else if (sess) {
       clearSession();
@@ -817,14 +888,14 @@ function App() {
   }, []);
 
   // Guardar configuración automáticamente
-  useEffect(() => { if (loadedRef.current) saveConfig({ dbText, wordDose }); }, [dbText, wordDose]);
+  useEffect(() => { if (loadedRef.current) saveConfig({ dbText, wordDose, distractorCount, includeConstruction }); }, [dbText, wordDose, distractorCount, includeConstruction]);
 
   // Guardar sesión automáticamente
   useEffect(() => {
     if (!loadedRef.current) return;
     if (screen === 'config' || screen === 'result') return;
-    saveSession({ screen, words, blocks, blockIdx, roundOrder, roundPos, studyPhase, testQueue, testIdx, choiceQueue, choiceIdx, testResults, wordStats });
-  }, [screen, blocks, blockIdx, roundOrder, roundPos, studyPhase, testQueue, testIdx, choiceQueue, choiceIdx, testResults, wordStats, words]);
+    saveSession({ screen, words, blocks, blockIdx, roundOrder, roundPos, studyPhase, testQueue, testIdx, choiceQueue, choiceIdx, testResults, wordStats, distractorCount, includeConstruction });
+  }, [screen, blocks, blockIdx, roundOrder, roundPos, studyPhase, testQueue, testIdx, choiceQueue, choiceIdx, testResults, wordStats, words, distractorCount, includeConstruction]);
 
   function markStat(furigana, fails) {
     setWordStats(prev => {
@@ -855,6 +926,7 @@ function App() {
   function resetAll() {
     clearAll();
     setDbText(""); setWordDose(10);
+    setDistractorCount(2); setIncludeConstruction(true);
     setWords([]); setBlocks([]); setBlockIdx(0); setRoundOrder([]); setRoundPos(0); setStudyPhase(1);
     setTestQueue([]); setTestIdx(0); setChoiceQueue([]); setChoiceIdx(0); setTestResults({});
     setWordStats({});
@@ -870,10 +942,12 @@ function App() {
       setRoundPos(p => p + 1);
       return;
     }
-    if (studyPhase < 4) {
+    const studyPhases = includeConstruction ? [1, 2, 3, 4] : [1, 2, 4];
+    const phaseIndex = studyPhases.indexOf(studyPhase);
+    if (phaseIndex >= 0 && phaseIndex + 1 < studyPhases.length) {
       setRoundOrder(shuffle(block.map((_, i) => i)));
       setRoundPos(0);
-      setStudyPhase(sp => sp + 1);
+      setStudyPhase(studyPhases[phaseIndex + 1]);
       return;
     }
     afterBlockComplete();
@@ -931,7 +1005,7 @@ function App() {
 
   // ---- RENDER ----
   if (screen === 'config') {
-    return <ConfigScreen dbText={dbText} setDbText={setDbText} wordDose={wordDose} setWordDose={setWordDose} onStart={startSession} onReset={resetAll} />;
+    return <ConfigScreen dbText={dbText} setDbText={setDbText} wordDose={wordDose} setWordDose={setWordDose} distractorCount={distractorCount} setDistractorCount={setDistractorCount} includeConstruction={includeConstruction} setIncludeConstruction={setIncludeConstruction} onStart={startSession} onReset={resetAll} />;
   }
 
   if (screen === 'blockDone') {
@@ -955,13 +1029,13 @@ function App() {
         <div style={{ padding: "12px 20px 0" }}>
           <ProgressBar current={roundPos + 1} total={roundOrder.length} />
           <div style={{ fontSize: 10, color: C.textDim, marginTop: 4 }}>
-            Bloque {blockIdx + 1}/{blocks.length} · Ronda {roundNames[studyPhase]} ({studyPhase}/4) · Palabra {roundPos + 1}/{roundOrder.length}
+            Bloque {blockIdx + 1}/{blocks.length} · Ronda {roundNames[studyPhase]} ({(includeConstruction ? [1, 2, 3, 4] : [1, 2, 4]).indexOf(studyPhase) + 1}/{includeConstruction ? 4 : 3}) · Palabra {roundPos + 1}/{roundOrder.length}
           </div>
         </div>
         <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
           {studyPhase === 1 && <ExposicionEx key={`e-${blockIdx}-${idx}`} word={word} onNext={() => nextStudyStep()} />}
-          {studyPhase === 2 && <ReconocimientoEx key={`r-${blockIdx}-${idx}`} word={word} blockWords={block} globalWords={words} onNext={onRecognitionResult} />}
-          {studyPhase === 3 && <ConstruccionEx key={`c-${blockIdx}-${idx}`} word={word} onNext={fails => nextStudyStep(fails)} />}
+          {studyPhase === 2 && <ReconocimientoEx key={`r-${blockIdx}-${idx}`} word={word} blockWords={block} globalWords={words} distractorCount={distractorCount} onNext={onRecognitionResult} />}
+          {studyPhase === 3 && includeConstruction && <ConstruccionEx key={`c-${blockIdx}-${idx}`} word={word} onNext={fails => nextStudyStep(fails)} />}
           {studyPhase === 4 && <EscrituraEx key={`w-${blockIdx}-${idx}`} word={word} onNext={fails => nextStudyStep(fails)} />}
         </div>
       </div>
